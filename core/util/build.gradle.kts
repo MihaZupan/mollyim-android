@@ -21,7 +21,7 @@ dependencies {
   implementation(libs.jackson.core)
   implementation(libs.jackson.module.kotlin)
   implementation(libs.google.libphonenumber)
-  implementation(libs.google.play.services.base)
+  testImplementation(libs.androidx.sqlite.framework)
 
   testImplementation(testLibs.junit.junit)
   testImplementation(testLibs.assertk)
