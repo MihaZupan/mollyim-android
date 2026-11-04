@@ -90,6 +90,7 @@ class RegistrationUtilTest {
   fun maybeMarkRegistrationComplete_missingData() {
     every { signalStore.registration.isRegistrationComplete } returns false
     every { signalStore.account.isRegistered } returns false
+    every { signalStore.account.isLinkedDevice } returns false
 
     RegistrationUtil.maybeMarkRegistrationComplete()
 

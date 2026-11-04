@@ -257,14 +257,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
       Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
     }
 
-    override fun onActivatePaymentsClicked() {
-      Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onSendPaymentClicked(recipientId: RecipientId) {
-      Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
-    }
-
     override fun onScheduledIndicatorClicked(view: View, conversationMessage: ConversationMessage) {
       Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
     }
@@ -272,14 +264,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
     override fun onUrlClicked(url: String): Boolean {
       Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
       return true
-    }
-
-    override fun onViewGiftBadgeClicked(messageRecord: MessageRecord) {
-      Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onGiftBadgeRevealed(messageRecord: MessageRecord) {
-      Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
     }
 
     override fun goToMediaPreview(parent: ConversationItem?, sharedElement: View?, args: MediaIntentFactory.MediaPreviewArgs?) {
@@ -307,10 +291,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
     }
 
     override fun onItemDoubleClick(item: MultiselectPart) {
-      Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onPaymentTombstoneClicked() {
       Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
     }
 

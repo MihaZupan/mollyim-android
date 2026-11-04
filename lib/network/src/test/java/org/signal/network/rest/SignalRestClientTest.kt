@@ -10,6 +10,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isSameInstanceAs
 import kotlinx.coroutines.runBlocking
+import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -31,8 +32,10 @@ import org.whispersystems.signalservice.internal.configuration.SignalStorageUrl
 import org.whispersystems.signalservice.internal.configuration.SignalSvr2Url
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.net.ProxySelector
 import java.util.Optional
 import java.util.Random
+import javax.net.SocketFactory
 
 class SignalRestClientTest {
 
@@ -174,9 +177,9 @@ class SignalRestClientTest {
       signalCdsiUrls = emptyArray<SignalCdsiUrl>(),
       signalSvr2Urls = emptyArray<SignalSvr2Url>(),
       networkInterceptors = emptyList(),
-      dns = Optional.empty(),
-      signalProxy = Optional.empty(),
-      systemHttpProxy = Optional.empty(),
+      dns = Dns.SYSTEM,
+      socketFactory = SocketFactory.getDefault(),
+      proxySelector = ProxySelector.getDefault(),
       zkGroupServerPublicParams = ByteArray(0),
       genericServerPublicParams = ByteArray(0),
       backupServerPublicParams = ByteArray(0),
