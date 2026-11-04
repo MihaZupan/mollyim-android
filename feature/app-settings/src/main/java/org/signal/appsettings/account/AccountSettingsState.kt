@@ -6,6 +6,7 @@
 package org.signal.appsettings.account
 
 data class AccountSettingsState(
+  val isLinkedDevice: Boolean = false,
   val hasPin: Boolean = false,
   val hasRestoredAep: Boolean = false,
   val pinRemindersEnabled: Boolean = false,
@@ -13,6 +14,7 @@ data class AccountSettingsState(
   val userUnregistered: Boolean = false,
   val clientDeprecated: Boolean = false,
   val canTransferWhileUnregistered: Boolean = true,
+  val canTransferWhileLinked: Boolean = false,
   val isPhoneNumberless: Boolean = false,
   val arePasskeysSupported: Boolean = false,
   val signalLogin: SignalLogin? = null,
@@ -21,6 +23,9 @@ data class AccountSettingsState(
 
   val isNotDeprecatedOrUnregistered: Boolean
     get() = !(userUnregistered || clientDeprecated)
+
+  val canTransferAccount: Boolean
+    get() = if (isLinkedDevice) canTransferWhileLinked else canTransferWhileUnregistered || isNotDeprecatedOrUnregistered
 
   /**
    * The Signal Login and two-factor authentication sections, which only exist for phone-numberless accounts. Null means

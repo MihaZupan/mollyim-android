@@ -110,7 +110,8 @@ object AccountSettingsTestTags {
 @Composable
 fun AccountSettingsScreen(
   state: AccountSettingsState,
-  onEvent: (AccountSettingsEvent) -> Unit
+  onEvent: (AccountSettingsEvent) -> Unit,
+  linkedDevicePinMessage: String? = null
 ) {
   Scaffolds.Settings(
     title = stringResource(R.string.AccountSettingsFragment__account),
@@ -121,7 +122,7 @@ fun AccountSettingsScreen(
       scaffoldPadding = contentPadding,
       modifier = Modifier.testTag(AccountSettingsTestTags.SCROLLER)
     ) {
-      if (state.signalLogin != null) {
+      if (state.signalLogin != null && !state.isLinkedDevice) {
         item {
           Texts.SectionHeader(
             text = stringResource(R.string.AccountSettingsFragment__signal_login),
@@ -207,7 +208,17 @@ fun AccountSettingsScreen(
         }
       }
 
-      if (!state.isPhoneNumberless) {
+      if (state.isLinkedDevice) {
+        linkedDevicePinMessage?.let { message ->
+          item { Rows.TextRow(text = message) }
+        }
+        item {
+          Rows.TextRow(
+            text = stringResource(CoreUiR.string.LearnMoreTextView_learn_more),
+            onClick = { onEvent(AccountSettingsEvent.LinkedDeviceLearnMoreClicked) }
+          )
+        }
+      } else if (!state.isPhoneNumberless) {
         item {
           Texts.SectionHeader(
             text = stringResource(R.string.preferences_app_protection__signal_pin)
@@ -223,7 +234,7 @@ fun AccountSettingsScreen(
 
           Rows.TextRow(
             text = stringResource(textId),
-            enabled = state.isNotDeprecatedOrUnregistered,
+            enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
             onClick = { onEvent(AccountSettingsEvent.ModifyPinClicked) },
             modifier = Modifier.testTag(AccountSettingsTestTags.ROW_MODIFY_PIN)
           )
@@ -275,7 +286,7 @@ fun AccountSettingsScreen(
         item {
           Rows.TextRow(
             text = stringResource(R.string.AccountSettingsFragment__change_phone_number),
-            enabled = state.isNotDeprecatedOrUnregistered,
+            enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
             onClick = { onEvent(AccountSettingsEvent.ChangePhoneNumberClicked) },
             modifier = Modifier.testTag(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER)
           )
@@ -286,7 +297,7 @@ fun AccountSettingsScreen(
         Rows.TextRow(
           text = stringResource(R.string.preferences_chats__transfer_account),
           label = stringResource(R.string.preferences_chats__transfer_account_to_a_new_android_device),
-          enabled = state.canTransferWhileUnregistered || state.isNotDeprecatedOrUnregistered,
+          enabled = state.canTransferAccount,
           onClick = { onEvent(AccountSettingsEvent.TransferAccountClicked) },
           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
         )
@@ -299,6 +310,16 @@ fun AccountSettingsScreen(
           onClick = { onEvent(AccountSettingsEvent.RequestAccountDataClicked) },
           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_REQUEST_ACCOUNT_DATA)
         )
+      }
+
+      if (state.isLinkedDevice && state.isNotDeprecatedOrUnregistered) {
+        item {
+          Rows.TextRow(
+            text = stringResource(R.string.preferences_account_delete_all_data),
+            onClick = { onEvent(AccountSettingsEvent.DeleteAllDataClicked) },
+            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_DELETE_ALL_DATA)
+          )
+        }
       }
 
       if (!state.isNotDeprecatedOrUnregistered) {
@@ -336,7 +357,7 @@ fun AccountSettingsScreen(
       }
 
       item {
-        val textColor = if (state.isNotDeprecatedOrUnregistered) {
+        val textColor = if (state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice) {
           SignalTheme.colors.colorAlert
         } else {
           SignalTheme.colors.colorAlertDisabled
@@ -349,7 +370,7 @@ fun AccountSettingsScreen(
               color = textColor
             )
           },
-          enabled = state.isNotDeprecatedOrUnregistered,
+          enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
           onClick = { onEvent(AccountSettingsEvent.DeleteAccountClicked) },
           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_DELETE_ACCOUNT)
         )

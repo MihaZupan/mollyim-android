@@ -852,7 +852,7 @@ class RegistrationRepository(
    * See [NetworkController.startLinkDeviceProvisioning].
    */
   fun startLinkDeviceProvisioning(): Flow<NetworkController.LinkDeviceProvisioningEvent> = flow {
-    emitAll(networkController.startLinkDeviceProvisioning(allowLinkAndSync = isCleanStart()))
+    emitAll(networkController.startLinkDeviceProvisioning(allowLinkAndSync = isLinkAndSyncAvailable && isCleanStart()))
   }
 
   /**
@@ -890,6 +890,7 @@ class RegistrationRepository(
       }
     }
 
+    val allowLinkAndSync = isLinkAndSyncAvailable && isCleanStart()
     val e164 = phoneNumberData?.e164
     val accountEntropyPool = AccountEntropyPool(message.accountEntropyPool)
     val aci = ACI.parseOrThrow(message.aci)
@@ -985,7 +986,7 @@ class RegistrationRepository(
         this.linkedDeviceData = LinkedDeviceData(
           deviceId = result.result.deviceId.toInt(),
           deviceName = deviceName,
-          ephemeralBackupKey = message.ephemeralBackupKey,
+          ephemeralBackupKey = message.ephemeralBackupKey.takeIf { allowLinkAndSync },
           mediaRootBackupKey = message.mediaRootBackupKey,
           readReceipts = message.readReceipts
         )
@@ -999,7 +1000,7 @@ class RegistrationRepository(
       networkController.onLinkedDeviceRegistered()
     }
 
-    result.map { LinkedDeviceResult(hasLinkAndSyncBackup = message.ephemeralBackupKey != null) }
+    result.map { LinkedDeviceResult(hasLinkAndSyncBackup = allowLinkAndSync && message.ephemeralBackupKey != null) }
   }
 
   /**
@@ -1008,7 +1009,7 @@ class RegistrationRepository(
    */
   fun restoreLinkAndSyncBackup(): Flow<LinkAndSyncProgress> = flow {
     emit(LinkAndSyncProgress.Waiting)
-    when (val result = networkController.awaitLinkAndSyncArchive()) {
+    when (val result = awaitLinkAndSyncArchive()) {
       is LinkAndSyncWaitResult.ArchiveAvailable -> emitAll(storageController.restoreLinkAndSyncBackup(result.cdn, result.key))
       LinkAndSyncWaitResult.ContinueWithoutBackup -> {
         Log.w(TAG, "[restoreLinkAndSyncBackup] Primary declined to provide a backup; continuing without one.")
@@ -1025,6 +1026,9 @@ class RegistrationRepository(
    * Waits for the primary to make a link-and-sync archive available.
    */
   suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = withContext(Dispatchers.IO) {
+    if (!isLinkAndSyncAvailable) {
+      return@withContext LinkAndSyncWaitResult.ContinueWithoutBackup
+    }
     val ephemeralBackupKey = storageController.readInProgressRegistrationData().accountData?.linkedDeviceData?.ephemeralBackupKey
     if (ephemeralBackupKey == null) {
       Log.i(TAG, "[awaitLinkAndSyncArchive] No ephemeral backup key in registration data; no archive expected.")

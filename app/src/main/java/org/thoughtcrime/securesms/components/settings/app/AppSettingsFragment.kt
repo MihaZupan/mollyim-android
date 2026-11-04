@@ -13,20 +13,14 @@ import org.signal.core.ui.compose.ComposeFragment
 import org.signal.core.util.collectFlowOnViewLifecycle
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.components.settings.app.subscription.completed.InAppPaymentsBottomSheetDelegate
-import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.util.navigation.safeNavigate
 
-/**
- * Fragment host for [AppSettingsEntry] until app settings moves to Nav3. Only translates routes into the nav graph.
- */
 class AppSettingsFragment : ComposeFragment() {
-
   private val appSettingsRouter by viewModels<AppSettingsRouter>()
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
     viewLifecycleOwner.lifecycle.addObserver(InAppPaymentsBottomSheetDelegate(childFragmentManager, viewLifecycleOwner))
-
     collectFlowOnViewLifecycle(appSettingsRouter.events, Lifecycle.State.RESUMED) { event ->
       when (event) {
         AppSettingsNavigationEvent.NavigateBack -> requireActivity().finishAfterTransition()
@@ -43,11 +37,7 @@ class AppSettingsFragment : ComposeFragment() {
   private fun navigateToScreen(route: AppSettingsRoute) {
     when (route) {
       is AppSettingsRoute.BackupsRoute.Remote -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_remoteBackupsSettingsFragment)
-      is AppSettingsRoute.AccountRoute.Account -> if (SignalStore.account.isPrimaryDevice) {
-        findNavController().safeNavigate(R.id.action_appSettingsFragment_to_accountSettingsFragment)
-      } else {
-        findNavController().safeNavigate(R.id.action_appSettingsFragment_to_linkedDeviceAccountSettingsFragment)
-      }
+      is AppSettingsRoute.AccountRoute.Account -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_accountSettingsFragment)
       is AppSettingsRoute.LinkDeviceRoute.LinkDevice -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_linkDeviceFragment)
       is AppSettingsRoute.DonationsRoute.Donations -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_manageDonationsFragment)
       is AppSettingsRoute.AppearanceRoute.Appearance -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_appearanceSettingsFragment)
@@ -57,6 +47,7 @@ class AppSettingsFragment : ComposeFragment() {
       is AppSettingsRoute.PrivacyRoute.Privacy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_privacySettingsFragment)
       is AppSettingsRoute.BackupsRoute.Backups -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_backupsSettingsFragment)
       is AppSettingsRoute.DataAndStorageRoute.DataAndStorage -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_dataAndStorageSettingsFragment)
+      is AppSettingsRoute.DataAndStorageRoute.Proxy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_networkPreferenceFragment)
       is AppSettingsRoute.AppUpdates -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_appUpdatesSettingsFragment)
       is AppSettingsRoute.Payments -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_paymentsActivity)
       is AppSettingsRoute.HelpRoute.Settings -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_helpSettingsFragment)

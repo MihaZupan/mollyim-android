@@ -110,6 +110,7 @@ import org.thoughtcrime.securesms.registration.util.RegistrationUtil
 import org.thoughtcrime.securesms.registration.viewmodel.SvrAuthCredentialSet
 import org.thoughtcrime.securesms.util.Environment
 import org.thoughtcrime.securesms.util.RemoteConfig
+import org.thoughtcrime.securesms.util.TextSecurePreferences
 import org.whispersystems.signalservice.api.SvrNoDataException
 import org.whispersystems.signalservice.api.link.TransferArchiveResponse
 import org.whispersystems.signalservice.api.provisioning.ProvisioningSocket
@@ -136,13 +137,23 @@ import org.whispersystems.signalservice.api.account.AccountAttributes as Service
  */
 class AppRegistrationNetworkController(
   private val context: Context,
-  private val registrationApi: RegistrationApiV2
+  private val api: RegistrationApiV2
 ) : NetworkController {
+
+  private val registrationApi: RegistrationApiV2 by lazy {
+    enableNetwork()
+    api
+  }
 
   companion object {
     private val TAG = Log.tag(AppRegistrationNetworkController::class)
     private val PUSH_REQUEST_TIMEOUT = 5.seconds.inWholeMilliseconds
     private val RETRY_BACKOFF = 5.seconds
+  }
+
+  private fun enableNetwork() {
+    TextSecurePreferences.setHasSeenNetworkConfig(context, true)
+    AppDependencies.networkManager.setNetworkEnabled(true)
   }
 
   override suspend fun createSession(
@@ -592,6 +603,7 @@ class AppRegistrationNetworkController(
   }
 
   override fun startProvisioning(): Flow<ProvisioningEvent> = callbackFlow {
+    enableNetwork()
     val socketHandles = mutableListOf<Closeable>()
     val configuration = AppDependencies.signalServiceNetworkAccess.getConfiguration()
 
@@ -684,6 +696,7 @@ class AppRegistrationNetworkController(
   }
 
   override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = callbackFlow {
+    enableNetwork()
     val socketHandles = mutableListOf<Closeable>()
     val configuration = AppDependencies.signalServiceNetworkAccess.getConfiguration()
 

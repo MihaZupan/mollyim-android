@@ -500,7 +500,9 @@ class FakeNetworkController(
     return onStartProvisioning()
   }
 
-  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = notExpected()
+  var onStartLinkDeviceProvisioning: (Boolean) -> Flow<LinkDeviceProvisioningEvent> = { notExpected() }
+
+  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = onStartLinkDeviceProvisioning(allowLinkAndSync)
 
   override suspend fun registerAsLinkedDevice(
     aci: ACI,
@@ -515,11 +517,17 @@ class FakeNetworkController(
     return onRegisterAsLinkedDevice(deviceAttributes)
   }
 
-  override suspend fun onLinkedDeviceRegistered() = notExpected()
+  var onLinkedDeviceRegisteredHandler: suspend () -> Unit = { notExpected() }
 
-  override suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = notExpected()
+  override suspend fun onLinkedDeviceRegistered() = onLinkedDeviceRegisteredHandler()
 
-  override suspend fun restoreLinkedDeviceFromStorageService() = notExpected()
+  var onAwaitLinkAndSyncArchive: suspend () -> LinkAndSyncWaitResult = { notExpected() }
+
+  override suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = onAwaitLinkAndSyncArchive()
+
+  var onRestoreLinkedDeviceFromStorageService: suspend () -> Unit = { notExpected() }
+
+  override suspend fun restoreLinkedDeviceFromStorageService() = onRestoreLinkedDeviceFromStorageService()
 
   override fun startNewDeviceTransferServer(context: android.content.Context, aep: AccountEntropyPool) = notExpected()
 

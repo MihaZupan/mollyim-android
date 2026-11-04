@@ -56,6 +56,14 @@ class AppSettingsScreenTest {
   }
 
   @Test
+  fun `linked role suppresses primary-only home rows even during a role transition`() {
+    setContent(createState(showPayments = true).copy(isLinkedDevice = true))
+
+    composeTestRule.onNodeWithTag(AppSettingsTestTags.ROW_LINKED_DEVICES).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(AppSettingsTestTags.ROW_PAYMENTS).assertDoesNotExist()
+  }
+
+  @Test
   fun `clicking the profile emits ProfileClicked`() {
     setContent(createState())
 

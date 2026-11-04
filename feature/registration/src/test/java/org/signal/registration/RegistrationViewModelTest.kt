@@ -19,11 +19,13 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -240,6 +242,32 @@ class RegistrationViewModelTest {
   }
 
   // ==================== Persistence Side-Effect Tests ====================
+
+  @Test
+  fun `linked and primary completion wait for scratch cleanup before exposing the terminal route`() = runTest(testDispatcher) {
+    val completionEvents = listOf(
+      RegistrationFlowEvent.NavigateToScreen(RegistrationRoute.FullyComplete),
+      RegistrationFlowEvent.RegistrationComplete,
+    )
+    for (event in completionEvents) {
+      val cleanup = CompletableDeferred<Unit>()
+      coEvery { mockRepository.clearInProgressRegistrationData() } coAnswers { cleanup.await() }
+      val initialRoute = RegistrationRoute.LinkAccount()
+      val viewModel = RegistrationViewModel(mockRepository, SavedStateHandle(), startDestination = initialRoute)
+
+      try {
+        viewModel.onEvent(event)
+        runCurrent()
+
+        assertThat(viewModel.state.value.backStack.last()).isEqualTo(initialRoute)
+      } finally {
+        cleanup.complete(Unit)
+      }
+      advanceUntilIdle()
+
+      assertThat(viewModel.state.value.backStack.last()).isEqualTo(RegistrationRoute.FullyComplete)
+    }
+  }
 
   @Test
   fun `onEvent ResetState clears flow state`() = runTest(testDispatcher) {

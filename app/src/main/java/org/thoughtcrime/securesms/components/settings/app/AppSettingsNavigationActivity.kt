@@ -73,6 +73,7 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
             registerAppearanceRoutes(router::onEvent)
             registerChatsRoutes(router::onEvent)
             registerNotificationsRoutes()
+            registerRoleSettingsRoutes(router::onEvent)
             registerPrivacyRoutes(router::onEvent)
 
             // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.

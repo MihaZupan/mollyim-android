@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -54,10 +55,11 @@ class AppSettingsViewModelTest {
   val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
 
   private val profile = MutableStateFlow(AppSettingsState.Profile(name = "Miles Morales"))
-  private val unreadPaymentsCount = MutableStateFlow(0)
   private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
 
   private var isPrimaryDevice = true
+  private var isLinkedDevice = false
+  private var linkedDeviceCount: Int? = null
   private var userUnregistered = false
   private var backupFailureState = BackupFailureState.NONE
 
@@ -67,13 +69,15 @@ class AppSettingsViewModelTest {
     mockkObject(AppSettingsRepository)
 
     every { AppSettingsRepository.observeProfile() } returns profile
-    every { AppSettingsRepository.observeUnreadPaymentsCount() } returns unreadPaymentsCount
+    every { AppSettingsRepository.observeUnreadPaymentsCount() } returns flowOf(0)
     every { AppSettingsRepository.isPrimaryDevice() } answers { isPrimaryDevice }
+    every { AppSettingsRepository.isLinkedDevice() } answers { isLinkedDevice }
+    coEvery { AppSettingsRepository.getLinkedDeviceCount() } answers { linkedDeviceCount }
     every { AppSettingsRepository.isUserUnregistered() } answers { userUnregistered }
     every { AppSettingsRepository.isClientDeprecated() } returns false
     every { AppSettingsRepository.hasExpiredGiftBadge() } returns false
     every { AppSettingsRepository.showInternalPreferences() } returns false
-    every { AppSettingsRepository.showPayments() } returns true
+    every { AppSettingsRepository.showPayments() } returns false
     every { AppSettingsRepository.showAppUpdates() } returns false
     every { AppSettingsRepository.likelyCanManageDonations() } returns false
     coEvery { AppSettingsRepository.canManageDonations() } returns null
@@ -91,42 +95,44 @@ class AppSettingsViewModelTest {
 
   @Test
   fun `initial state is read out of the repository`() = runTest(testDispatcher) {
-    unreadPaymentsCount.value = 3
-
     val state = createViewModel().state.value
 
     assertThat(state.profile).isEqualTo(profile.value)
-    assertThat(state.unreadPaymentsCount).isEqualTo(3)
+    assertThat(state.unreadPaymentsCount).isEqualTo(0)
     assertThat(state.isPrimaryDevice).isTrue()
-    assertThat(state.showPayments).isTrue()
+    assertThat(state.showPayments).isFalse()
     assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
   }
 
   @Test
-  fun `the fetched subscription decides whether donations can be managed`() = runTest(testDispatcher) {
+  fun `Molly does not fetch or enable new subscription management`() = runTest(testDispatcher) {
     coEvery { AppSettingsRepository.canManageDonations() } returns true
 
     val state = createViewModel().state.value
 
-    assertThat(state.allowUserToGoToDonationManagementScreen).isTrue()
+    assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
+    coVerify(exactly = 0) { AppSettingsRepository.canManageDonations() }
   }
 
   @Test
-  fun `a failed subscription fetch keeps the initial guess`() = runTest(testDispatcher) {
+  fun `an upstream donation capability hint cannot enable Molly subscriptions`() = runTest(testDispatcher) {
     every { AppSettingsRepository.likelyCanManageDonations() } returns true
 
     val state = createViewModel().state.value
 
-    assertThat(state.allowUserToGoToDonationManagementScreen).isTrue()
+    assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
   }
 
   @Test
-  fun `unread payments update as they arrive`() = runTest(testDispatcher) {
+  fun `stale PaymentsClicked cannot navigate even with an upstream visibility hint`() = runTest(testDispatcher) {
+    every { AppSettingsRepository.showPayments() } returns true
     val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
 
-    unreadPaymentsCount.value = 7
+    viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
 
-    assertThat(viewModel.state.value.unreadPaymentsCount).isEqualTo(7)
+    assertThat(navigationEvents).isEmpty()
+    assertThat(actions).isEmpty()
   }
 
   @Test
@@ -165,9 +171,9 @@ class AppSettingsViewModelTest {
     viewModel.onEvent(AppSettingsEvent.NotificationsClicked)
     viewModel.onEvent(AppSettingsEvent.PrivacyClicked)
     viewModel.onEvent(AppSettingsEvent.BackupsClicked)
+    viewModel.onEvent(AppSettingsEvent.NetworkClicked)
     viewModel.onEvent(AppSettingsEvent.DataAndStorageClicked)
     viewModel.onEvent(AppSettingsEvent.AppUpdatesClicked)
-    viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
     viewModel.onEvent(AppSettingsEvent.HelpClicked)
     viewModel.onEvent(AppSettingsEvent.InviteClicked)
     viewModel.onEvent(AppSettingsEvent.LabsClicked)
@@ -184,9 +190,9 @@ class AppSettingsViewModelTest {
       AppSettingsRoute.NotificationsRoute.Notifications,
       AppSettingsRoute.PrivacyRoute.Privacy,
       AppSettingsRoute.BackupsRoute.Backups(),
+      AppSettingsRoute.DataAndStorageRoute.Proxy,
       AppSettingsRoute.DataAndStorageRoute.DataAndStorage,
       AppSettingsRoute.AppUpdates,
-      AppSettingsRoute.Payments,
       AppSettingsRoute.HelpRoute.Settings(),
       AppSettingsRoute.Invite,
       AppSettingsRoute.LabsRoute.Labs,
@@ -195,15 +201,15 @@ class AppSettingsViewModelTest {
   }
 
   @Test
-  fun `DonateClicked opens donation management when the user can manage donations`() = runTest(testDispatcher) {
+  fun `DonateClicked keeps Molly external routing even with an upstream management hint`() = runTest(testDispatcher) {
     every { AppSettingsRepository.likelyCanManageDonations() } returns true
     val viewModel = createViewModel()
     val actions = collectActions(viewModel.actions)
 
     viewModel.onEvent(AppSettingsEvent.DonateClicked)
 
-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateToScreen(AppSettingsRoute.DonationsRoute.Donations()))
-    assertThat(actions).isEmpty()
+    assertThat(navigationEvents).isEmpty()
+    assertThat(actions).containsExactly(AppSettingsAction.OpenDonateUrl)
   }
 
   @Test
@@ -308,6 +314,22 @@ class AppSettingsViewModelTest {
 
     viewModel.onEvent(AppSettingsEvent.BackupWarningClicked)
 
+    assertThat(navigationEvents).isEmpty()
+  }
+
+  @Test
+  fun `home exposes the real linked count and clears it when the device becomes linked`() = runTest(testDispatcher) {
+    linkedDeviceCount = 3
+    val viewModel = createViewModel()
+    assertThat(viewModel.state.value.linkedDeviceCount).isEqualTo(3)
+
+    isPrimaryDevice = false
+    isLinkedDevice = true
+    viewModel.onEvent(AppSettingsEvent.ScreenResumed)
+    viewModel.onEvent(AppSettingsEvent.LinkedDevicesClicked)
+
+    assertThat(viewModel.state.value.isLinkedDevice).isTrue()
+    assertThat(viewModel.state.value.linkedDeviceCount).isEqualTo(null)
     assertThat(navigationEvents).isEmpty()
   }
 

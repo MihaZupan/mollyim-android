@@ -9,6 +9,7 @@ package org.signal.appsettings.account
  * Reminder that these events are logged, so don't include anything sensitive in the toString.
  */
 sealed interface AccountSettingsEvent {
+  data object LinkedDeviceLearnMoreClicked : AccountSettingsEvent
 
   /** The screen came back to the foreground, so everything we read out of storage may be stale. */
   data object ScreenResumed : AccountSettingsEvent
@@ -28,7 +29,7 @@ sealed interface AccountSettingsEvent {
   /** The user came back from the PIN creation flow having actually set a PIN. */
   data object PinCreated : AccountSettingsEvent
 
-  /** The user flipped the PIN reminders toggle. Turning them off requires confirming the PIN first. */
+  /** The user flipped Molly's PIN reminders toggle. */
   data class PinRemindersToggled(val enabled: Boolean) : AccountSettingsEvent
 
   /** The user typed in the PIN confirmation field. */

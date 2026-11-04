@@ -124,6 +124,10 @@ class LinkAccountViewModelTest {
     val viewModel = createViewModel()
     flow.emit(NetworkController.LinkDeviceProvisioningEvent.MessageReceived(message))
 
+    coVerify(exactly = 1) { mockRepository.restoreLinkedDeviceFromStorageService() }
+    coVerify(exactly = 0) { mockRepository.awaitLinkAndSyncArchive() }
+    coVerify(exactly = 0) { mockRepository.clearLocalDataAndRestart() }
+    assertThat(viewModel.state.value.isRegistering).isFalse()
     assertThat(emittedParentEvents).contains(RegistrationFlowEvent.NavigateToScreen(RegistrationRoute.FullyComplete))
   }
 

@@ -270,52 +270,9 @@ class RegistrationNavigationTest {
   }
 
   @Test
-  fun `when isLinkAndSyncAvailable is true on compact display, link device button is not shown`() {
+  fun `when link-and-sync is disabled on compact display, basic linking is reachable`() {
     // Given
-    every { mockRepository.isLinkAndSyncAvailable } returns true
-    val permissionsState = createMockPermissionsState()
-
-    composeTestRule.setContent {
-      SignalTheme {
-        RegistrationNavHost(
-          registrationViewModel = viewModel,
-          permissionsState = permissionsState
-        )
-      }
-    }
-
-    // Then - compact layout always uses the primary buttons regardless of the flag
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
-  }
-
-  @Test
-  @Config(qualifiers = "w800dp-h800dp-xhdpi")
-  fun `when isLinkAndSyncAvailable is true on medium display, link device button is not shown`() {
-    // Given
-    every { mockRepository.isLinkAndSyncAvailable } returns true
-    val permissionsState = createMockPermissionsState()
-
-    composeTestRule.setContent {
-      SignalTheme {
-        RegistrationNavHost(
-          registrationViewModel = viewModel,
-          permissionsState = permissionsState
-        )
-      }
-    }
-
-    // Then - medium layout always uses the primary buttons regardless of the flag
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
-  }
-
-  @Test
-  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
-  fun `when isLinkAndSyncAvailable is false, Welcome does not show the link device button`() {
-    // Given - relaxed mock returns false for isLinkAndSyncAvailable by default
+    every { mockRepository.isLinkAndSyncAvailable } returns false
     val permissionsState = createMockPermissionsState()
 
     composeTestRule.setContent {
@@ -328,9 +285,74 @@ class RegistrationNavigationTest {
     }
 
     // Then
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
+  }
+
+  @Test
+  @Config(qualifiers = "w800dp-h800dp-xhdpi")
+  fun `when link-and-sync is disabled on medium display, basic linking is reachable`() {
+    // Given
+    every { mockRepository.isLinkAndSyncAvailable } returns false
+    val permissionsState = createMockPermissionsState()
+
+    composeTestRule.setContent {
+      SignalTheme {
+        RegistrationNavHost(
+          registrationViewModel = viewModel,
+          permissionsState = permissionsState
+        )
+      }
+    }
+
+    // Then
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
+  }
+
+  @Test
+  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+  fun `when link-and-sync is disabled on expanded display, basic linking is reachable`() {
+    // Given
+    every { mockRepository.isLinkAndSyncAvailable } returns false
+    val permissionsState = createMockPermissionsState()
+
+    composeTestRule.setContent {
+      SignalTheme {
+        RegistrationNavHost(
+          registrationViewModel = viewModel,
+          permissionsState = permissionsState
+        )
+      }
+    }
+
+    // Then
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
+    Shadows.shadowOf(Looper.getMainLooper()).idle()
+    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
   }
 
   @Test

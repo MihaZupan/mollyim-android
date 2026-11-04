@@ -61,6 +61,8 @@ sealed interface AppSettingsEvent {
   /** The user tapped the data and storage row. */
   data object DataAndStorageClicked : AppSettingsEvent
 
+  data object NetworkClicked : AppSettingsEvent
+
   /** The user tapped the app updates row. */
   data object AppUpdatesClicked : AppSettingsEvent
 

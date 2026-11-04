@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -46,6 +47,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import okio.ByteString.Companion.toByteString
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -68,6 +74,7 @@ import org.signal.libsignal.net.RequestResult
 import org.signal.libsignal.protocol.IdentityKeyPair
 import org.signal.network.api.RegistrationApiV2.CheckSvrCredentialsResponse
 import org.signal.network.api.RegistrationApiV2.CreateLoginReceiptCredentialResult
+import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
 import org.signal.network.api.RegistrationApiV2.MfaFailureResponse
 import org.signal.network.api.RegistrationApiV2.RegisterAccountError
 import org.signal.network.api.RegistrationApiV2.RegistrationLockResponse
@@ -168,6 +175,72 @@ class RegistrationEndToEndTest {
   @After
   fun tearDown() {
     unmockkAll()
+  }
+
+  @Test
+  fun `fresh welcome linking completes without history transfer`() {
+    linkFreshInstallation(fromPhoneNumberEntry = false)
+  }
+
+  @Test
+  fun `fresh phone number menu linking completes without history transfer`() {
+    linkFreshInstallation(fromPhoneNumberEntry = true)
+  }
+
+  private fun linkFreshInstallation(fromPhoneNumberEntry: Boolean) {
+    val message = NetworkController.LinkDeviceProvisioningMessage(
+      provisioningCode = "synthetic-code",
+      aci = ACI.from(UUID.randomUUID()).toString(),
+      aciIdentityKeyPair = IdentityKeyPair.generate(),
+      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
+        e164 = E164,
+        pni = PNI.from(UUID.randomUUID()).toString(),
+        pniIdentityKeyPair = IdentityKeyPair.generate(),
+      ),
+      profileKey = ByteArray(32),
+      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
+      accountEntropyPool = AccountEntropyPool.generate().value,
+      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString(),
+      readReceipts = true,
+      authCredentialSalt = null,
+    )
+    var linkedCallbacks = 0
+    var storageRestores = 0
+    var registrationComplete = false
+    networkController.onStartLinkDeviceProvisioning = { allowHistory ->
+      assertFalse(allowHistory)
+      flowOf(NetworkController.LinkDeviceProvisioningEvent.MessageReceived(message))
+    }
+    networkController.onRegisterAsLinkedDevice = { RequestResult.Success(LinkDeviceResponse(deviceId = 2)) }
+    networkController.onLinkedDeviceRegisteredHandler = { linkedCallbacks++ }
+    networkController.onRestoreLinkedDeviceFromStorageService = { storageRestores++ }
+
+    launchRegistrationFlow(onRegistrationComplete = { registrationComplete = true })
+    if (fromPhoneNumberEntry) {
+      goToPhoneNumberEntry()
+      val context = ApplicationProvider.getApplicationContext<Application>()
+      composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
+      composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device)).performClick()
+    } else {
+      waitForTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
+      composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
+      waitForTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN)
+      composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
+    }
+
+    waitFor("basic linked registration to complete") { registrationComplete }
+
+    val committed = storageController.committedData
+    assertNotNull(committed)
+    assertTrue(committed!!.accountDataCommitted)
+    assertEquals(message.aci, committed.accountData?.aci)
+    assertEquals(2, committed.accountData?.linkedDeviceData?.deviceId)
+    assertNull(committed.accountData?.linkedDeviceData?.ephemeralBackupKey)
+    assertEquals(message.mediaRootBackupKey, committed.accountData?.linkedDeviceData?.mediaRootBackupKey)
+    assertEquals(1, linkedCallbacks)
+    assertEquals(1, storageRestores)
+    assertEquals(RestoreDecision.NEW_ACCOUNT, storageController.restoreDecision)
+    assertEquals(0, storageController.registrationFlowFinishedCount)
   }
 
   @Test

@@ -41,7 +41,7 @@ data class PhoneNumberEntryState(
   val isNumberPossible: Boolean = false,
   /** Whether the entered number is definitively invalid. A still-too-short number is not considered invalid, since the user may simply be mid-entry. */
   val isNumberInvalid: Boolean = false,
-  /** Gates whether the link device option is shown in the overflow menu. */
+  /** History-transfer capability, separate from fresh-setup secondary linking. */
   val isLinkAndSyncAvailable: Boolean = false,
   val isPhoneNumberlessRegistrationAvailable: Boolean = false
 ) {

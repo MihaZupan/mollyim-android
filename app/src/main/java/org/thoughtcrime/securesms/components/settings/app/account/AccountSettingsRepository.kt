@@ -10,6 +10,7 @@ import org.signal.core.models.MasterKey
 import org.signal.core.util.concurrent.SignalDispatchers
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.keyvalue.SignalStore
+import org.thoughtcrime.securesms.linkdevice.LinkDeviceRepository
 import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
 import org.thoughtcrime.securesms.megaphone.TwoFactorReminderSchedule
 import org.thoughtcrime.securesms.pin.SvrRepository
@@ -29,6 +30,16 @@ class AccountSettingsRepository(
   }
 
   fun hasPin(): Boolean = SignalStore.svr.hasPin() && !SignalStore.svr.hasOptedOut()
+
+  fun isLinkedDevice(): Boolean = SignalStore.account.isLinkedDevice
+
+  fun canTransferWhileUnregistered(): Boolean = true
+
+  fun canTransferWhileLinked(): Boolean = true
+
+  suspend fun unlinkSelf() {
+    withContext(SignalDispatchers.IO) { LinkDeviceRepository.removeDevice(SignalStore.account.deviceId) }
+  }
 
   fun hasRestoredAep(): Boolean = SignalStore.account.restoredAccountEntropyPool
 

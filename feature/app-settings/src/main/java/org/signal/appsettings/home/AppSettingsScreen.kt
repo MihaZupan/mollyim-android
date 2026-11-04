@@ -98,7 +98,9 @@ fun AppSettingsScreen(
   contentColor: Color = MaterialTheme.colorScheme.contentColorFor(containerColor).takeOrElse { MaterialTheme.colorScheme.onSurface },
   selectedRoute: AppSettingsRoute? = null,
   avatar: @Composable () -> Unit = {},
-  banner: @Composable () -> Unit = {}
+  banner: @Composable () -> Unit = {},
+  profileExtra: @Composable () -> Unit = {},
+  networkRow: @Composable (() -> Unit)? = null
 ) {
   LifecycleResumeEffect(Unit) {
     onEvent(AppSettingsEvent.ScreenResumed)
@@ -137,6 +139,7 @@ fun AppSettingsScreen(
               profile = state.profile,
               avatar = avatar,
               onEvent = onEvent,
+              extra = profileExtra,
               modifier = Modifier.selectionHighlight(selectedRoute.isProfile())
             )
           }
@@ -166,7 +169,7 @@ fun AppSettingsScreen(
           )
         }
 
-        if (state.isPrimaryDevice) {
+        if (state.isPrimaryDevice && !state.isLinkedDevice) {
           item {
             Rows.TextRow(
               text = stringResource(R.string.AppSettingsScreen__linked_devices),
@@ -287,6 +290,10 @@ fun AppSettingsScreen(
           )
         }
 
+        if (networkRow != null) {
+          item { networkRow() }
+        }
+
         item {
           Rows.TextRow(
             text = stringResource(R.string.preferences__data_and_storage),
@@ -311,7 +318,7 @@ fun AppSettingsScreen(
           }
         }
 
-        if (state.isPrimaryDevice && state.showPayments) {
+        if (state.isPrimaryDevice && !state.isLinkedDevice && state.showPayments) {
           item {
             Dividers.Default()
           }
@@ -488,6 +495,7 @@ private fun ProfileRow(
   profile: AppSettingsState.Profile,
   avatar: @Composable () -> Unit,
   onEvent: (AppSettingsEvent) -> Unit,
+  extra: @Composable () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val hasUsername = profile.username.isNotBlank()
@@ -553,6 +561,8 @@ private fun ProfileRow(
           )
         }
       }
+
+      extra()
     }
 
     if (hasUsername) {

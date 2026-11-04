@@ -6,7 +6,7 @@
 package org.signal.registration.screens.welcome
 
 data class WelcomeScreenState(
-  /** Gates whether the link device option is shown as the primary path on large devices. */
+  /** History-transfer capability, separate from fresh-setup secondary linking. */
   val isLinkAndSyncAvailable: Boolean = false,
   /**
    * Whether to offer the restore-or-transfer option. Hidden during a re-registration, and kept hidden until the parent

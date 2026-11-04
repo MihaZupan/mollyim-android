@@ -16,6 +16,8 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import okio.ByteString.Companion.toByteString
 import org.junit.Before
@@ -27,6 +29,7 @@ import org.signal.core.util.billing.OneTimePurchaseApi
 import org.signal.core.util.logging.Log
 import org.signal.libsignal.net.RequestResult
 import org.signal.libsignal.protocol.IdentityKeyPair
+import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
 import org.signal.network.api.RegistrationApiV2.RegisterAsLinkedDeviceError
 import org.signal.network.api.RegistrationApiV2.SvrCredentials
 import org.signal.registration.NetworkController.GetBackupInfoError
@@ -38,6 +41,8 @@ import org.signal.registration.fakes.FakeNetworkController
 import org.signal.registration.fakes.FakeStorageController
 import org.signal.registration.fakes.SystemOutLogger
 import org.signal.registration.proto.AccountData
+import org.signal.registration.proto.LinkedDeviceData
+import org.signal.registration.screens.messagesync.LinkAndSyncProgress
 import java.io.IOException
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -304,6 +309,99 @@ class RegistrationRepositoryTest {
   // ==================== registerAsLinkedDevice ====================
 
   @Test
+  fun `provisioning advertises history transfer only when enabled and clean`() = runTest {
+    for (enabled in listOf(false, true)) {
+      for (clean in listOf(false, true)) {
+        storageController.preExistingRegistrationData = if (clean) null else preExistingRegistrationData("+15551234567")
+        var advertised: Boolean? = null
+        networkController.onStartLinkDeviceProvisioning = {
+          advertised = it
+          emptyFlow()
+        }
+
+        linkingRepository(enabled).startLinkDeviceProvisioning().toList()
+
+        assertThat(advertised).isEqualTo(enabled && clean)
+      }
+    }
+  }
+
+  @Test
+  fun `disabled history transfer still commits a basic secondary account and ignores an unsolicited backup key`() = runTest {
+    assertLinkedRegistrationHistory(enabled = false, clean = true)
+  }
+
+  @Test
+  fun `enabled history transfer retains a backup key on a clean start`() = runTest {
+    assertLinkedRegistrationHistory(enabled = true, clean = true)
+  }
+
+  @Test
+  fun `enabled history transfer does not import over existing registration`() = runTest {
+    assertLinkedRegistrationHistory(enabled = true, clean = false)
+  }
+
+  private suspend fun assertLinkedRegistrationHistory(enabled: Boolean, clean: Boolean) {
+    storageController.preExistingRegistrationData = if (clean) null else preExistingRegistrationData("+15551234567")
+    val message = linkProvisioningMessage(
+      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
+        e164 = "+15551234567",
+        pni = PNI.from(UUID.randomUUID()).toString(),
+        pniIdentityKeyPair = IdentityKeyPair.generate(),
+      ),
+      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
+      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString(),
+    )
+    var linkedCallbackCount = 0
+    networkController.onRegisterAsLinkedDevice = { RequestResult.Success(LinkDeviceResponse(deviceId = 2)) }
+    networkController.onLinkedDeviceRegisteredHandler = { linkedCallbackCount++ }
+
+    val result = linkingRepository(enabled).registerAsLinkedDevice(message, "Secondary")
+
+    assertThat(result).isInstanceOf(RequestResult.Success::class)
+    assertThat((result as RequestResult.Success).result.hasLinkAndSyncBackup).isEqualTo(enabled && clean)
+    assertThat(storageController.committedData?.accountDataCommitted).isEqualTo(true)
+    val account = storageController.committedData!!.accountData!!
+    assertThat(account.aci).isEqualTo(message.aci)
+    assertThat(account.aciIdentityKeyPair).isEqualTo(message.aciIdentityKeyPair.serialize().toByteString())
+    assertThat(account.linkedDeviceData?.deviceId).isEqualTo(2)
+    assertThat(account.linkedDeviceData?.ephemeralBackupKey).isEqualTo(message.ephemeralBackupKey.takeIf { enabled && clean })
+    assertThat(account.linkedDeviceData?.mediaRootBackupKey).isEqualTo(message.mediaRootBackupKey)
+    assertThat(linkedCallbackCount).isEqualTo(1)
+  }
+
+  @Test
+  fun `disabled history transfer cannot resume an archive wait or restore from persisted metadata`() = runTest {
+    storePendingHistoryKey()
+
+    assertThat(repository.awaitLinkAndSyncArchive()).isEqualTo(LinkAndSyncWaitResult.ContinueWithoutBackup)
+    assertThat(repository.restoreLinkAndSyncBackup().toList()).isEqualTo(listOf(LinkAndSyncProgress.Waiting, LinkAndSyncProgress.Complete))
+  }
+
+  @Test
+  fun `enabled history transfer can still await a persisted archive`() = runTest {
+    storePendingHistoryKey()
+    val archive = LinkAndSyncWaitResult.ArchiveAvailable(cdn = 3, key = "archive-key")
+    networkController.onAwaitLinkAndSyncArchive = { archive }
+
+    assertThat(linkingRepository(enabled = true).awaitLinkAndSyncArchive()).isEqualTo(archive)
+  }
+
+  private suspend fun storePendingHistoryKey() {
+    storageController.updateInProgressRegistrationData {
+      accountData = AccountData(linkedDeviceData = LinkedDeviceData(ephemeralBackupKey = ByteArray(32) { 1 }.toByteString()))
+    }
+  }
+
+  private fun linkingRepository(enabled: Boolean) = RegistrationRepository(
+    context = mockk<Context>(relaxed = true),
+    networkController = networkController,
+    storageController = storageController,
+    isLinkAndSyncAvailable = enabled,
+    signalLoginPurchaseApi = OneTimePurchaseApi.Empty,
+  )
+
+  @Test
   fun `registerAsLinkedDevice advertises the optional phone number capability when the primary has no phone number`() = runTest {
     networkController.onRegisterAsLinkedDevice = { RequestResult.NonSuccess(RegisterAsLinkedDeviceError.MissingCapability) }
 
@@ -364,16 +462,20 @@ class RegistrationRepositoryTest {
     assertThat(committed.accountEntropyPool).isNotEqualTo(aep.value)
   }
 
-  private fun linkProvisioningMessage(phoneNumberData: NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData?): NetworkController.LinkDeviceProvisioningMessage {
+  private fun linkProvisioningMessage(
+    phoneNumberData: NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData?,
+    ephemeralBackupKey: okio.ByteString? = null,
+    mediaRootBackupKey: okio.ByteString? = null,
+  ): NetworkController.LinkDeviceProvisioningMessage {
     return NetworkController.LinkDeviceProvisioningMessage(
       provisioningCode = "code",
       aci = ACI.from(UUID.randomUUID()).toString(),
       aciIdentityKeyPair = IdentityKeyPair.generate(),
       phoneNumberData = phoneNumberData,
       profileKey = ByteArray(32),
-      ephemeralBackupKey = null,
+      ephemeralBackupKey = ephemeralBackupKey,
       accountEntropyPool = aep.value,
-      mediaRootBackupKey = null,
+      mediaRootBackupKey = mediaRootBackupKey,
       readReceipts = null,
       authCredentialSalt = null
     )

@@ -26,7 +26,6 @@ import org.signal.core.util.logging.Log
 import org.signal.libsignal.net.MfaKeyKind
 import org.signal.libsignal.net.RequestResult
 import org.signal.network.service.TwoFactorMethodService
-import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
 import org.thoughtcrime.securesms.lock.v2.SvrConstants
 import org.thoughtcrime.securesms.net.SignalNetwork
 import org.signal.network.service.TwoFactorMethodService.TwoFactorMethod as ServiceTwoFactorMethod
@@ -45,7 +44,14 @@ class AccountSettingsViewModel(
     private val TAG = Log.tag(AccountSettingsViewModel::class)
   }
 
-  private val _state = MutableStateFlow(AccountSettingsState(arePasskeysSupported = arePasskeysSupported))
+  private val _state = MutableStateFlow(
+    AccountSettingsState(
+      arePasskeysSupported = arePasskeysSupported,
+      isLinkedDevice = accountRepository.isLinkedDevice(),
+      canTransferWhileUnregistered = accountRepository.canTransferWhileUnregistered(),
+      canTransferWhileLinked = accountRepository.canTransferWhileLinked()
+    )
+  )
   private val _actions = Channel<AccountSettingsAction>(Channel.BUFFERED)
 
   val state: StateFlow<AccountSettingsState> = _state.asStateFlow()
@@ -56,6 +62,10 @@ class AccountSettingsViewModel(
   }
 
   override suspend fun processEvent(event: AccountSettingsEvent) {
+    if (accountRepository.isLinkedDevice() && event.requiresPrimary()) {
+      refresh()
+      return
+    }
     when (event) {
       AccountSettingsEvent.ScreenResumed -> {
         refresh()
@@ -131,7 +141,7 @@ class AccountSettingsViewModel(
         _actions.send(AccountSettingsAction.NavigateToChangePhoneNumber)
       }
       AccountSettingsEvent.TransferAccountClicked -> {
-        _actions.send(AccountSettingsAction.NavigateToDeviceTransfer)
+        if (_state.value.canTransferAccount) _actions.send(AccountSettingsAction.NavigateToDeviceTransfer)
       }
       AccountSettingsEvent.RequestAccountDataClicked -> {
         _actions.send(AccountSettingsAction.NavigateToExportAccountData)
@@ -140,13 +150,18 @@ class AccountSettingsViewModel(
         _actions.send(AccountSettingsAction.OpenPlayStore)
       }
       AccountSettingsEvent.ReRegisterClicked -> {
-        _actions.send(AccountSettingsAction.LaunchReRegistration)
+        _actions.send(if (accountRepository.isLinkedDevice()) AccountSettingsAction.LaunchReLinkDevice else AccountSettingsAction.LaunchReRegistration)
+      }
+      AccountSettingsEvent.LinkedDeviceLearnMoreClicked -> {
+        _actions.send(AccountSettingsAction.ShowLinkedDeviceLearnMore)
       }
       AccountSettingsEvent.DeleteAllDataClicked -> {
         _state.update { it.copy(dialog = Dialog.ConfirmDeleteAllData) }
       }
       AccountSettingsEvent.DeleteAllDataConfirmed -> {
+        if (_state.value.dialog != Dialog.ConfirmDeleteAllData) return
         _state.update { it.copy(dialog = Dialog.None) }
+        if (accountRepository.isLinkedDevice()) accountRepository.unlinkSelf()
         _actions.send(AccountSettingsAction.WipeAllData)
       }
       AccountSettingsEvent.DataWipeFailed -> {
@@ -165,13 +180,8 @@ class AccountSettingsViewModel(
   }
 
   private suspend fun applyPinRemindersToggled(enabled: Boolean) {
-    if (enabled) {
-      accountRepository.setPinRemindersEnabled(true)
-      refresh()
-    } else {
-      val keyboardType = accountRepository.getPinKeyboardType()
-      _state.update { it.copy(dialog = Dialog.ConfirmPinToDisableReminders(isAlphanumericKeyboard = keyboardType == PinKeyboardType.ALPHA_NUMERIC)) }
-    }
+    accountRepository.setPinRemindersEnabled(enabled)
+    refresh()
   }
 
   private suspend fun applyDisablePinRemindersConfirmed() {
@@ -245,9 +255,14 @@ class AccountSettingsViewModel(
 
   private suspend fun refresh() {
     val isPhoneNumberless = accountRepository.isPhoneNumberless()
+    val linked = accountRepository.isLinkedDevice()
 
     _state.update {
       it.copy(
+        isLinkedDevice = linked,
+        canTransferWhileUnregistered = accountRepository.canTransferWhileUnregistered(),
+        canTransferWhileLinked = accountRepository.canTransferWhileLinked(),
+        dialog = if (linked && !it.isLinkedDevice) Dialog.None else it.dialog,
         hasPin = accountRepository.hasPin(),
         hasRestoredAep = accountRepository.hasRestoredAep(),
         pinRemindersEnabled = accountRepository.arePinRemindersEnabled(),
@@ -256,11 +271,11 @@ class AccountSettingsViewModel(
         clientDeprecated = accountRepository.isClientDeprecated(),
         isPhoneNumberless = isPhoneNumberless,
         // Held onto across refreshes so a resume doesn't drop the list back to its loading state.
-        signalLogin = if (isPhoneNumberless) it.signalLogin ?: SignalLogin(maxTotpApps = accountRepository.getMaxTotpApps(), maxTwoFactorMethods = accountRepository.getMaxTwoFactorMethods()) else null
+        signalLogin = if (isPhoneNumberless && !linked) it.signalLogin ?: SignalLogin(maxTotpApps = accountRepository.getMaxTotpApps(), maxTwoFactorMethods = accountRepository.getMaxTwoFactorMethods()) else null
       )
     }
 
-    if (isPhoneNumberless) {
+    if (isPhoneNumberless && !linked) {
       refreshTwoFactorMethods()
     }
   }
@@ -308,6 +323,31 @@ class AccountSettingsViewModel(
       TwoFactorMethod.Kind.PASSKEY -> 1
       TwoFactorMethod.Kind.OTHER -> 2
     }
+  }
+
+  private fun AccountSettingsEvent.requiresPrimary(): Boolean = when (this) {
+    AccountSettingsEvent.ModifyPinClicked,
+    is AccountSettingsEvent.PinRemindersToggled,
+    is AccountSettingsEvent.PinEntryChanged,
+    AccountSettingsEvent.PinKeyboardToggled,
+    AccountSettingsEvent.DisablePinRemindersConfirmed,
+    is AccountSettingsEvent.RegistrationLockToggled,
+    AccountSettingsEvent.RegistrationLockConfirmed,
+    AccountSettingsEvent.AccountAndRecoveryClicked,
+    AccountSettingsEvent.SignalLoginDetailsAuthenticated,
+    AccountSettingsEvent.AddTotpAppClicked,
+    AccountSettingsEvent.AddTotpAppAuthenticated,
+    AccountSettingsEvent.AddPasskeyClicked,
+    AccountSettingsEvent.AddPasskeyAuthenticated,
+    is AccountSettingsEvent.RenameMethodClicked,
+    is AccountSettingsEvent.RemoveMethodClicked,
+    is AccountSettingsEvent.MethodRemovalAuthenticated,
+    is AccountSettingsEvent.RemoveMethodConfirmed,
+    AccountSettingsEvent.AdvancedPinSettingsClicked,
+    AccountSettingsEvent.ChangePhoneNumberClicked,
+    AccountSettingsEvent.DeleteAccountClicked,
+    AccountSettingsEvent.DeleteAccountAuthenticated -> true
+    else -> false
   }
 
   private fun canSubmit(pin: String): Boolean = pin.length >= SvrConstants.MINIMUM_PIN_LENGTH

@@ -75,6 +75,32 @@ class AccountSettingsScreenTest {
   }
 
   @Test
+  fun linkedRoleHidesPinAndMfaAndDoesNotEnablePrimaryAccountCapabilities() {
+    setContent(createState().copy(isLinkedDevice = true, signalLogin = AccountSettingsState.SignalLogin()))
+
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_MODIFY_PIN).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.CARD_SIGNAL_LOGIN).assertDoesNotExist()
+    scrollTo(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER)
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER).assertIsNotEnabled()
+    scrollTo(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT).assertIsNotEnabled()
+    scrollTo(AccountSettingsTestTags.ROW_DELETE_ALL_DATA)
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_DELETE_ALL_DATA).assertIsEnabled()
+    scrollTo(AccountSettingsTestTags.ROW_DELETE_ACCOUNT)
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_DELETE_ACCOUNT).assertIsNotEnabled()
+  }
+
+  @Test
+  fun mollyLinkedTransferFlagEnablesTheExistingTransferAction() {
+    setContent(createState().copy(isLinkedDevice = true, canTransferWhileLinked = true))
+
+    scrollTo(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
+    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT).assertIsEnabled().performClick()
+
+    assertThat(events).contains(AccountSettingsEvent.TransferAccountClicked)
+  }
+
+  @Test
   fun givenUserWithPin_whenPinReminderToggleClicked_thenIExpectToggleEvent() {
     setContent(createState(hasPin = true, pinRemindersEnabled = true))
 

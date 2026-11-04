@@ -91,8 +91,19 @@ class RegistrationViewModel(
   }
 
   override suspend fun processEvent(event: RegistrationFlowEvent) {
-    _state.value = applyEvent(_state.value, event)
-    persistFlowState(event)
+    val nextState = applyEvent(_state.value, event)
+    val completesRegistration = event is RegistrationFlowEvent.RegistrationComplete ||
+      event is RegistrationFlowEvent.NavigateToScreen &&
+      event.route is RegistrationRoute.FullyComplete
+
+    // Main must not see completion while scratch data still selects the registration-resume route.
+    if (completesRegistration) {
+      persistFlowState(event)
+    }
+    _state.value = nextState
+    if (!completesRegistration) {
+      persistFlowState(event)
+    }
   }
 
   suspend fun applyEvent(state: RegistrationFlowState, event: RegistrationFlowEvent): RegistrationFlowState {

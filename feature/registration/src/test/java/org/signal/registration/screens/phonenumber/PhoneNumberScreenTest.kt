@@ -10,9 +10,11 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -21,6 +23,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import assertk.assertThat
 import assertk.assertions.hasLength
+import assertk.assertions.isEqualTo
+import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +32,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.signal.core.ui.CoreUiDependenciesRule
 import org.signal.core.ui.compose.theme.SignalTheme
+import org.signal.registration.PreExistingRegistrationData
 import org.signal.registration.R
 import org.signal.registration.screens.shared.AccountIdFormat
 import org.signal.registration.test.TestTags
@@ -46,6 +51,51 @@ class PhoneNumberScreenTest {
   val coreUiDependenciesRule = CoreUiDependenciesRule(ApplicationProvider.getApplicationContext())
 
   private val context: Context = ApplicationProvider.getApplicationContext()
+
+  @Test
+  fun `fresh phone menu offers basic linking when history transfer is disabled`() {
+    assertFreshLinkMenu()
+  }
+
+  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+  @Test
+  fun `fresh two pane menu offers basic linking when history transfer is disabled`() {
+    assertFreshLinkMenu()
+  }
+
+  private fun assertFreshLinkMenu() {
+    var emittedEvent: PhoneNumberEntryScreenEvents? = null
+    composeTestRule.setContent {
+      SignalTheme {
+        PhoneNumberScreen(
+          state = PhoneNumberEntryState(initialized = true, isLinkAndSyncAvailable = false),
+          onEvent = { emittedEvent = it },
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
+    composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device))
+      .assertIsDisplayed()
+      .performClick()
+
+    assertThat(emittedEvent).isEqualTo(PhoneNumberEntryScreenEvents.LinkDevice)
+  }
+
+  @Test
+  fun `existing registration does not gain a basic linking menu entry`() {
+    composeTestRule.setContent {
+      SignalTheme {
+        PhoneNumberScreen(
+          state = PhoneNumberEntryState(initialized = true, preExistingRegistrationData = mockk<PreExistingRegistrationData>()),
+          onEvent = {},
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
+    composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device)).assertDoesNotExist()
+  }
 
   @Test
   fun `Next button is disabled when fields are empty`() {

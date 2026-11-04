@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +35,41 @@ class WelcomeScreenTest {
 
   @get:Rule
   val coreUiDependenciesRule = CoreUiDependenciesRule(ApplicationProvider.getApplicationContext())
+
+  @Test
+  fun `fresh phone setup can link without history transfer`() {
+    assertBasicLinkWithoutHistoryTransfer()
+  }
+
+  @Config(qualifiers = "w800dp-h1280dp-xhdpi")
+  @Test
+  fun `fresh portrait tablet setup can link without history transfer`() {
+    assertBasicLinkWithoutHistoryTransfer()
+  }
+
+  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+  @Test
+  fun `fresh landscape tablet setup can link without history transfer`() {
+    assertBasicLinkWithoutHistoryTransfer()
+  }
+
+  private fun assertBasicLinkWithoutHistoryTransfer() {
+    var emittedEvent: WelcomeScreenEvents? = null
+    composeTestRule.setContent {
+      SignalTheme {
+        WelcomeScreen(
+          state = WelcomeScreenState(isLinkAndSyncAvailable = false),
+          onEvent = { emittedEvent = it },
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
+      .assertIsDisplayed()
+      .performClick()
+
+    assertEquals(WelcomeScreenEvents.LinkDevice, emittedEvent)
+  }
 
   @Test
   fun `when Get Started is clicked, Continue event is emitted`() {
@@ -164,6 +200,7 @@ class WelcomeScreenTest {
     assert(composeTestRule.onAllNodesWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).fetchSemanticsNodes().isEmpty()) {
       "Expected no restore/transfer option during re-registration"
     }
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
   }
 
   @Test

@@ -10,7 +10,6 @@ import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import io.mockk.coEvery
@@ -53,7 +52,6 @@ class AccountSettingsViewModelTest {
 
   companion object {
     private const val CORRECT_PIN = "1234"
-    private const val INCORRECT_PIN = "9999"
 
     private val MASTER_KEY = MasterKey(ByteArray(32) { (it + 100).toByte() })
 
@@ -75,6 +73,10 @@ class AccountSettingsViewModelTest {
     Dispatchers.setMain(testDispatcher)
 
     every { repository.hasPin() } returns true
+    every { repository.isLinkedDevice() } returns false
+    every { repository.canTransferWhileUnregistered() } returns true
+    every { repository.canTransferWhileLinked() } returns true
+    coEvery { repository.unlinkSelf() } returns Unit
     every { repository.hasRestoredAep() } returns false
     every { repository.arePinRemindersEnabled() } returns true
     every { repository.isRegistrationLockEnabled() } returns false
@@ -140,84 +142,109 @@ class AccountSettingsViewModelTest {
   }
 
   @Test
-  fun `turning PIN reminders off asks for the PIN first`() = runTest(testDispatcher) {
+  fun `Molly turning PIN reminders off does not ask for a PIN`() = runTest(testDispatcher) {
     every { repository.getPinKeyboardType() } returns PinKeyboardType.ALPHA_NUMERIC
 
     val viewModel = createViewModel()
 
     viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
 
-    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.ConfirmPinToDisableReminders(isAlphanumericKeyboard = true))
-  }
-
-  @Test
-  fun `a correct PIN turns reminders off and closes the dialog`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-
-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(CORRECT_PIN))
-    viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
-
     verify { repository.setPinRemindersEnabled(false) }
+    verify(exactly = 0) { repository.verifyLocalPin(any()) }
     assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
   }
 
   @Test
-  fun `canSubmit only turns on once the PIN is long enough`() = runTest(testDispatcher) {
+  fun `obsolete reminder confirmation without a dialog does not mutate preferences`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
 
-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
-
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("123"))
-    assertThat((viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders).canSubmit).isFalse()
-
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("1234"))
-    assertThat((viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders).canSubmit).isTrue()
-  }
-
-  @Test
-  fun `an incorrect PIN leaves the dialog up with an error`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-
-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(INCORRECT_PIN))
+    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(CORRECT_PIN))
     viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
 
     verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
-
-    val dialog = viewModel.state.value.dialog
-    assertThat(dialog).isInstanceOf(Dialog.ConfirmPinToDisableReminders::class)
-    assertThat((dialog as Dialog.ConfirmPinToDisableReminders).incorrectPin).isTrue()
+    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
   }
 
   @Test
-  fun `typing again clears the incorrect PIN error`() = runTest(testDispatcher) {
+  fun `linked role cannot mutate PIN registration lock or primary account actions`() = runTest(testDispatcher) {
+    every { repository.isLinkedDevice() } returns true
     val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
 
+    viewModel.onEvent(AccountSettingsEvent.ModifyPinClicked)
     viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(INCORRECT_PIN))
-    viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("1"))
-
-    val dialog = viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders
-    assertThat(dialog.incorrectPin).isFalse()
-    assertThat(dialog.pin).isEqualTo("1")
-    assertThat(dialog.canSubmit).isFalse()
+    viewModel.onEvent(AccountSettingsEvent.RegistrationLockToggled(true))
+    viewModel.onEvent(AccountSettingsEvent.RegistrationLockConfirmed)
+    viewModel.onEvent(AccountSettingsEvent.ChangePhoneNumberClicked)
+    viewModel.onEvent(AccountSettingsEvent.DeleteAccountClicked)
+    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
+    coVerify(exactly = 0) { repository.setRegistrationLockEnabled(any()) }
+    assertThat(actions).isEmpty()
   }
 
   @Test
-  fun `toggling the keyboard swaps the type and clears what was typed`() = runTest(testDispatcher) {
+  fun `Molly old-device transfer preserves registered unregistered and deprecated roles`() = runTest(testDispatcher) {
+    for (linked in listOf(false, true)) {
+      every { repository.isLinkedDevice() } returns linked
+      for ((unregistered, deprecated) in listOf(false to false, true to false, false to true, true to true)) {
+        every { repository.isUserUnregistered() } returns unregistered
+        every { repository.isClientDeprecated() } returns deprecated
+        val viewModel = createViewModel()
+        val actions = collectActions(viewModel.actions)
+
+        viewModel.onEvent(AccountSettingsEvent.TransferAccountClicked)
+
+        assertThat(viewModel.state.value.canTransferAccount).isTrue()
+        assertThat(actions).containsExactly(AccountSettingsAction.NavigateToDeviceTransfer)
+      }
+    }
+  }
+
+  @Test
+  fun `linked transfer still obeys its explicit presentation capability`() = runTest(testDispatcher) {
+    every { repository.isLinkedDevice() } returns true
+    every { repository.canTransferWhileLinked() } returns false
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AccountSettingsEvent.TransferAccountClicked)
+
+    assertThat(viewModel.state.value.canTransferAccount).isFalse()
+    assertThat(actions).isEmpty()
+  }
+
+  @Test
+  fun `linked phone-numberless metadata does not fetch primary MFA secrets or methods`() = runTest(testDispatcher) {
+    every { repository.isLinkedDevice() } returns true
+    every { repository.isPhoneNumberless() } returns true
     val viewModel = createViewModel()
 
-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(CORRECT_PIN))
-    viewModel.onEvent(AccountSettingsEvent.PinKeyboardToggled)
+    assertThat(viewModel.state.value.signalLogin).isNull()
+    verify(exactly = 0) { repository.masterKey() }
+    coVerify(exactly = 0) { twoFactorMethodService.getMethods(any()) }
+  }
 
-    val dialog = viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders
-    assertThat(dialog.isAlphanumericKeyboard).isTrue()
-    assertThat(dialog.pin).isEqualTo("")
-    assertThat(dialog.canSubmit).isFalse()
+  @Test
+  fun `linked re-registration requests the existing relink intent path`() = runTest(testDispatcher) {
+    every { repository.isLinkedDevice() } returns true
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AccountSettingsEvent.ReRegisterClicked)
+    assertThat(actions).containsExactly(AccountSettingsAction.LaunchReLinkDevice)
+  }
+
+  @Test
+  fun `linked local deletion retains best-effort self unlink before the wipe action`() = runTest(testDispatcher) {
+    every { repository.isLinkedDevice() } returns true
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AccountSettingsEvent.DeleteAllDataClicked)
+    viewModel.onEvent(AccountSettingsEvent.DeleteAllDataConfirmed)
+
+    coVerify { repository.unlinkSelf() }
+    assertThat(actions).containsExactly(AccountSettingsAction.WipeAllData)
   }
 
   @Test

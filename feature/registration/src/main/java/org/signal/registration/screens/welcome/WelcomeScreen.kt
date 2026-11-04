@@ -90,7 +90,7 @@ fun WelcomeScreen(
   var showBottomSheet by remember { mutableStateOf(false) }
   val windowBreakpoint = rememberWindowBreakpoint()
   val onRestoreOrTransferClick = { showBottomSheet = true }
-  val displayLinkAsPrimaryOption by rememberDisplayLinkAndSyncAsPrimaryPath(state.isLinkAndSyncAvailable)
+  val displayLinkAsPrimaryOption by rememberDisplayLinkAsPrimaryPath()
 
   when (windowBreakpoint) {
     is WindowBreakpoint.Small -> {
@@ -115,7 +115,7 @@ fun WelcomeScreen(
       LargeLayout(
         state = state,
         onEvent = onEvent,
-        displayLinkAsPrimaryOption = displayLinkAsPrimaryOption,
+        displayLinkAsPrimaryOption = displayLinkAsPrimaryOption && state.showRestoreOrTransfer,
         onRestoreOrTransferClick = onRestoreOrTransferClick,
         modifier = modifier
       )
@@ -390,6 +390,13 @@ private fun PrimaryDeviceCallToActionButtons(
     ) {
       Text(stringResource(R.string.registration_activity__restore_or_transfer))
     }
+
+    TextButton(
+      onClick = { onEvent(WelcomeScreenEvents.LinkDevice) },
+      modifier = Modifier.testTag(TestTags.WELCOME_LINK_DEVICE_BUTTON),
+    ) {
+      Text(stringResource(R.string.WelcomeScreen__link_your_account))
+    }
   }
 }
 
@@ -539,7 +546,7 @@ private fun RestoreActionRow(
 private const val TABLET_MIN_DIAGONAL_INCHES = 7f
 
 @Composable
-private fun rememberDisplayLinkAndSyncAsPrimaryPath(isLinkAndSyncAvailable: Boolean): State<Boolean> {
+private fun rememberDisplayLinkAsPrimaryPath(): State<Boolean> {
   val context = LocalContext.current
   val hasHinge = currentWindowAdaptiveInfo().windowPosture.hingeList.isNotEmpty()
 
@@ -556,7 +563,7 @@ private fun rememberDisplayLinkAndSyncAsPrimaryPath(isLinkAndSyncAvailable: Bool
   }
 
   // A hinge means a foldable, which counts as a phone rather than a tablet.
-  return rememberUpdatedState(isLinkAndSyncAvailable && (!supportsTelephony || (isLargeDevice && !hasHinge)))
+  return rememberUpdatedState(!supportsTelephony || (isLargeDevice && !hasHinge))
 }
 
 @AllDevicePreviews

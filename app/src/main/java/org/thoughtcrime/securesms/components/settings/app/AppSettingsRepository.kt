@@ -5,25 +5,25 @@
 
 package org.thoughtcrime.securesms.components.settings.app
 
-import androidx.lifecycle.asFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.rx3.asFlow
 import kotlinx.coroutines.withContext
 import org.signal.appsettings.home.AppSettingsState
 import org.signal.appsettings.home.BackupFailureState
 import org.signal.core.util.Util
+import org.signal.core.util.logging.Log
 import org.signal.core.util.concurrent.SignalDispatchers
 import org.thoughtcrime.securesms.backup.v2.BackupRepository
-import org.thoughtcrime.securesms.components.settings.app.subscription.InAppDonations
 import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
-import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
-import org.thoughtcrime.securesms.conversationlist.model.UnreadPaymentsLiveData
 import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
+import org.thoughtcrime.securesms.BuildConfig
+import org.thoughtcrime.securesms.linkdevice.LinkDeviceRepository
 import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.util.Environment
 import org.thoughtcrime.securesms.util.RemoteConfig
 import org.thoughtcrime.securesms.util.SignalE164Util
 
@@ -47,35 +47,44 @@ object AppSettingsRepository {
     }
   }
 
+  /** Compatibility state for a retired settings row, not a query of historical payment records. */
   fun observeUnreadPaymentsCount(): Flow<Int> {
-    return UnreadPaymentsLiveData().asFlow().map { payments -> payments.map { it.unreadCount }.orElse(0) }
+    return flowOf(0)
   }
 
   fun isPrimaryDevice(): Boolean = SignalStore.account.isPrimaryDevice
+
+  fun isLinkedDevice(): Boolean = SignalStore.account.isLinkedDevice
+
+  suspend fun getLinkedDeviceCount(): Int? = withContext(SignalDispatchers.IO) {
+    if (!isPrimaryDevice() || isLinkedDevice() || isUserUnregistered()) return@withContext null
+    try {
+      LinkDeviceRepository.loadDevices()?.size
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      Log.w(Log.tag(AppSettingsRepository::class.java), "Unable to load the optional linked-device count.", e)
+      null
+    }
+  }
 
   fun isUserUnregistered(): Boolean = SignalStore.account.isUnauthorizedReceived || !SignalStore.account.isRegistered
 
   fun isClientDeprecated(): Boolean = SignalStore.misc.isClientDeprecated
 
-  fun hasExpiredGiftBadge(): Boolean = SignalStore.inAppPayments.getExpiredGiftBadge() != null
+  fun hasExpiredGiftBadge(): Boolean = false
 
   fun showInternalPreferences(): Boolean = RemoteConfig.internalUser
 
-  fun showPayments(): Boolean = SignalStore.payments.paymentsAvailability.showPaymentsMenu()
+  fun showPayments(): Boolean = false
 
-  fun showAppUpdates(): Boolean = Environment.IS_NIGHTLY
+  fun showAppUpdates(): Boolean = BuildConfig.MANAGE_MOLLY_UPDATES
 
-  /** A quick guess at whether the user can manage donations in the app, before [canManageDonations] has an answer. */
-  fun likelyCanManageDonations(): Boolean = SignalStore.inAppPayments.isLikelyASustainer() || InAppDonations.hasAtLeastOnePaymentMethodAvailable()
+  /** Molly's settings use the existing external donation URL, not new in-app subscriptions. */
+  fun likelyCanManageDonations(): Boolean = false
 
-  /** Whether the user can manage donations in the app, or null if their subscription couldn't be fetched. */
-  suspend fun canManageDonations(): Boolean? {
-    return withContext(SignalDispatchers.IO) {
-      RecurringInAppPaymentRepository.getActiveSubscriptionSync(InAppPaymentSubscriberRecord.Type.DONATION).successOrNull()?.let { activeSubscription ->
-        SignalStore.account.isRegistered && (activeSubscription.isActive || InAppDonations.hasAtLeastOnePaymentMethodAvailable())
-      }
-    }
-  }
+  /** Retained query compatibility without making a subscription request. */
+  suspend fun canManageDonations(): Boolean? = false
 
   fun getBackupFailureState(): BackupFailureState {
     return when {

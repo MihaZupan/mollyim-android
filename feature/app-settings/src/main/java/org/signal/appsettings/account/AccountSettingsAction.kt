@@ -12,6 +12,8 @@ package org.signal.appsettings.account
  * Actions are logged, so be sure `toString()` contains nothing sensitive.
  */
 sealed interface AccountSettingsAction {
+  data object LaunchReLinkDevice : AccountSettingsAction
+  data object ShowLinkedDeviceLearnMore : AccountSettingsAction
 
   /** Leave the screen. */
   data object NavigateBack : AccountSettingsAction
