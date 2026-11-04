@@ -65,7 +65,7 @@ class AdvancedPrivacySettingsViewModel(
   fun setCensorshipCircumventionEnabled(enabled: Boolean) {
     SignalStore.settings.setCensorshipCircumventionEnabled(enabled)
     SignalStore.misc.isServiceReachableWithoutCircumvention = false
-    AppDependencies.resetNetwork()
+    AppDependencies.resetNetwork(restartMessageObserver = true)
     refresh()
   }
 
@@ -96,6 +96,7 @@ class AdvancedPrivacySettingsViewModel(
     return AdvancedPrivacySettingsState(
       isPushEnabled = SignalStore.account.isRegistered,
       alwaysRelayCalls = TextSecurePreferences.isTurnOnly(AppDependencies.application),
+      proxyEnabled = AppDependencies.networkManager.isProxyEnabled,
       censorshipCircumventionState = censorshipCircumventionState,
       censorshipCircumventionEnabled = getCensorshipCircumventionEnabled(censorshipCircumventionState),
       showSealedSenderStatusIcon = TextSecurePreferences.isShowUnidentifiedDeliveryIndicatorsEnabled(
