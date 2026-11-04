@@ -1,0 +1,194 @@
+{
+  "format": 1,
+  "signal_version": "8.19.2",
+  "baseline": "c47a74ba0961903eeaeda6d22347a990056c3e83",
+  "source": "35cefb3bbf4ef3f2e6e96a5ddf7f7565aad8c13d",
+  "tree": "b1e8f33458c50620137c332d0569cca67b799ad6",
+  "branches": {
+    "baseline": "v8.19.2/signal-baseline",
+    "source": "v8.19.2/molly",
+    "patches": "v8.19.2/molly-patches"
+  },
+  "patches": [
+    {
+      "id": "native-api",
+      "file": "native-api.patch",
+      "subject": "native: retain Molly JNI utilities and fork API contracts"
+    },
+    {
+      "id": "encrypted-state",
+      "file": "encrypted-state.patch",
+      "subject": "crypto: preserve passphrase wrapping, encrypted preferences and RAM cleanup"
+    },
+    {
+      "id": "locking",
+      "file": "locking.patch",
+      "subject": "lock: preserve startup, cached-key ownership and screen protection"
+    },
+    {
+      "id": "migrations",
+      "file": "migrations.patch",
+      "subject": "storage: retain Molly migration dispatch and persisted version semantics"
+    },
+    {
+      "id": "backup-expiry",
+      "file": "backup-expiry.patch",
+      "subject": "backup: preserve scheduling, retention and disappearing-content policies"
+    },
+    {
+      "id": "jobs-time",
+      "file": "jobs-time.patch",
+      "subject": "jobs: preserve persisted dispatch, shutdown and time contracts"
+    },
+    {
+      "id": "routing",
+      "file": "routing.patch",
+      "subject": "network: preserve SOCKS Tor routing and disabled TLS-proxy boundary"
+    },
+    {
+      "id": "foss",
+      "file": "foss.patch",
+      "subject": "foss: retain consolidated open-source GMS and transport substitutes"
+    },
+    {
+      "id": "maps",
+      "file": "maps.patch",
+      "subject": "maps: retain OpenStreetMap location and attribution integration"
+    },
+    {
+      "id": "push",
+      "file": "push.patch",
+      "subject": "push: preserve MollySocket UnifiedPush and push-role control"
+    },
+    {
+      "id": "provisioning",
+      "file": "provisioning.patch",
+      "subject": "registration: retain linked Android and transfer support boundaries"
+    },
+    {
+      "id": "calls",
+      "file": "calls.patch",
+      "subject": "calls: preserve call history and Telecom integration"
+    },
+    {
+      "id": "media",
+      "file": "media.patch",
+      "subject": "media: preserve private attachment and archive consumers"
+    },
+    {
+      "id": "unknown-senders",
+      "file": "unknown-senders.patch",
+      "subject": "privacy: preserve unknown-sender blocking"
+    },
+    {
+      "id": "logging",
+      "file": "logging.patch",
+      "subject": "logging: preserve opt-in logs and diagnostic privacy boundaries"
+    },
+    {
+      "id": "payments",
+      "file": "payments.patch",
+      "subject": "payments: retain disabled UI and readable historical payment data"
+    },
+    {
+      "id": "donations",
+      "file": "donations.patch",
+      "subject": "donations: preserve Molly support and open-source billing boundaries"
+    },
+    {
+      "id": "updates",
+      "file": "updates.patch",
+      "subject": "updates: retain website store and update-channel behavior"
+    },
+    {
+      "id": "sms",
+      "file": "sms.patch",
+      "subject": "compat: preserve supported SMS import and legacy boundaries"
+    },
+    {
+      "id": "stories",
+      "file": "stories.patch",
+      "subject": "stories: preserve Molly story presentation and reset policy"
+    },
+    {
+      "id": "legacy-search",
+      "file": "legacy-search.patch",
+      "subject": "search: retain legacy search compatibility"
+    },
+    {
+      "id": "onboarding",
+      "file": "onboarding.patch",
+      "subject": "onboarding: preserve starter-sticker and first-boot choices"
+    },
+    {
+      "id": "defaults",
+      "file": "defaults.patch",
+      "subject": "policy: preserve remote-config safety and product defaults"
+    },
+    {
+      "id": "identity",
+      "file": "identity.patch",
+      "subject": "identity: retain Molly application and service attribution"
+    },
+    {
+      "id": "icons",
+      "file": "icons.patch",
+      "subject": "icons: preserve launcher aliases and persisted icon choices"
+    },
+    {
+      "id": "branding",
+      "file": "branding.patch",
+      "subject": "branding: preserve Molly text and essential product resources"
+    },
+    {
+      "id": "locales",
+      "file": "locales.patch",
+      "subject": "locales: preserve Molly translations and selectable languages"
+    },
+    {
+      "id": "theme",
+      "file": "theme.patch",
+      "subject": "theme: preserve reference colors styles and qualified presentation"
+    },
+    {
+      "id": "tests",
+      "file": "tests.patch",
+      "subject": "tests: retain reference characterization and product contract coverage"
+    },
+    {
+      "id": "drop-demos",
+      "file": "drop-demos.patch",
+      "subject": "tooling: preserve reference exclusion of upstream demonstration apps"
+    },
+    {
+      "id": "drop-screenshots",
+      "file": "drop-screenshots.patch",
+      "subject": "tooling: preserve reference screenshot-test support boundary"
+    },
+    {
+      "id": "drop-spinner",
+      "file": "drop-spinner.patch",
+      "subject": "tooling: preserve reference spinner debugger exclusion"
+    },
+    {
+      "id": "benchmarks",
+      "file": "benchmarks.patch",
+      "subject": "tooling: retain reference benchmark and developer-tool scope"
+    },
+    {
+      "id": "build",
+      "file": "build.patch",
+      "subject": "build: wire consolidated Molly modules and supported distributions"
+    },
+    {
+      "id": "lint",
+      "file": "lint.patch",
+      "subject": "lint: retain reference enforcement and existing baseline"
+    },
+    {
+      "id": "maintenance",
+      "file": "maintenance.patch",
+      "subject": "maintenance: preserve reproducible-build CI and source attribution"
+    }
+  ]
+}

@@ -1,0 +1,1282 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:09:48 +0100
+Subject: [PATCH] backup: preserve scheduling, retention and
+ disappearing-content policies
+
+Retain supported encrypted backup fields and retention/expiry behavior. Timeout compatibility is intentionally a separate final repair commit.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-BACKUP-001, MOL-EXPIRY-001, MOL-LIFESPAN-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/im/molly/app/base/ApkInfo.kt b/app/src/main/java/im/molly/app/base/ApkInfo.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..86f951b160585846e02bbe023168fe12347487f1
+--- /dev/null
++++ b/app/src/main/java/im/molly/app/base/ApkInfo.kt
+@@ -0,0 +1,18 @@
++/*
++ * Copyright 2026 Molly Instant Messenger
++ * SPDX-License-Identifier: AGPL-3.0-only
++ */
++
++package im.molly.app.base
++
++import android.annotation.SuppressLint
++import org.thoughtcrime.securesms.BuildConfig
++
++@SuppressLint("VersionNameUsage")
++object ApkInfo {
++  const val versionName = BuildConfig.VERSION_NAME
++  const val versionCode = BuildConfig.VERSION_CODE
++
++  const val signalCanonicalVersionName = BuildConfig.SIGNAL_CANONICAL_VERSION_NAME
++  const val signalCanonicalVersionCode = BuildConfig.SIGNAL_CANONICAL_VERSION_CODE
++}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupExporter.java b/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupExporter.java
+index a5198775c772feb9a8c9852a3ccdea183e7bcb29..8361b2e3b7a65a368c39511df6521a7f040c0433 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupExporter.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupExporter.java
+@@ -24,7 +24,6 @@ import org.thoughtcrime.securesms.backup.proto.KeyValue;
+ import org.thoughtcrime.securesms.backup.proto.SharedPreference;
+ import org.thoughtcrime.securesms.backup.proto.SqlStatement;
+ import org.signal.core.util.crypto.AttachmentSecret;
+-import org.signal.core.util.crypto.ClassicDecryptingPartInputStream;
+ import org.signal.core.util.crypto.ModernDecryptingPartInputStream;
+ import org.thoughtcrime.securesms.database.AttachmentTable;
+ import org.thoughtcrime.securesms.database.BackupMediaSnapshotTable;
+@@ -82,7 +81,6 @@ public class FullBackupExporter extends FullBackupBase {
+   private static final long TABLE_RECORD_COUNT_MULTIPLIER    = 3L;
+   private static final long IDENTITY_KEY_BACKUP_RECORD_COUNT = 2L;
+   private static final long FINAL_MESSAGE_COUNT              = 1L;
+-  private static final long EXPIRATION_BACKUP_THRESHOLD      = TimeUnit.DAYS.toMillis(1);
+ 
+   /**
+    * Tables in list will still have their *schema* exported (so the tables will be created),
+@@ -537,11 +535,7 @@ public class FullBackupExporter extends FullBackupBase {
+   }
+ 
+   private static InputStream openAttachmentStream(@NonNull AttachmentSecret attachmentSecret, @Nullable byte[] random, @NonNull String data) throws IOException {
+-    if (random != null && random.length == 32) {
+-      return ModernDecryptingPartInputStream.createFor(attachmentSecret, random, new File(data), 0);
+-    } else {
+-      return ClassicDecryptingPartInputStream.createFor(attachmentSecret, new File(data));
+-    }
++    return ModernDecryptingPartInputStream.createFor(attachmentSecret, random, new File(data), 0);
+   }
+ 
+   private static int exportKeyValues(@NonNull BackupFrameOutputStream outputStream,
+@@ -597,23 +591,9 @@ public class FullBackupExporter extends FullBackupBase {
+   }
+ 
+   private static boolean isNonExpiringMessage(@NonNull SQLiteDatabase db, @NonNull Cursor cursor) {
+-    long id                = CursorUtil.requireLong(cursor, MessageTable.ID);
+-    long expireStarted     = CursorUtil.requireLong(cursor, MessageTable.EXPIRE_STARTED);
+-    long expiresIn         = CursorUtil.requireLong(cursor, MessageTable.EXPIRES_IN);
+-    long latestRevisionId  = CursorUtil.requireLong(cursor, MessageTable.LATEST_REVISION_ID);
+-
+-    long expiresAt     = expireStarted + expiresIn;
+-    long timeRemaining = expiresAt - System.currentTimeMillis();
+-
+-    if (latestRevisionId > 0 && latestRevisionId != id ) {
+-      return isForNonExpiringMessage(db, latestRevisionId);
+-    }
+-
+-    if (expireStarted > 0 && timeRemaining <= EXPIRATION_BACKUP_THRESHOLD) {
+-      return false;
+-    }
+-
+-    return true;
++    // MOLLY: Exclude any message whose expire timer has started regardless of remaining time
++    return CursorUtil.requireLong(cursor, MessageTable.EXPIRES_IN) <= 0 ||
++           CursorUtil.requireLong(cursor, MessageTable.EXPIRE_STARTED) <= 0;
+   }
+ 
+   private static boolean isForNonExpiringMessage(@NonNull SQLiteDatabase db, long messageId) {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java b/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
+index bebf8b99d8f678a29e93cf90a825d4d1410d26cc..ab8696deebc099fd1a33a6fc579ddfb1fae72bd7 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
+@@ -1,8 +1,6 @@
+ package org.thoughtcrime.securesms.components;
+ 
+-import android.Manifest;
+ import android.animation.Animator;
+-import android.annotation.SuppressLint;
+ import android.content.Context;
+ import android.content.res.TypedArray;
+ import android.graphics.PorterDuff;
+@@ -25,6 +23,7 @@ import com.airbnb.lottie.LottieAnimationView;
+ import com.airbnb.lottie.LottieProperty;
+ import com.airbnb.lottie.model.KeyPath;
+ 
++import org.signal.core.ui.util.ThemeUtil;
+ import org.signal.core.ui.view.Stub;
+ import org.signal.core.util.concurrent.SignalExecutors;
+ import org.thoughtcrime.securesms.R;
+@@ -35,15 +34,12 @@ import org.thoughtcrime.securesms.database.SignalDatabase;
+ import org.thoughtcrime.securesms.database.model.MessageRecord;
+ import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
+ import org.thoughtcrime.securesms.dependencies.AppDependencies;
+-import org.signal.core.ui.permissions.Permissions;
+ import org.thoughtcrime.securesms.recipients.Recipient;
+ import org.thoughtcrime.securesms.util.DateUtils;
+ import org.thoughtcrime.securesms.util.MessageRecordUtil;
+ import org.thoughtcrime.securesms.util.Projection;
+ import org.thoughtcrime.securesms.util.SignalLocalMetrics;
+ import org.thoughtcrime.securesms.util.ViewUtil;
+-import org.thoughtcrime.securesms.util.dualsim.SubscriptionInfoCompat;
+-import org.thoughtcrime.securesms.util.dualsim.SubscriptionManagerCompat;
+ 
+ import java.util.Locale;
+ import java.util.Objects;
+@@ -116,7 +112,7 @@ public class ConversationItemFooter extends ConstraintLayout {
+         playbackSpeedToggleTextView.setTextColor(getResources().getColor(R.color.core_white));
+         playbackSpeedToggleTextView.setBackgroundTintList(AppCompatResources.getColorStateList(getContext(), R.color.transparent_white_20));
+       } else {
+-        playbackSpeedToggleTextView.setTextColor(getResources().getColor(R.color.signal_text_secondary));
++        playbackSpeedToggleTextView.setTextColor(ThemeUtil.getThemedColor(getContext(), R.attr.signal_text_secondary));
+         playbackSpeedToggleTextView.setBackgroundTintList(AppCompatResources.getColorStateList(getContext(), R.color.transparent_black_08));
+       }
+ 
+@@ -146,7 +142,7 @@ public class ConversationItemFooter extends ConstraintLayout {
+   public void setMessageRecord(@NonNull MessageRecord messageRecord, @NonNull Locale locale, @NonNull ConversationItemDisplayMode displayMode) {
+     presentDate(messageRecord, locale, displayMode);
+     presentSimInfo(messageRecord);
+-    presentTimer(messageRecord);
++    presentTimer(messageRecord, timerView);
+     presentInsecureIndicator(messageRecord);
+     presentDeliveryStatus(messageRecord);
+     presentAudioDuration(messageRecord);
+@@ -347,56 +343,38 @@ public class ConversationItemFooter extends ConstraintLayout {
+   }
+ 
+   private void presentSimInfo(@NonNull MessageRecord messageRecord) {
+-    SubscriptionManagerCompat subscriptionManager = new SubscriptionManagerCompat(getContext());
+-
+-    if (messageRecord.isPush() || messageRecord.getSubscriptionId() == -1 || !Permissions.hasAll(getContext(), Manifest.permission.READ_PHONE_STATE) || !subscriptionManager.isMultiSim()) {
+-      simView.setVisibility(View.GONE);
+-    } else {
+-      Optional<SubscriptionInfoCompat> subscriptionInfo = subscriptionManager.getActiveSubscriptionInfo(messageRecord.getSubscriptionId());
+-
+-      if (subscriptionInfo.isPresent() && messageRecord.isOutgoing()) {
+-        simView.setText(getContext().getString(R.string.ConversationItem_from_s, subscriptionInfo.get().getDisplayName()));
+-        simView.setVisibility(View.VISIBLE);
+-      } else if (subscriptionInfo.isPresent()) {
+-        simView.setText(getContext().getString(R.string.ConversationItem_to_s, subscriptionInfo.get().getDisplayName()));
+-        simView.setVisibility(View.VISIBLE);
+-      } else {
+-        simView.setVisibility(View.GONE);
+-      }
+-    }
++    simView.setVisibility(View.GONE);
+   }
+ 
+-  @SuppressLint("StaticFieldLeak")
+-  private void presentTimer(@NonNull final MessageRecord messageRecord) {
++  static public void presentTimer(@NonNull final MessageRecord messageRecord, @NonNull ExpirationTimerView timerView) {
+     if (messageRecord.getExpiresIn() > 0 && !messageRecord.isPending()) {
+-      this.timerView.setVisibility(View.VISIBLE);
+-      this.timerView.setPercentComplete(0);
++      timerView.setVisibility(View.VISIBLE);
++      timerView.setPercentComplete(0);
+ 
+       if (messageRecord.getExpireStarted() > 0) {
+-        this.timerView.setExpirationTime(messageRecord.getExpireStarted(),
+-                                         messageRecord.getExpiresIn());
+-        this.timerView.startAnimation();
++        timerView.setExpirationTime(messageRecord.getExpireStarted(),
++                                    messageRecord.getExpiresIn());
++        timerView.startAnimation();
+ 
+-        if (messageRecord.getExpireStarted() + messageRecord.getExpiresIn() <= System.currentTimeMillis()) {
++        if (timerView.isExpired()) {
+           AppDependencies.getExpiringMessageManager().checkSchedule();
+         }
+       } else if (!messageRecord.isOutgoing() && !messageRecord.isMediaPending()) {
+         SignalExecutors.BOUNDED.execute(() -> {
+           long    id  = messageRecord.getId();
+-          boolean mms = messageRecord.isMms();
+           long    now = System.currentTimeMillis();
+ 
+           SignalDatabase.messages().markExpireStarted(id, now);
+-          AppDependencies.getExpiringMessageManager().scheduleDeletion(id, mms, now, messageRecord.getExpiresIn());
++          AppDependencies.getExpiringMessageManager().scheduleDeletion(id, true, now, messageRecord.getExpiresIn());
+         });
+       }
+     } else {
+-      this.timerView.setVisibility(View.GONE);
++      timerView.setVisibility(View.GONE);
+     }
+   }
+ 
+   private void presentInsecureIndicator(@NonNull MessageRecord messageRecord) {
+-    insecureIndicatorView.setVisibility(messageRecord.isSecure() ? View.GONE : View.VISIBLE);
++    insecureIndicatorView.setVisibility(messageRecord.isSecure() || messageRecord.isPending() ? View.GONE : View.VISIBLE);
+   }
+ 
+   private void presentDeliveryStatus(@NonNull MessageRecord messageRecord) {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/ExpirationTimerView.java b/app/src/main/java/org/thoughtcrime/securesms/components/ExpirationTimerView.java
+index 1439fefc7d82eb4b1b52ee2318a4c900ce270584..e75fc4cb0a5774ecb9a516592952df13ad7dde39 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/ExpirationTimerView.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/ExpirationTimerView.java
+@@ -60,6 +60,10 @@ public class ExpirationTimerView extends androidx.appcompat.widget.AppCompatImag
+     setImageResource(frames[frame]);
+   }
+ 
++  public boolean isExpired() {
++    return startedAt + expiresIn <= System.currentTimeMillis();
++  }
++
+   public void startAnimation() {
+     synchronized (this) {
+       visible = true;
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/BuildExpirationConfirmationJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/BuildExpirationConfirmationJob.kt
+index f890d9d6b617f0aa84814365216f3175fa5c989a..171229eababba879917a3cc0e071f6348f84ce0a 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/BuildExpirationConfirmationJob.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/BuildExpirationConfirmationJob.kt
+@@ -62,10 +62,10 @@ class BuildExpirationConfirmationJob private constructor(params: Parameters) : J
+         SignalStore.misc.setLastKnownServerTime(serverTimeMs, System.currentTimeMillis())
+ 
+         if (Util.getTimeUntilBuildExpiry(serverTimeMs) <= 0) {
+-          Log.w(TAG, "Build confirmed expired! Server time: $serverTimeMs, Local time: ${System.currentTimeMillis()}, Build time: ${BuildConfig.BUILD_TIMESTAMP}, Time since expiry: ${serverTimeMs - BuildConfig.BUILD_TIMESTAMP}", true)
++          Log.w(TAG, "Build confirmed expired! Server time: $serverTimeMs, Local time: ${System.currentTimeMillis()}, Build time: ${BuildConfig.BUILD_TIMESTAMP_OR_ZERO}, Time since expiry: ${serverTimeMs - BuildConfig.BUILD_TIMESTAMP_OR_ZERO}", true)
+           SignalStore.misc.isClientDeprecated = true
+         } else {
+-          Log.w(TAG, "Build not actually expired! Likely bad local clock. Server time: $serverTimeMs, Local time: ${System.currentTimeMillis()}, Build time: ${BuildConfig.BUILD_TIMESTAMP}")
++          Log.w(TAG, "Build not actually expired! Likely bad local clock. Server time: $serverTimeMs, Local time: ${System.currentTimeMillis()}, Build time: ${BuildConfig.BUILD_TIMESTAMP_OR_ZERO}")
+         }
+         Result.success()
+       }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
+index c225aef3417861fa299429551232b3d6feb3e3f3..361f531d890ccbbdf72944f46d01b19b0be4027d 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
+@@ -146,7 +146,7 @@ class IndividualSendJobV2 private constructor(parameters: Parameters, private va
+     syncPreKeysIfNecessary().getOrElse { return it }
+ 
+     if (SignalStore.misc.isClientDeprecated) {
+-      Log.w(TAG, "${logPrefix()} Client is deprecated (build ${BuildConfig.BUILD_TIMESTAMP}); failing message.")
++      Log.w(TAG, "${logPrefix()} Client is deprecated (build ${BuildConfig.BUILD_TIMESTAMP_OR_ZERO}); failing message.")
+       return Result.failure()
+     }
+ 
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
+index 0b78ad2c2367e0afabbe7c3d8c58e06e612a7b32..7211d56bf42e5d4e4c4b52661b378c2523763060 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
+@@ -117,7 +117,7 @@ public final class LocalBackupJob extends BaseJob {
+     try (NotificationController notification = GenericForegroundService.startForegroundTask(context,
+                                                                      context.getString(R.string.LocalBackupJob_creating_signal_backup),
+                                                                      NotificationChannels.getInstance().BACKUPS,
+-                                                                     R.drawable.ic_signal_backup))
++                                                                     R.drawable.ic_notification_backup))
+     {
+       updater.setNotification(notification);
+       EventBus.getDefault().register(updater);
+@@ -126,7 +126,7 @@ public final class LocalBackupJob extends BaseJob {
+       String backupPassword  = BackupPassphrase.get(context);
+       File   backupDirectory = StorageUtil.getOrCreateBackupDirectory();
+       String timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
+-      String fileName        = String.format("signal-%s.backup", timestamp);
++      String fileName        = String.format("%s-%s.backup", BackupUtil.getBackupFilenamePrefix(), timestamp);
+       File   backupFile      = new File(backupDirectory, fileName);
+ 
+       deleteOldTemporaryBackups(backupDirectory);
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
+index 9d4ed673dcd8f8c247bba28cba625366d31339bd..4a2b8f1fdf757368c33ab08891cd44625d3a797d 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
+@@ -89,7 +89,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
+       notification = GenericForegroundService.startForegroundTask(context,
+                                                                   context.getString(R.string.LocalBackupJob_creating_signal_backup),
+                                                                   NotificationChannels.getInstance().BACKUPS,
+-                                                                  R.drawable.ic_signal_backup);
++                                                                  R.drawable.ic_notification_backup);
+     } catch (UnableToStartException e) {
+       Log.w(TAG, "Unable to start foreground backup service, continuing without service");
+     }
+@@ -104,7 +104,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
+       String       backupPassword  = BackupPassphrase.get(context);
+       DocumentFile backupDirectory = DocumentFile.fromTreeUri(context, backupDirectoryUri);
+       String       timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
+-      String       fileName        = String.format("signal-%s.backup", timestamp);
++      String       fileName        = String.format("%s-%s.backup", BackupUtil.getBackupFilenamePrefix(), timestamp);
+ 
+       if (backupDirectory == null || !backupDirectory.canWrite()) {
+         BackupFileIOError.ACCESS_ERROR.postNotification(context);
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/PushSendJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/PushSendJob.kt
+index cda92a17610f8b11fbdf5464dd03a4734363438c..0ddd548caa95c27819aa51a15071a48b6c066fc4 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/PushSendJob.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/PushSendJob.kt
+@@ -152,7 +152,7 @@ abstract class PushSendJob protected constructor(parameters: Parameters) : BaseJ
+   @Throws(Exception::class)
+   public override fun onRun() {
+     if (SignalStore.misc.isClientDeprecated) {
+-      throw TextSecureExpiredException("TextSecure expired (build ${BuildConfig.BUILD_TIMESTAMP}, now ${System.currentTimeMillis()})")
++      throw TextSecureExpiredException("TextSecure expired (build ${BuildConfig.BUILD_TIMESTAMP_OR_ZERO}, now ${System.currentTimeMillis()})")
+     }
+ 
+     Log.i(TAG, "Starting message send attempt")
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/RetrieveRemoteAnnouncementsJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/RetrieveRemoteAnnouncementsJob.kt
+index 48ca27ac4b1aa55663ab0561b1bdea222008cad6..d56ae10a05c252215e4c0edebdc4776e7195e422 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/RetrieveRemoteAnnouncementsJob.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/RetrieveRemoteAnnouncementsJob.kt
+@@ -151,12 +151,12 @@ class RetrieveRemoteAnnouncementsJob private constructor(private val force: Bool
+     when {
+       values.highestVersionNoteReceived == 0 -> {
+         Log.i(TAG, "First check, saving code and skipping download")
+-        values.highestVersionNoteReceived = BuildConfig.CANONICAL_VERSION_CODE
++        values.highestVersionNoteReceived = BuildConfig.SIGNAL_CANONICAL_VERSION_CODE
+       }
+       !force && MessageDigest.isEqual(manifestMd5, values.previousManifestMd5) -> {
+         Log.i(TAG, "Manifest has not changed since last fetch.")
+       }
+-      else -> fetchManifest(manifestMd5)
++      else -> Unit // fetchManifest(manifestMd5)
+     }
+ 
+     values.previousManifestMd5 = manifestMd5
+@@ -201,7 +201,7 @@ class RetrieveRemoteAnnouncementsJob private constructor(private val force: Bool
+       .filter {
+         val minVersion = it.androidMinVersion?.toIntOrNull()
+         if (minVersion != null) {
+-          minVersion > values.highestVersionNoteReceived && minVersion <= BuildConfig.CANONICAL_VERSION_CODE
++          minVersion > values.highestVersionNoteReceived && minVersion <= BuildConfig.SIGNAL_CANONICAL_VERSION_CODE
+         } else {
+           false
+         }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
+index dd171f217129b5414cce1fdd1b135d042ff509f1..2b2e52dcc0de796e4ce0578d0f3dbfe9ab7324e2 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
+@@ -2,7 +2,6 @@ package org.thoughtcrime.securesms.messages
+ 
+ import android.content.Context
+ import android.text.TextUtils
+-import com.mobilecoin.lib.exceptions.SerializationException
+ import okio.ByteString.Companion.toByteString
+ import org.signal.core.models.ServiceId
+ import org.signal.core.models.ServiceId.ACI
+@@ -29,7 +28,6 @@ import org.thoughtcrime.securesms.database.MessageTable
+ import org.thoughtcrime.securesms.database.MessageTable.InsertResult
+ import org.thoughtcrime.securesms.database.MessageType
+ import org.thoughtcrime.securesms.database.NoSuchMessageException
+-import org.thoughtcrime.securesms.database.PaymentTable.PublicKeyConflictException
+ import org.thoughtcrime.securesms.database.SignalDatabase
+ import org.thoughtcrime.securesms.database.model.GroupRecord
+ import org.thoughtcrime.securesms.database.model.Mention
+@@ -56,8 +54,6 @@ import org.thoughtcrime.securesms.jobs.AttachmentDownloadJob
+ import org.thoughtcrime.securesms.jobs.DirectoryRefreshJob
+ import org.thoughtcrime.securesms.jobs.GroupCallPeekJob
+ import org.thoughtcrime.securesms.jobs.GroupV2UpdateSelfProfileKeyJob
+-import org.thoughtcrime.securesms.jobs.PaymentLedgerUpdateJob
+-import org.thoughtcrime.securesms.jobs.PaymentTransactionCheckJob
+ import org.thoughtcrime.securesms.jobs.ProfileKeySendJob
+ import org.thoughtcrime.securesms.jobs.PushProcessEarlyMessagesJob
+ import org.thoughtcrime.securesms.jobs.PushProcessMessageJob
+@@ -107,7 +103,6 @@ import org.thoughtcrime.securesms.util.TextSecurePreferences
+ import org.thoughtcrime.securesms.util.hasGiftBadge
+ import org.thoughtcrime.securesms.util.isStory
+ import org.whispersystems.signalservice.api.crypto.EnvelopeMetadata
+-import org.whispersystems.signalservice.api.payments.Money
+ import org.whispersystems.signalservice.internal.push.BodyRange
+ import org.whispersystems.signalservice.internal.push.Content
+ import org.whispersystems.signalservice.internal.push.DataMessage
+@@ -655,60 +650,7 @@ object DataMessageProcessor {
+     receivedTime: Long
+   ): InsertResult? {
+     log(envelope.clientTimestamp!!, "Payment message.")
+-
+-    if (message.payment?.notification?.mobileCoin?.receipt == null) {
+-      warn(envelope.clientTimestamp!!, "Ignoring payment message without notification")
+-      return null
+-    }
+-
+-    val paymentNotification = message.payment!!.notification!!
+-    val uuid = UUID.randomUUID()
+-    val queue = "Payment_" + PushProcessMessageJob.getQueueName(senderRecipientId)
+-
+-    try {
+-      SignalDatabase.payments.createIncomingPayment(
+-        uuid,
+-        senderRecipientId,
+-        message.timestamp!!,
+-        paymentNotification.note ?: "",
+-        Money.MobileCoin.ZERO,
+-        Money.MobileCoin.ZERO,
+-        paymentNotification.mobileCoin!!.receipt!!.toByteArray(),
+-        true
+-      )
+-
+-      val mediaMessage = IncomingMessage(
+-        from = senderRecipientId,
+-        body = uuid.toString(),
+-        sentTimeMillis = envelope.clientTimestamp!!,
+-        serverTimeMillis = envelope.serverTimestamp!!,
+-        receivedTimeMillis = receivedTime,
+-        expiresIn = message.expireTimerDuration.inWholeMilliseconds,
+-        isUnidentified = metadata.sealedSender,
+-        serverGuid = UuidUtil.getStringUUID(envelope.serverGuid, envelope.serverGuidBinary),
+-        type = MessageType.PAYMENTS_NOTIFICATION
+-      )
+-
+-      val insertResult: InsertResult? = SignalDatabase.messages.insertMessageInbox(mediaMessage, -1).orNull()
+-      if (insertResult != null) {
+-        AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
+-        return insertResult
+-      }
+-    } catch (e: PublicKeyConflictException) {
+-      warn(envelope.clientTimestamp!!, "Ignoring payment with public key already in database")
+-    } catch (e: SerializationException) {
+-      warn(envelope.clientTimestamp!!, "Ignoring payment with bad data.", e)
+-    } catch (e: MmsException) {
+-      throw StorageFailedException(e, metadata.sourceServiceId.toString(), metadata.sourceDeviceId)
+-    } finally {
+-      SignalDatabase.runPostSuccessfulTransaction {
+-        AppDependencies.jobManager
+-          .startChain(PaymentTransactionCheckJob(uuid, queue))
+-          .then(PaymentLedgerUpdateJob.updateLedger())
+-          .enqueue()
+-      }
+-    }
+-
++    // MOLLY: drop payment message
+     return null
+   }
+ 
+@@ -855,38 +797,8 @@ object DataMessageProcessor {
+ 
+     notifyTypingStoppedFromIncomingMessage(context, senderRecipient, threadRecipientId, metadata.sourceDeviceId)
+ 
+-    val token = ReceiptCredentialPresentation(giftBadge.receiptCredentialPresentation!!.toByteArray()).serialize()
+-    val dbGiftBadge = GiftBadge.Builder()
+-      .redemptionToken(token.toByteString())
+-      .redemptionState(GiftBadge.RedemptionState.PENDING)
+-      .build()
+-
+-    val insertResult: InsertResult? = try {
+-      val mediaMessage = IncomingMessage(
+-        type = MessageType.NORMAL,
+-        from = senderRecipient.id,
+-        sentTimeMillis = envelope.clientTimestamp!!,
+-        serverTimeMillis = envelope.serverTimestamp!!,
+-        receivedTimeMillis = receivedTime,
+-        expiresIn = message.expireTimerDuration.inWholeMilliseconds,
+-        isUnidentified = metadata.sealedSender,
+-        body = Base64.encodeWithPadding(dbGiftBadge.encode()),
+-        serverGuid = UuidUtil.getStringUUID(envelope.serverGuid, envelope.serverGuidBinary),
+-        giftBadge = dbGiftBadge
+-      )
+-
+-      SignalDatabase.messages.insertMessageInbox(mediaMessage, -1).orNull()
+-    } catch (e: MmsException) {
+-      throw StorageFailedException(e, metadata.sourceServiceId.toString(), metadata.sourceDeviceId)
+-    }
+-
+-    return if (insertResult != null) {
+-      AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
+-      TrimThreadJob.enqueueAsync(insertResult.threadId)
+-      insertResult
+-    } else {
+-      null
+-    }
++    // MOLLY: drop unsupported gift badge message
++    return null
+   }
+ 
+   @Throws(StorageFailedException::class)
+@@ -1551,10 +1463,6 @@ object DataMessageProcessor {
+           .firstOrNull()
+       }
+ 
+-      if (quotedMessage.isPaymentNotification) {
+-        quotedMessage = SignalDatabase.payments.updateMessageWithPayment(quotedMessage) as MmsMessageRecord
+-      }
+-
+       val body = if (quotedMessage.isPaymentNotification) quotedMessage.getDisplayBody(context).toString() else quotedMessage.body
+ 
+       return QuoteModel(
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java b/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java
+index d4484e2ba2545b779d58bb3bfd38854967844ef8..41d5de62619bcb05bbe1f4e3b22592571097ba16 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java
+@@ -2,14 +2,14 @@ package org.thoughtcrime.securesms.net;
+ 
+ import android.os.Build;
+ 
+-import org.thoughtcrime.securesms.BuildConfig;
++import im.molly.app.base.ApkInfo;
+ 
+ /**
+  * The user agent that should be used by default -- includes app name, version, etc.
+  */
+ public class StandardUserAgentInterceptor extends UserAgentInterceptor {
+ 
+-  public static final String USER_AGENT = "Signal-Android/" + BuildConfig.VERSION_NAME + " Android/" + Build.VERSION.SDK_INT;
++  public static final String USER_AGENT = "Signal-Android/" + ApkInfo.signalCanonicalVersionName + " Android/" + Build.VERSION.SDK_INT;
+ 
+   public StandardUserAgentInterceptor() {
+     super(USER_AGENT);
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java b/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
+index f561c9bb1d9de22a94c58454b37da7d8f7a100b4..060381546d2ebc38680aef58f7bc966727fb14bc 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
+@@ -11,6 +11,7 @@ import android.text.method.LinkMovementMethod;
+ import android.view.LayoutInflater;
+ import android.view.View;
+ import android.view.ViewGroup;
++import android.widget.NumberPicker;
+ import android.widget.ProgressBar;
+ import android.widget.TextView;
+ 
+@@ -24,6 +25,7 @@ import androidx.fragment.app.Fragment;
+ import androidx.lifecycle.ViewModelProvider;
+ import androidx.navigation.Navigation;
+ 
++import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+ import com.google.android.material.timepicker.MaterialTimePicker;
+ import com.google.android.material.timepicker.TimeFormat;
+ 
+@@ -52,6 +54,7 @@ import java.text.NumberFormat;
+ import java.time.LocalTime;
+ import java.util.Locale;
+ import java.util.Objects;
++import java.util.concurrent.TimeUnit;
+ 
+ import kotlin.Pair;
+ import kotlin.Unit;
+@@ -71,6 +74,10 @@ public class BackupsPreferenceFragment extends Fragment {
+   private TextView    info;
+   private TextView    summary;
+   private TextView    folderName;
++  private View        schedule;
++  private TextView    scheduleSummary;
++  private View        maxFiles;
++  private TextView    maxFilesSummary;
+   private ProgressBar progress;
+   private TextView    progressSummary;
+   private ComposeView upgradeCard;
+@@ -98,12 +105,18 @@ public class BackupsPreferenceFragment extends Fragment {
+     info            = view.findViewById(R.id.fragment_backup_info);
+     summary         = view.findViewById(R.id.fragment_backup_create_summary);
+     folderName      = view.findViewById(R.id.fragment_backup_folder_name);
++    schedule        = view.findViewById(R.id.fragment_backup_schedule);
++    scheduleSummary = view.findViewById(R.id.fragment_backup_schedule_summary);
++    maxFiles        = view.findViewById(R.id.fragment_backup_max_files);
++    maxFilesSummary = view.findViewById(R.id.fragment_backup_max_files_summary);
+     progress        = view.findViewById(R.id.fragment_backup_progress);
+     progressSummary = view.findViewById(R.id.fragment_backup_progress_summary);
+     upgradeCard     = view.findViewById(R.id.upgrade_to_improved_backups_card);
+ 
+     toggle.setOnClickListener(unused -> onToggleClicked());
+     create.setOnClickListener(unused -> onCreateClicked());
++    schedule.setOnClickListener(unused -> onScheduleClicked());
++    maxFiles.setOnClickListener(unused -> onMaxFilesClicked());
+     verify.setOnClickListener(unused -> BackupDialog.showVerifyBackupPassphraseDialog(requireContext()));
+     timer.setOnClickListener(unused -> pickTime());
+ 
+@@ -131,6 +144,8 @@ public class BackupsPreferenceFragment extends Fragment {
+     viewModel.refreshBackupStatus();
+     setBackupSummary();
+     setInfo();
++    setScheduleSummary();
++    setMaxFilesSummary();
+     setUpdateState();
+   }
+ 
+@@ -227,6 +242,23 @@ public class BackupsPreferenceFragment extends Fragment {
+     info.setMovementMethod(LinkMovementMethod.getInstance());
+   }
+ 
++  private void setScheduleSummary() {
++    final long interval = TextSecurePreferences.getBackupInternal(requireContext());
++
++    if (interval == TimeUnit.DAYS.toMillis(1)) {
++      scheduleSummary.setText(R.string.arrays__daily);
++    } else if (interval == TimeUnit.DAYS.toMillis(7)) {
++      scheduleSummary.setText(R.string.arrays__weekly);
++    } else {
++      Log.e(TAG, "Unknown schedule interval: " + interval);
++      scheduleSummary.setText("");
++    }
++  }
++
++  private void setMaxFilesSummary() {
++    maxFilesSummary.setText(String.valueOf(TextSecurePreferences.getBackupMaxFiles(requireContext())));
++  }
++
+   private void setUpdateState() {
+     if (SignalStore.settings().isBackupEnabled() && Environment.Backups.isNewFormatSupportedForLocalBackup()) {
+       UpgradeLocalBackupCard.bind(upgradeCard, () -> {
+@@ -285,6 +317,43 @@ public class BackupsPreferenceFragment extends Fragment {
+     }
+   }
+ 
++  private void onScheduleClicked() {
++    new MaterialAlertDialogBuilder(requireContext())
++        .setTitle(R.string.BackupsPreferenceFragment__change_schedule)
++        .setItems(R.array.backup_intervals, (dialog, which) -> {
++          if (which == 1) {
++            TextSecurePreferences.setBackupInternal(requireContext(), TimeUnit.DAYS.toMillis(7));
++          } else {
++            TextSecurePreferences.setBackupInternal(requireContext(), TimeUnit.DAYS.toMillis(1));
++          }
++
++          LocalBackupListener.setNextBackupTimeToIntervalFromNow(requireContext());
++          LocalBackupListener.schedule(requireContext());
++          setScheduleSummary();
++        })
++        .create()
++        .show();
++  }
++
++  private void onMaxFilesClicked() {
++    final View view = getLayoutInflater().inflate(R.layout.backup_max_files_selector_view, null);
++    final NumberPicker picker = view.findViewById(R.id.picker);
++    picker.setMinValue(1);
++    picker.setMaxValue(10);
++    picker.setValue(TextSecurePreferences.getBackupMaxFiles(requireContext()));
++    picker.setWrapSelectorWheel(false);
++    new MaterialAlertDialogBuilder(requireContext())
++        .setTitle(R.string.BackupsPreferenceFragment__number_of_backups_to_retain)
++        .setView(view)
++        .setNegativeButton(android.R.string.cancel, null)
++        .setPositiveButton(android.R.string.ok, (dialog, which) -> {
++          TextSecurePreferences.setBackupMaxFiles(requireContext(), picker.getValue());
++          setMaxFilesSummary();
++        })
++        .create()
++        .show();
++  }
++
+   @RequiresApi(29)
+   private void onCreateClickedApi29() {
+     Log.i(TAG, "Queueing backup...");
+@@ -330,16 +399,17 @@ public class BackupsPreferenceFragment extends Fragment {
+   }
+ 
+   private void updateToggle() {
+-    boolean userUnregistered          = TextSecurePreferences.isUnauthorizedReceived(AppDependencies.getApplication()) || !SignalStore.account().isRegistered();
+     boolean clientDeprecated          = SignalStore.misc().isClientDeprecated();
+     boolean legacyLocalBackupsEnabled = SignalStore.settings().isBackupEnabled() && BackupUtil.canUserAccessBackupDirectory(AppDependencies.getApplication());
+ 
+-    toggle.setEnabled(legacyLocalBackupsEnabled || (!userUnregistered && !clientDeprecated));
++    toggle.setEnabled(legacyLocalBackupsEnabled || !clientDeprecated);
+   }
+ 
+   private void setBackupsEnabled() {
+     toggle.setText(R.string.BackupsPreferenceFragment__turn_off);
+     create.setVisibility(View.VISIBLE);
++    schedule.setVisibility(View.VISIBLE);
++    maxFiles.setVisibility(View.VISIBLE);
+     verify.setVisibility(View.VISIBLE);
+     timer.setVisibility(View.VISIBLE);
+     updateToggle();
+@@ -351,6 +421,8 @@ public class BackupsPreferenceFragment extends Fragment {
+     toggle.setText(R.string.BackupsPreferenceFragment__turn_on);
+     create.setVisibility(View.GONE);
+     folder.setVisibility(View.GONE);
++    schedule.setVisibility(View.GONE);
++    maxFiles.setVisibility(View.GONE);
+     verify.setVisibility(View.GONE);
+     timer.setVisibility(View.GONE);
+     updateToggle();
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java b/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
+index 1232f0ad9a2208f943590d6eb3416db2b324df6b..ad5132fa76b7c48e308153f0f7071c421dd7efff 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
+@@ -10,8 +10,10 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
+ import org.thoughtcrime.securesms.util.JavaTimeExtensionsKt;
+ import org.thoughtcrime.securesms.util.TextSecurePreferences;
+ 
++import java.time.Instant;
+ import java.time.LocalDateTime;
+ import java.util.Random;
++import java.util.TimeZone;
+ import java.util.concurrent.TimeUnit;
+ 
+ public class LocalBackupListener extends PersistentAlarmManagerListener {
+@@ -48,10 +50,21 @@ public class LocalBackupListener extends PersistentAlarmManagerListener {
+   }
+ 
+   public static long setNextBackupTimeToIntervalFromNow(@NonNull Context context) {
+-    LocalDateTime now    = LocalDateTime.now();
++    long nowPlusInterval = System.currentTimeMillis() + TextSecurePreferences.getBackupInternal(context);
++
++    LocalDateTime nextInstant = LocalDateTime.ofInstant(Instant.ofEpochMilli(nowPlusInterval),
++                                                        TimeZone.getDefault().toZoneId());
+     int           hour   = SignalStore.settings().getBackupHour();
+     int           minute = SignalStore.settings().getBackupMinute();
+-    LocalDateTime next   = MessageBackupListener.getNextDailyBackupTimeFromNowWithJitter(now, hour, minute, BACKUP_JITTER_WINDOW_SECONDS, new Random());
++    LocalDateTime next   = nextInstant.withHour(hour).withMinute(minute).withSecond(0);
++
++    int jitter = (new Random().nextInt(BACKUP_JITTER_WINDOW_SECONDS)) - (BACKUP_JITTER_WINDOW_SECONDS / 2);
++
++    next = next.plusSeconds(jitter);
++
++    if (nextInstant.isAfter(next)) {
++      next = next.plusDays(1);
++    }
+ 
+     long nextTime = JavaTimeExtensionsKt.toMillis(next);
+ 
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/MessageBackupListener.kt b/app/src/main/java/org/thoughtcrime/securesms/service/MessageBackupListener.kt
+index 7fd2dbb4b22ee146dc5262929b5ab2d8270f5ac0..c7d58c31900d4dfd7dfd5627830ef66801b5bd43 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/MessageBackupListener.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/service/MessageBackupListener.kt
+@@ -9,10 +9,7 @@ import android.content.Context
+ import androidx.annotation.VisibleForTesting
+ import org.thoughtcrime.securesms.jobs.BackupMessagesJob
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
+-import org.thoughtcrime.securesms.util.toMillis
+-import org.thoughtcrime.securesms.util.toOffset
+-import java.time.LocalDateTime
+-import java.time.ZoneId
++import java.time.ZonedDateTime
+ import java.util.Random
+ import kotlin.time.Duration.Companion.days
+ import kotlin.time.Duration.Companion.minutes
+@@ -51,7 +48,7 @@ class MessageBackupListener : PersistentAlarmManagerListener() {
+ 
+     @VisibleForTesting
+     @JvmStatic
+-    fun getNextDailyBackupTimeFromNowWithJitter(now: LocalDateTime, hour: Int, minute: Int, maxJitterSeconds: Int, randomSource: Random = Random()): LocalDateTime {
++    fun getNextDailyBackupTimeFromNowWithJitter(now: ZonedDateTime, hour: Int, minute: Int, maxJitterSeconds: Int, randomSource: Random = Random()): ZonedDateTime {
+       var next = now.withHour(hour).withMinute(minute).withSecond(0)
+ 
+       val endOfJitterWindowForNow = now.plusSeconds(maxJitterSeconds.toLong() / 2)
+@@ -64,11 +61,11 @@ class MessageBackupListener : PersistentAlarmManagerListener() {
+     }
+ 
+     @VisibleForTesting
+-    fun setNextBackupTimeToIntervalFromNow(zoneId: ZoneId = ZoneId.systemDefault(), now: LocalDateTime = LocalDateTime.now(zoneId), maxJitterSeconds: Int = BACKUP_JITTER_WINDOW_SECONDS, randomSource: Random = Random()): Long {
++    fun setNextBackupTimeToIntervalFromNow(now: ZonedDateTime = ZonedDateTime.now(), maxJitterSeconds: Int = BACKUP_JITTER_WINDOW_SECONDS, randomSource: Random = Random()): Long {
+       val hour = SignalStore.settings.signalBackupHour
+       val minute = SignalStore.settings.signalBackupMinute
+       val next = getNextDailyBackupTimeFromNowWithJitter(now, hour, minute, maxJitterSeconds, randomSource)
+-      val nextTime = next.toMillis(zoneId.toOffset())
++      val nextTime = next.toInstant().toEpochMilli()
+       SignalStore.backup.nextBackupTime = nextTime
+       return nextTime
+     }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/BackupUtil.java b/app/src/main/java/org/thoughtcrime/securesms/util/BackupUtil.java
+index f4dc7331669ede662fbd72cf275b8fee8b607ac8..8ad50c0da2eb644f7a99d7d2964007043e310cee 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/BackupUtil.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/util/BackupUtil.java
+@@ -17,6 +17,7 @@ import androidx.documentfile.provider.DocumentFile;
+ import org.signal.core.util.Util;
+ import org.signal.core.util.logging.Log;
+ import org.signal.libsignal.protocol.util.ByteUtil;
++import org.thoughtcrime.securesms.BuildConfig;
+ import org.thoughtcrime.securesms.R;
+ import org.thoughtcrime.securesms.backup.BackupPassphrase;
+ import org.thoughtcrime.securesms.backup.v2.local.ArchiveFileSystem;
+@@ -136,12 +137,14 @@ public class BackupUtil {
+   }
+ 
+   public static void deleteOldBackups() {
+-    Log.i(TAG, "Deleting older backups");
++    int maxFiles = TextSecurePreferences.getBackupMaxFiles(AppDependencies.getApplication());
++
++    Log.i(TAG, "Deleting older backups. Keep " + maxFiles + " max.");
+ 
+     try {
+       List<BackupInfo> backups = getAllBackupsNewestFirst();
+ 
+-      for (int i = 2; i < backups.size(); i++) {
++      for (int i = maxFiles; i < backups.size(); i++) {
+         backups.get(i).delete();
+       }
+     } catch (NoExternalStorageException e) {
+@@ -200,8 +203,9 @@ public class BackupUtil {
+     List<BackupInfo> backups = new ArrayList<>(files.length);
+ 
+     for (DocumentFile file : files) {
+-      if (file.isFile() && file.getName() != null && file.getName().endsWith(".backup")) {
+-        long backupTimestamp = getBackupTimestamp(file.getName());
++      String backupName = file.getName();
++      if (file.isFile() && hasBackupExtension(backupName)) {
++        long backupTimestamp = getBackupTimestamp(backupName);
+ 
+         if (backupTimestamp != -1) {
+           backups.add(new BackupInfo(backupTimestamp, file.length(), file.getUri()));
+@@ -214,6 +218,18 @@ public class BackupUtil {
+     return backups;
+   }
+ 
++  public static String getBackupBaseDirName() {
++    return BuildConfig.BACKUP_BASE_NAME;
++  }
++
++  public static String getBackupFilenamePrefix() {
++    return BuildConfig.BACKUP_BASE_NAME.toLowerCase(Locale.ROOT);
++  }
++
++  private static boolean hasBackupExtension(String fileName) {
++    return fileName != null && fileName.endsWith(".backup");
++  }
++
+   public static @Nullable BackupInfo getBackupInfoFromSingleUri(@NonNull Context context, @NonNull Uri singleUri) throws BackupFileException {
+     DocumentFile documentFile = Objects.requireNonNull(DocumentFile.fromSingleUri(context, singleUri));
+ 
+@@ -225,7 +241,7 @@ public class BackupUtil {
+     BackupFileState backupFileState = getBackupFileState(documentFile);
+ 
+     if (backupFileState.isSuccess()) {
+-      long backupTimestamp = getBackupTimestamp(Objects.requireNonNull(documentFile.getName()));
++      long backupTimestamp = getBackupTimestamp(documentFile.getName());
+       return new BackupInfo(backupTimestamp, documentFile.length(), documentFile.getUri());
+     } else {
+       Log.w(TAG, "Could not load backup info.");
+@@ -287,11 +303,14 @@ public class BackupUtil {
+     }
+   }
+ 
+-  private static long getBackupTimestamp(@NonNull String backupName) {
+-    String[] prefixSuffix = backupName.split("[.]");
+-
+-    if (prefixSuffix.length == 2) {
+-      String[] parts = prefixSuffix[0].split("\\-");
++  private static long getBackupTimestamp(@Nullable String backupName) {
++    final String prefix = getBackupFilenamePrefix();
++    if (backupName != null &&
++        backupName.startsWith(prefix) &&
++        backupName.endsWith(".backup")) {
++      String ts = backupName.substring(prefix.length(),
++                                       backupName.length() - ".backup".length());
++      String[] parts = ts.split("\\-");
+ 
+       if (parts.length == 7) {
+         try {
+@@ -319,7 +338,7 @@ public class BackupUtil {
+       return BackupFileState.NOT_FOUND;
+     } else if (!documentFile.canRead()) {
+       return BackupFileState.NOT_READABLE;
+-    } else if (Util.isEmpty(documentFile.getName()) || !documentFile.getName().endsWith(".backup")) {
++    } else if (!hasBackupExtension(documentFile.getName())) {
+       return BackupFileState.UNSUPPORTED_FILE_EXTENSION;
+     } else {
+       return BackupFileState.READABLE;
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteDeprecation.java b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteDeprecation.java
+index 99b09051efece33ebc15e7b590214c6e0c8f7f9f..7c8fc6e94b7e31b7716be80bcf6e5dcd539e77ac 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteDeprecation.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteDeprecation.java
+@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
+ 
+ import org.signal.core.util.Util;
+ import org.signal.core.util.logging.Log;
+-import org.thoughtcrime.securesms.BuildConfig;
+ 
+ import java.io.IOException;
+ import java.util.Comparator;
+@@ -17,6 +16,8 @@ import java.util.stream.Stream;
+ import org.signal.core.util.JsonUtils;
+ import org.signal.core.util.SemanticVersion;
+ 
++import im.molly.app.base.ApkInfo;
++
+ public final class RemoteDeprecation {
+ 
+   private static final String TAG = Log.tag(RemoteDeprecation.class);
+@@ -28,7 +29,7 @@ public final class RemoteDeprecation {
+    *         there's no pending expiration.
+    */
+   public static long getTimeUntilDeprecation(long currentTime) {
+-    return getTimeUntilDeprecation(RemoteConfig.clientExpiration(), currentTime, BuildConfig.VERSION_NAME);
++    return getTimeUntilDeprecation(RemoteConfig.clientExpiration(), currentTime, ApkInfo.signalCanonicalVersionName);
+   }
+ 
+   /**
+diff --git a/app/src/main/protowire/Backups.proto b/app/src/main/protowire/Backups.proto
+index 83227de618e5a6bb539c5e3a8dc4646aeb8685ee..1fd232bb65a9089bd69e3e08defa299b406aedc4 100644
+--- a/app/src/main/protowire/Backups.proto
++++ b/app/src/main/protowire/Backups.proto
+@@ -28,6 +28,7 @@ message SharedPreference {
+     optional string key              = 2;
+     optional string value            = 3;
+     optional bool   booleanValue     = 4;
++    optional uint32 integerValue     = 41;
+     repeated string stringSetValue   = 5;
+     optional bool   isStringSetValue = 6;
+ }
+diff --git a/app/src/main/res/layout/backup_max_files_selector_view.xml b/app/src/main/res/layout/backup_max_files_selector_view.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..57c065a6377b68353fa9a5d926825656375e8b3b
+--- /dev/null
++++ b/app/src/main/res/layout/backup_max_files_selector_view.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:tools="http://schemas.android.com/tools"
++    tools:viewBindingIgnore="true"
++    android:orientation="horizontal"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_gravity="center"
++    android:gravity="center">
++
++    <NumberPicker
++        android:id="@+id/picker"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_marginEnd="8dp" />
++
++</LinearLayout>
+\ No newline at end of file
+diff --git a/app/src/main/res/layout/fragment_backups.xml b/app/src/main/res/layout/fragment_backups.xml
+index ebdd02feae04823fe35fcd5e19cb4b553f50c96c..14ac2970321be2a296fc4ac76ac3c6de52daae88 100644
+--- a/app/src/main/res/layout/fragment_backups.xml
++++ b/app/src/main/res/layout/fragment_backups.xml
+@@ -35,7 +35,7 @@
+             android:layout_marginBottom="16dp"
+             android:text="@string/BackupsPreferenceFragment__backups_are_encrypted_with_a_passphrase"
+             android:textAppearance="@style/Signal.Text.Preview"
+-            android:textColor="@color/signal_text_secondary" />
++            android:textColor="?attr/signal_text_secondary" />
+ 
+         <androidx.constraintlayout.widget.ConstraintLayout
+             android:id="@+id/fragment_backup_create"
+@@ -54,7 +54,7 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__create_backup"
+                 android:textAppearance="@style/Signal.Text.Body"
+-                android:textColor="@color/signal_text_primary"
++                android:textColor="?attr/signal_text_primary"
+                 app:layout_constraintBottom_toTopOf="@id/fragment_backup_create_summary"
+                 app:layout_constraintStart_toStartOf="parent"
+                 app:layout_constraintTop_toTopOf="parent"
+@@ -68,7 +68,7 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__last_backup"
+                 android:textAppearance="@style/Signal.Text.Preview"
+-                android:textColor="@color/signal_text_secondary"
++                android:textColor="?attr/signal_text_secondary"
+                 app:layout_constraintBottom_toTopOf="@id/fragment_backup_progress"
+                 app:layout_constraintStart_toStartOf="parent"
+                 app:layout_constraintTop_toBottomOf="@id/fragment_backup_create_title" />
+@@ -93,7 +93,7 @@
+                 android:layout_height="wrap_content"
+                 android:layout_marginStart="16dp"
+                 android:layout_marginEnd="16dp"
+-                android:textColor="@color/signal_text_secondary"
++                android:textColor="?attr/signal_text_secondary"
+                 android:visibility="gone"
+                 app:layout_constraintBottom_toBottomOf="parent"
+                 app:layout_constraintStart_toStartOf="parent"
+@@ -120,7 +120,7 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__backup_folder"
+                 android:textAppearance="@style/Signal.Text.Body"
+-                android:textColor="@color/signal_text_primary" />
++                android:textColor="?attr/signal_text_primary" />
+ 
+             <TextView
+                 android:id="@+id/fragment_backup_folder_name"
+@@ -129,7 +129,7 @@
+                 android:layout_marginStart="16dp"
+                 android:layout_marginEnd="16dp"
+                 android:textAppearance="@style/Signal.Text.Preview"
+-                android:textColor="@color/signal_text_secondary" />
++                android:textColor="?attr/signal_text_secondary" />
+         </LinearLayout>
+ 
+ 
+@@ -150,7 +150,7 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__backup_time"
+                 android:textAppearance="@style/Signal.Text.Body"
+-                android:textColor="@color/signal_text_primary" />
++                android:textColor="?attr/signal_text_primary" />
+ 
+             <TextView
+                 android:id="@+id/fragment_backup_time_value"
+@@ -159,10 +159,68 @@
+                 android:layout_marginStart="16dp"
+                 android:layout_marginEnd="16dp"
+                 android:textAppearance="@style/Signal.Text.Preview"
+-                android:textColor="@color/signal_text_secondary"
++                android:textColor="?attr/signal_text_secondary"
+                 tools:text="3:00" />
+         </LinearLayout>
+ 
++        <LinearLayout
++            android:id="@+id/fragment_backup_schedule"
++            android:layout_width="match_parent"
++            android:layout_height="?attr/listPreferredItemHeightLarge"
++            android:background="?attr/selectableItemBackground"
++            android:gravity="center_vertical"
++            android:orientation="vertical"
++            android:visibility="gone"
++            tools:visibility="visible">
++
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginStart="16dp"
++                android:layout_marginEnd="16dp"
++                android:text="@string/BackupsPreferenceFragment__schedule"
++                android:textAppearance="@style/Signal.Text.Body"
++                android:textColor="?attr/signal_text_primary" />
++
++            <TextView
++                android:id="@+id/fragment_backup_schedule_summary"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginStart="16dp"
++                android:layout_marginEnd="16dp"
++                android:textAppearance="@style/Signal.Text.Preview"
++                android:textColor="?attr/signal_text_secondary" />
++        </LinearLayout>
++
++        <LinearLayout
++            android:id="@+id/fragment_backup_max_files"
++            android:layout_width="match_parent"
++            android:layout_height="?attr/listPreferredItemHeightLarge"
++            android:background="?attr/selectableItemBackground"
++            android:gravity="center_vertical"
++            android:orientation="vertical"
++            android:visibility="gone"
++            tools:visibility="visible">
++
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginStart="16dp"
++                android:layout_marginEnd="16dp"
++                android:text="@string/BackupsPreferenceFragment__number_of_backups_to_retain"
++                android:textAppearance="@style/Signal.Text.Body"
++                android:textColor="?attr/signal_text_primary" />
++
++            <TextView
++                android:id="@+id/fragment_backup_max_files_summary"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginStart="16dp"
++                android:layout_marginEnd="16dp"
++                android:textAppearance="@style/Signal.Text.Preview"
++                android:textColor="?attr/signal_text_secondary" />
++        </LinearLayout>
++
+         <LinearLayout
+             android:id="@+id/fragment_backup_verify"
+             android:layout_width="match_parent"
+@@ -180,7 +238,7 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__verify_backup_passphrase"
+                 android:textAppearance="@style/Signal.Text.Body"
+-                android:textColor="@color/signal_text_primary" />
++                android:textColor="?attr/signal_text_primary" />
+ 
+             <TextView
+                 android:layout_width="match_parent"
+@@ -189,22 +247,19 @@
+                 android:layout_marginEnd="16dp"
+                 android:text="@string/BackupsPreferenceFragment__test_your_backup_passphrase"
+                 android:textAppearance="@style/Signal.Text.Preview"
+-                android:textColor="@color/signal_text_secondary" />
++                android:textColor="?attr/signal_text_secondary" />
+         </LinearLayout>
+ 
+-        <androidx.appcompat.widget.AppCompatButton
++        <com.google.android.material.button.MaterialButton
+             android:id="@+id/fragment_backup_toggle"
++            style="@style/Signal.Widget.Button.Medium.Primary"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+-            android:layout_marginStart="16dp"
++            android:layout_gravity="center_horizontal"
+             android:layout_marginTop="16dp"
+             android:layout_marginBottom="20dp"
+-            android:background="@drawable/primary_action_button_background_36dp"
+-            android:paddingStart="16dp"
+-            android:paddingEnd="16dp"
+             android:text="@string/BackupsPreferenceFragment__turn_on"
+-            android:textColor="@color/core_white"
+-            app:backgroundTint="?colorAccent" />
++            android:textAllCaps="true" />
+ 
+         <View
+             android:layout_width="match_parent"
+@@ -221,7 +276,7 @@
+             android:layout_marginBottom="16dp"
+             android:text="@string/BackupsPreferenceFragment__to_restore_a_backup"
+             android:textAppearance="@style/Signal.Text.Preview"
+-            android:textColor="@color/signal_text_secondary" />
++            android:textColor="?attr/signal_text_secondary" />
+ 
+     </LinearLayout>
+ </androidx.core.widget.NestedScrollView>
+\ No newline at end of file
+diff --git a/app/src/main/res/values-fa/strings.xml b/app/src/main/res/values-fa/strings.xml
+index d65dce31f3f8f894a7db4c6fa4ecf0ef9f2a4fde..60a40cc741fcb72a15c6260e77dacc68a855a049 100644
+--- a/app/src/main/res/values-fa/strings.xml
++++ b/app/src/main/res/values-fa/strings.xml
+@@ -1,10 +1,7 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!--
++<?xml version="1.0" encoding="UTF-8"?><!--
+   ~ Copyright 2024 Signal Messenger, LLC
+   ~ SPDX-License-Identifier: AGPL-3.0-only
+-  -->
+-<!-- smartling.instruction_comments_enabled = on -->
+-<resources>
++  --><!-- smartling.instruction_comments_enabled = on --><resources>
+   <!-- Removed by excludeNonTranslatables <string name="app_name" translatable="false">Signal</string> -->
+ 
+   <!-- Removed by excludeNonTranslatables <string name="install_url" translatable="false">https://signal.org/install</string> -->
+@@ -2808,7 +2805,7 @@
+     <string name="RegistrationActivity_you_will_receive_a_call_to_verify_this_number">شما تماسی برای وارسی این شماره دریافت خواهید کرد.</string>
+     <string name="RegistrationActivity_edit_number">ویرایش شماره</string>
+     <string name="RegistrationActivity_missing_google_play_services">فاقد خدمات Google Play</string>
+-    <string name="RegistrationActivity_this_device_is_missing_google_play_services">این دستگاه فاقد خدمات Google Play است. شما می‌توانید به استفاده از سیگنال ادامه دهید، اما این پیکربندی می‌تواند باعث کاهش اطمینان‌پذیری یا عملکرد شود.\n\n اگر یک کاربر حرفه‌ای یا در حال اجرای یک ROM سفارشی اندروید نیستید یا فکر می‌کنید که این پیام به اشتباه به شما نشان داده شده است، برای دریافت کمک در فرآیند عیب‌یابی با support@signal.org تماس بگیرید.</string>
++    <string name="RegistrationActivity_this_device_is_missing_google_play_services">این دستگاه فاقد خدمات Google Play است. شما می‌توانید به استفاده از سیگنال ادامه دهید، اما این پیکربندی می‌تواند باعث کاهش اطمینان‌پذیری یا عملکرد شود.\n\n اگر یک کاربر حرفه‌ای یا در حال اجرای یک ROM سفارشی اندروید نیستید یا فکر می‌کنید که این پیام به اشتباه به شما نشان داده شده است، برای دریافت کمک در فرآیند عیب‌یابی با support@molly.im تماس بگیرید.</string>
+     <string name="RegistrationActivity_i_understand">متوجهم</string>
+     <string name="RegistrationActivity_play_services_error">خطای خدمات Play</string>
+     <string name="RegistrationActivity_google_play_services_is_updating_or_unavailable">خدمات Google Play در حال به‌روزرسانی است یا موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.</string>
+@@ -4976,7 +4973,7 @@
+     <string name="BackupDialog_passphrase_was_not_correct">گذرواژه نادرست بود</string>
+     <string name="LocalBackupJob_creating_signal_backup">در حال ایجاد پشتیبان سیگنال…</string>
+     <!-- Title for progress notification shown in a system notification while verifying a recent backup. -->
+-    <string name="LocalBackupJob_verifying_signal_backup">در حال تایید پشتیبان Signal…</string>
++    <string name="LocalBackupJob_verifying_signal_backup">در حال تایید پشتیبان Molly…</string>
+     <string name="LocalBackupJobApi29_backup_failed">پشتیبان‌گیری ناموفق بود</string>
+     <string name="LocalBackupJobApi29_your_backup_directory_has_been_deleted_or_moved">آدرس ذخیره‌سازی پشتیبان شما پاک شده یا به جای دیگری انتقال یافته است.</string>
+     <string name="LocalBackupJobApi29_your_backup_file_is_too_large">حجم فایل پشتیبان شما برای نگهداری در این محل زیاد است.</string>
+@@ -9972,4 +9969,4 @@
+     <string name="RecoveryKeyWarningDialog__dont_share">لغو اشتراک‌گذاری</string>
+ 
+     <!-- EOF -->
+-</resources>
++</resources>
+\ No newline at end of file
+diff --git a/app/src/main/res/values/arrays.xml b/app/src/main/res/values/arrays.xml
+index b414a67039a391dc2ad97f362e68df93edcd89d4..34a5d8b52f0debdea08fdb63d8f0fe6971d7357b 100644
+--- a/app/src/main/res/values/arrays.xml
++++ b/app/src/main/res/values/arrays.xml
+@@ -285,6 +285,18 @@
+ 
+   <string-array name="pref_media_download_roaming_default" />
+ 
++  <string-array name="pref_passphrase_lock_trigger_entries">
++      <item>timeout</item>
++  </string-array>
++
++  <string-array name="pref_passphrase_lock_trigger_values">
++      <item>@string/arrays__on_inactivity_timeout</item>
++  </string-array>
++
++  <string-array name="pref_passphrase_lock_trigger_default">
++      <item>timeout</item>
++  </string-array>
++
+     <!-- RedPhone -->
+ 
+     <integer-array name="conversation_length_limit">
+@@ -334,6 +346,11 @@
+         <item>@string/MediaOverviewActivity_Storage_used</item>
+     </string-array>
+ 
++    <string-array name="backup_intervals">
++        <item>@string/arrays__daily</item>
++        <item>@string/arrays__weekly</item>
++    </string-array>
++
+     <string-array name="ExpireTimerSettingsFragment__labels">
+         <item>@string/ExpireTimerSettingsFragment__off</item>
+         <item>@string/ExpireTimerSettingsFragment__4_weeks</item>
+diff --git a/core/util/src/main/java/org/signal/core/util/CoreUtilDependencies.kt b/core/util/src/main/java/org/signal/core/util/CoreUtilDependencies.kt
+index 770e1f29fd66cdd8dedf5c79595a1643737beabb..0a1ce2629cfac26e6a2551b4ec53d1acc3806098 100644
+--- a/core/util/src/main/java/org/signal/core/util/CoreUtilDependencies.kt
++++ b/core/util/src/main/java/org/signal/core/util/CoreUtilDependencies.kt
+@@ -38,9 +38,10 @@ object CoreUtilDependencies {
+   }
+ 
+   data class BuildInfo(
+-    val canonicalVersionCode: Int,
+-    val buildTimestamp: Long
+-  )
++    private val buildTimestamp: Long?
++  ) {
++    fun buildTimestampOrDefault(defaultValue: Long): Long = buildTimestamp ?: defaultValue
++  }
+ 
+   interface Provider {
+     fun provideIsClientDeprecated(): Boolean
+diff --git a/core/util/src/main/java/org/signal/core/util/Util.java b/core/util/src/main/java/org/signal/core/util/Util.java
+index 2a10381422371db9e25bcad666f5c355c826e2fc..8d1549933b2894c4e64630e86f651f8581e169d7 100644
+--- a/core/util/src/main/java/org/signal/core/util/Util.java
++++ b/core/util/src/main/java/org/signal/core/util/Util.java
+@@ -24,7 +24,6 @@ import android.content.ClipData;
+ import android.content.ClipboardManager;
+ import android.content.Context;
+ import android.content.Intent;
+-import android.content.pm.PackageManager;
+ import android.graphics.Typeface;
+ import android.net.Uri;
+ import android.telephony.TelephonyManager;
+@@ -60,7 +59,7 @@ import java.util.concurrent.TimeUnit;
+ public class Util {
+   private static final String TAG = Log.tag(Util.class);
+ 
+-  private static final long BUILD_LIFESPAN = TimeUnit.DAYS.toMillis(90);
++  private static final long BUILD_LIFESPAN = TimeUnit.DAYS.toMillis(180);
+ 
+   public static final String COPY_LABEL = "text\u00AD";
+ 
+@@ -299,29 +298,7 @@ public class Util {
+     return result;
+   }
+ 
+-  /**
+-   * The app version.
+-   * <p>
+-   * This code should be used in all places that compare app versions rather than
+-   * {@link #getManifestApkVersion(Context)}.
+-   */
+-  public static int getCanonicalVersionCode() {
+-    return CoreUtilDependencies.INSTANCE.getBuildInfo().getCanonicalVersionCode();
+-  }
+-
+-  /**
+-   * The manifest APK version may not be the same as the canonical version code due to ABI split
+-   * code adding a postfix after BuildConfig is generated.
+-   * <p>
+-   * However, in most cases you want to use {@link #getCanonicalVersionCode()}.
+-   */
+-  public static int getManifestApkVersion(Context context) {
+-    try {
+-      return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionCode;
+-    } catch (PackageManager.NameNotFoundException e) {
+-      throw new AssertionError(e);
+-    }
+-  }
++  // MOLLY: getCanonicalVersionCode() and getManifestApkVersion() deprecated by ApkInfo
+ 
+   public static String getSecret(int size) {
+     byte[] secret = getSecretBytes(size);
+@@ -347,7 +324,7 @@ public class Util {
+       return 0;
+     }
+ 
+-    long buildAge                   = currentTime - CoreUtilDependencies.INSTANCE.getBuildInfo().getBuildTimestamp();
++    long buildAge                   = currentTime - CoreUtilDependencies.INSTANCE.getBuildInfo().buildTimestampOrDefault(currentTime);
+     long timeUntilBuildDeprecation  = BUILD_LIFESPAN - buildAge;
+     long timeUntilRemoteDeprecation = CoreUtilDependencies.INSTANCE.getTimeUntilRemoteDeprecation(currentTime);
+ 
+@@ -382,6 +359,10 @@ public class Util {
+     return activityManager.isLowRamDevice() || activityManager.getLargeMemoryClass() <= 64;
+   }
+ 
++  public static long getSystemAvailableMemory(@NonNull Context context) {
++    return MemoryTracker.INSTANCE.getSystemNativeMemoryUsage(context).getSystemAvailableBytes();
++  }
++
+   public static int clamp(int value, int min, int max) {
+     return Math.min(Math.max(value, min), max);
+   }

@@ -1,0 +1,456 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:10:11 +0100
+Subject: [PATCH] policy: preserve remote-config safety and product defaults
+
+Retain reviewed default and internal/test ordering contracts. Existing support choices remain runtime-pending, not retired.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-DEFAULTS-001, MOL-CONFIG-POLICY-001, MOL-SAFETY-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt b/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt
+deleted file mode 100644
+index b46f8d021f19dc962200d51a4f5e1a1b4032bb26..0000000000000000000000000000000000000000
+--- a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt
++++ /dev/null
+@@ -1,275 +0,0 @@
+-package org.signal.benchmark
+-
+-import android.os.Bundle
+-import androidx.activity.compose.setContent
+-import androidx.compose.material3.CircularProgressIndicator
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.setValue
+-import androidx.lifecycle.lifecycleScope
+-import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.launch
+-import org.signal.benchmark.setup.Harness
+-import org.signal.benchmark.setup.TestMessages
+-import org.signal.benchmark.setup.TestUsers
+-import org.signal.core.util.logging.Log
+-import org.thoughtcrime.securesms.BaseActivity
+-import org.thoughtcrime.securesms.backup.v2.BackupRepository
+-import org.thoughtcrime.securesms.crypto.ProfileKeyUtil
+-import org.thoughtcrime.securesms.database.SignalDatabase
+-import org.thoughtcrime.securesms.database.TestDbUtils
+-import org.thoughtcrime.securesms.database.model.databaseprotos.RestoreDecisionState
+-import org.thoughtcrime.securesms.keyvalue.SignalStore
+-import org.thoughtcrime.securesms.keyvalue.Skipped
+-import org.thoughtcrime.securesms.mms.OutgoingMessage
+-import org.thoughtcrime.securesms.profiles.ProfileName
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.registration.util.RegistrationUtil
+-import org.thoughtcrime.securesms.util.TextSecurePreferences
+-
+-class BenchmarkSetupActivity : BaseActivity() {
+-
+-  companion object {
+-    private val TAG = Log.tag(BenchmarkSetupActivity::class)
+-
+-    const val SEARCH_KEYWORD = "lighthouse"
+-
+-    private val SEARCH_VOCABULARY = listOf(
+-      "hello", "world", "signal", "android", "kotlin", "database", "benchmark", "conversation",
+-      "morning", "evening", "weekend", "project", "meeting", "dinner", "coffee", "garden",
+-      "mountain", "river", "forest", "harbor", "market", "library", "concert", "holiday"
+-    )
+-  }
+-
+-  override fun onCreate(savedInstanceState: Bundle?) {
+-    super.onCreate(savedInstanceState)
+-
+-    var setupComplete by mutableStateOf(false)
+-
+-    setContent {
+-      if (setupComplete) {
+-        Text("done")
+-      } else {
+-        CircularProgressIndicator()
+-      }
+-    }
+-
+-    lifecycleScope.launch(Dispatchers.IO) {
+-      when (intent.extras!!.getString("setup-type")) {
+-        "cold-start" -> setupColdStart()
+-        "conversation-open" -> setupConversationOpen()
+-        "conversation-list-search" -> setupConversationListSearch()
+-        "message-send" -> setupMessageSend()
+-        "group-message-send" -> setupGroupMessageSend()
+-        "group-delivery-receipt" -> setupGroupReceipt(includeMsl = true)
+-        "group-read-receipt" -> setupGroupReceipt(enableReadReceipts = true)
+-        "thread-delete" -> setupThreadDelete()
+-        "thread-delete-group" -> setupThreadDeleteGroup()
+-        "backup-restore" -> setupBackupRestore()
+-      }
+-      setupComplete = true
+-    }
+-  }
+-
+-  private fun setupColdStart() {
+-    TestUsers.setupSelf()
+-    TestUsers.setupTestRecipients(50).forEach {
+-      val recipient: Recipient = Recipient.resolved(it)
+-
+-      TestMessages.insertIncomingTextMessage(other = recipient, body = "Cool text message?!?!")
+-      TestMessages.insertIncomingImageMessage(other = recipient, attachmentCount = 1)
+-      TestMessages.insertIncomingImageMessage(other = recipient, attachmentCount = 2, body = "Album")
+-      TestMessages.insertIncomingImageMessage(other = recipient, body = "Test", attachmentCount = 1, failed = true)
+-      TestMessages.insertIncomingTextMessage(other = recipient, body = "Signal message")
+-      TestMessages.insertIncomingTextMessage(other = recipient, body = "Test")
+-
+-      SignalDatabase.messages.setAllMessagesRead()
+-
+-      SignalDatabase.threads.update(SignalDatabase.threads.getOrCreateThreadIdFor(recipient = recipient), true)
+-    }
+-  }
+-
+-  private fun setupConversationOpen() {
+-    TestUsers.setupSelf()
+-    TestUsers.setupTestRecipient().let {
+-      val recipient: Recipient = Recipient.resolved(it)
+-      val messagesToAdd = 1000
+-      val generator: TestMessages.TimestampGenerator = TestMessages.TimestampGenerator(System.currentTimeMillis() - (messagesToAdd * 2000L) - 60_000L)
+-
+-      for (i in 0 until messagesToAdd) {
+-        TestMessages.insertIncomingTextMessage(other = recipient, body = "Test message $i", timestamp = generator.nextTimestamp())
+-        TestMessages.insertOutgoingTextMessage(other = recipient, body = "Test message $i", timestamp = generator.nextTimestamp())
+-      }
+-
+-      SignalDatabase.threads.update(SignalDatabase.threads.getOrCreateThreadIdFor(recipient = recipient), true)
+-    }
+-  }
+-
+-  private fun setupConversationListSearch() {
+-    TestUsers.setupSelf()
+-
+-    val recipientCount = 50
+-    val messagesPerRecipient = 2000
+-    val totalMessages = recipientCount * messagesPerRecipient
+-    val generator = TestMessages.TimestampGenerator(System.currentTimeMillis() - (totalMessages * 2000L) - 60_000L)
+-
+-    TestUsers.setupTestRecipients(recipientCount).forEachIndexed { recipientIndex, recipientId ->
+-      val recipient: Recipient = Recipient.resolved(recipientId)
+-
+-      for (i in 0 until messagesPerRecipient) {
+-        val body = searchableMessageBody(recipientIndex, i)
+-        if (i % 2 == 0) {
+-          TestMessages.insertIncomingTextMessage(other = recipient, body = body, timestamp = generator.nextTimestamp())
+-        } else {
+-          TestMessages.insertOutgoingTextMessage(other = recipient, body = body, timestamp = generator.nextTimestamp())
+-        }
+-      }
+-
+-      SignalDatabase.messages.setAllMessagesRead()
+-      SignalDatabase.threads.update(SignalDatabase.threads.getOrCreateThreadIdFor(recipient = recipient), true)
+-    }
+-  }
+-
+-  private fun searchableMessageBody(recipientIndex: Int, messageIndex: Int): String {
+-    val words = SEARCH_VOCABULARY
+-    val w1 = words[(recipientIndex + messageIndex) % words.size]
+-    val w2 = words[(recipientIndex * 7 + messageIndex * 3) % words.size]
+-    val w3 = words[(recipientIndex * 13 + messageIndex * 5) % words.size]
+-    return "$w1 $w2 $SEARCH_KEYWORD $w3 message $messageIndex"
+-  }
+-
+-  private fun setupMessageSend() {
+-    TestUsers.setupSelf()
+-    TestUsers.setupTestClients(1)
+-  }
+-
+-  private fun setupGroupMessageSend() {
+-    TestUsers.setupSelf()
+-    TestUsers.setupGroup()
+-  }
+-
+-  private fun setupThreadDelete() {
+-    TestUsers.setupSelf()
+-    val recipientIds = TestUsers.setupTestRecipients(2)
+-    val recipient = Recipient.resolved(recipientIds[0])
+-    val reactionAuthor = recipientIds[1]
+-    val messagesToAdd = 20_000
+-    val generator = TestMessages.TimestampGenerator(System.currentTimeMillis() - (messagesToAdd * 2000L) - 60_000L)
+-
+-    for (i in 0 until messagesToAdd) {
+-      val timestamp = generator.nextTimestamp()
+-      when {
+-        i % 20 == 0 -> TestMessages.insertIncomingVoiceMessage(other = recipient, timestamp = timestamp)
+-        i % 4 == 0 -> TestMessages.insertIncomingImageMessage(other = recipient, attachmentCount = 1, timestamp = timestamp)
+-        else -> TestMessages.insertIncomingTextMessage(other = recipient, body = "Message $i", timestamp = timestamp)
+-      }
+-    }
+-
+-    val threadId = SignalDatabase.threads.getOrCreateThreadIdFor(recipient = recipient)
+-    TestDbUtils.insertReactionsForThread(threadId, reactionAuthor, moduloFilter = 5)
+-
+-    SignalDatabase.threads.update(threadId, true)
+-  }
+-
+-  private fun setupThreadDeleteGroup() {
+-    TestUsers.setupSelf()
+-    val groupId = TestUsers.setupGroup()
+-    val groupRecipient = Recipient.externalGroupExact(groupId)
+-    val threadId = SignalDatabase.threads.getOrCreateThreadIdFor(groupRecipient)
+-
+-    val selfId = Recipient.self().id
+-    val memberRecipientIds = SignalDatabase.groups.getGroup(groupId).get().members.filter { it != selfId }
+-
+-    val messagesToAdd = 20_000
+-    val generator = TestMessages.TimestampGenerator(System.currentTimeMillis() - (messagesToAdd * 2000L) - 60_000L)
+-
+-    for (i in 0 until messagesToAdd) {
+-      val timestamp = generator.nextTimestamp()
+-      when {
+-        i % 4 == 0 -> TestMessages.insertOutgoingImageMessage(other = groupRecipient, attachmentCount = 1, timestamp = timestamp)
+-        else -> {
+-          val message = OutgoingMessage(
+-            recipient = groupRecipient,
+-            body = "Message $i",
+-            timestamp = timestamp,
+-            isSecure = true
+-          )
+-          val insert = SignalDatabase.messages.insertMessageOutbox(message, threadId, false, null)
+-          SignalDatabase.messages.markAsSent(insert.messageId, true)
+-        }
+-      }
+-    }
+-
+-    TestDbUtils.insertGroupReceiptsForThread(threadId, memberRecipientIds)
+-    TestDbUtils.insertReactionsForThread(threadId, memberRecipientIds[0], moduloFilter = 5)
+-    TestDbUtils.insertMentionsForThread(threadId, memberRecipientIds[0], moduloFilter = 10)
+-
+-    SignalDatabase.threads.update(threadId, true)
+-  }
+-
+-  private fun setupBackupRestore() {
+-    TestUsers.setupSelf()
+-
+-    val profileKey = ProfileKeyUtil.getSelfProfileKey()
+-    val selfData = BackupRepository.SelfData(
+-      aci = Harness.SELF_ACI,
+-      pni = SignalStore.account.requirePni(),
+-      e164 = Harness.SELF_E164,
+-      profileKey = profileKey
+-    )
+-
+-    val backupBytes = assets.open("backups/backup.binproto").use { it.readBytes() }
+-    Log.i(TAG, "Read ${backupBytes.size} bytes from backup asset")
+-
+-    val result = BackupRepository.importPlaintextTest(
+-      length = backupBytes.size.toLong(),
+-      inputStreamFactory = { backupBytes.inputStream() },
+-      selfData = selfData
+-    )
+-
+-    Log.i(TAG, "Backup import result: $result")
+-
+-    SignalStore.svr.optOut()
+-    SignalStore.registration.restoreDecisionState = RestoreDecisionState.Skipped
+-    SignalDatabase.recipients.setProfileKey(Recipient.self().id, profileKey)
+-    SignalDatabase.recipients.setProfileName(Recipient.self().id, ProfileName.fromParts("Tester", "McTesterson"))
+-    RegistrationUtil.maybeMarkRegistrationComplete()
+-  }
+-
+-  private fun setupGroupReceipt(includeMsl: Boolean = false, enableReadReceipts: Boolean = false) {
+-    TestUsers.setupSelf()
+-    val groupId = TestUsers.setupGroup()
+-
+-    val groupRecipient = Recipient.externalGroupExact(groupId)
+-    val threadId = SignalDatabase.threads.getOrCreateThreadIdFor(groupRecipient)
+-
+-    val messageIds = mutableListOf<Long>()
+-    val timestamps = mutableListOf<Long>()
+-    val baseTimestamp = 2_000_000L
+-
+-    for (i in 0 until 100) {
+-      val timestamp = baseTimestamp + i
+-      val message = OutgoingMessage(
+-        recipient = groupRecipient,
+-        body = "Outgoing message $i",
+-        timestamp = timestamp,
+-        isSecure = true
+-      )
+-      val insert = SignalDatabase.messages.insertMessageOutbox(message, threadId, false, null)
+-      SignalDatabase.messages.markAsSent(insert.messageId, true)
+-      messageIds += insert.messageId
+-      timestamps += timestamp
+-    }
+-
+-    if (includeMsl) {
+-      val selfId = Recipient.self().id
+-      val memberRecipientIds = SignalDatabase.groups.getGroup(groupId).get().members.filter { it != selfId }
+-      TestDbUtils.insertMessageSendLogEntries(messageIds, timestamps, memberRecipientIds)
+-    }
+-
+-    if (enableReadReceipts) {
+-      TextSecurePreferences.setReadReceiptsEnabled(this, true)
+-    }
+-  }
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java b/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
+index 3d077a615b67cf6091b20196802710f747a8b066..06c16f131dd702ccfac2b94f4d21d3dff8347dd2 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
+@@ -4,9 +4,6 @@ import androidx.annotation.WorkerThread;
+ 
+ import org.signal.core.util.ThreadUtil;
+ import org.signal.core.util.logging.Log;
+-import org.thoughtcrime.securesms.crypto.ReentrantSessionLock;
+-import org.thoughtcrime.securesms.database.SignalDatabase;
+-import org.thoughtcrime.securesms.util.RemoteConfig;
+ 
+ import java.io.Closeable;
+ import java.util.concurrent.TimeUnit;
+@@ -23,16 +20,6 @@ public final class GroupsV2ProcessingLock {
+ 
+   @WorkerThread
+   public static Closeable acquireGroupProcessingLock() throws GroupChangeBusyException {
+-    if (RemoteConfig.internalUser()) {
+-      if (!lock.isHeldByCurrentThread()) {
+-        if (SignalDatabase.inTransaction()) {
+-          throw new AssertionError("Tried to acquire the group lock inside of a database transaction!");
+-        }
+-        if (ReentrantSessionLock.INSTANCE.isHeldByCurrentThread()) {
+-          throw new AssertionError("Tried to acquire the group lock inside of the ReentrantSessionLock!!");
+-        }
+-      }
+-    }
+     return acquireGroupProcessingLock(5000);
+   }
+ 
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
+index 25a28ced51f0bac261348637f096845ffd2a8c20..21788b6eabcc353b81b09e1ebef220c013707311 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
+@@ -618,17 +618,14 @@ object RemoteConfig {
+   /** Whether or not the user is an 'internal' one, which activates certain developer tools. */
+   @JvmStatic
+   @get:JvmName("internalUser")
+-  val internalUser: Boolean by remoteValue(
+-    key = "android.internalUser",
+-    hotSwappable = true
+-  ) { value ->
+-    when {
++  val internalUser: Boolean
++    get() = when {
+       internalUserDisabled -> false
+-      underTest -> value.asBoolean(false)
++      underTest -> false
+       Environment.isInternal() -> true
+-      else -> value.asBoolean(false)
++      else -> false
+     }
+-  }
++
+ 
+   /** The raw client expiration JSON string.  */
+   @JvmStatic
+@@ -657,13 +654,7 @@ object RemoteConfig {
+     inSeconds.seconds.inWholeMilliseconds
+   }
+ 
+-  val shareSelectionLimit: SelectionLimits by remoteValue(
+-    key = "android.share.limit",
+-    hotSwappable = true
+-  ) { value ->
+-    val limit = value.asInteger(5)
+-    SelectionLimits(limit, limit)
+-  }
++  val shareSelectionLimit: SelectionLimits = SelectionLimits.NO_LIMITS
+ 
+   /** Whether or not to allow automatic session resets.  */
+   @JvmStatic
+@@ -855,15 +846,6 @@ object RemoteConfig {
+     hotSwappable = false
+   )
+ 
+-  /** Whether client supports sending a request to another to activate payments  */
+-  @JvmStatic
+-  @get:JvmName("paymentsRequestActivateFlow")
+-  val paymentsRequestActivateFlow: Boolean by remoteBoolean(
+-    key = "android.payments.requestActivateFlow",
+-    defaultValue = false,
+-    hotSwappable = true
+-  )
+-
+   /** Serialized list of regions in which Google Pay is disabled for donations */
+   @JvmStatic
+   @get:JvmName("googlePayDisabledRegions")
+@@ -921,16 +903,6 @@ object RemoteConfig {
+     hotSwappable = false
+   )
+ 
+-  /**
+-   * Enable/disable for notification when we cannot fetch messages despite receiving an urgent push.
+-   */
+-  val fcmMayHaveMessagesNotificationKillSwitch: Boolean by remoteBoolean(
+-    key = "android.fcmNotificationFallbackKillSwitch",
+-    defaultValue = false,
+-    hotSwappable = true,
+-    sticky = true
+-  )
+-
+   /** Maximum number of attachments allowed to be sent/received.  */
+   val maxAttachmentCount: Int by remoteInt(
+     key = "android.attachments.maxCount",
+@@ -1007,15 +979,6 @@ object RemoteConfig {
+     hotSwappable = true
+   )
+ 
+-  const val CRASH_PROMPT_CONFIG: String = "android.crashPromptConfig.2"
+-
+-  /** Config object for what crashes to prompt about.  */
+-  val crashPromptConfig: String by remoteString(
+-    key = CRASH_PROMPT_CONFIG,
+-    defaultValue = "",
+-    hotSwappable = true
+-  )
+-
+   /** Whether or not SEPA debit payments for donations are enabled. */
+   val sepaDebitDonations: Boolean by remoteBoolean(
+     key = "android.sepa.debit.donations.5",
+@@ -1223,14 +1186,6 @@ object RemoteConfig {
+     hotSwappable = true
+   )
+ 
+-  @JvmStatic
+-  @get:JvmName("backupsMegaphone")
+-  val backupsMegaphone: Boolean by remoteBoolean(
+-    key = "android.backupsMegaphone.4",
+-    defaultValue = false,
+-    hotSwappable = true
+-  )
+-
+   @JvmStatic
+   @get:JvmName("pinLimit")
+   val pinLimit: Int by remoteInt(
+@@ -1239,22 +1194,6 @@ object RemoteConfig {
+     hotSwappable = true
+   )
+ 
+-  @JvmStatic
+-  @get:JvmName("callQualitySurvey")
+-  val callQualitySurvey: Boolean by remoteBoolean(
+-    key = "android.callQualitySurvey.4",
+-    defaultValue = false,
+-    hotSwappable = true
+-  )
+-
+-  @JvmStatic
+-  @get:JvmName("callQualitySurveyPPM")
+-  val callQualitySurveyPPM: String by remoteString(
+-    key = "android.callQualitySurveyPPM",
+-    defaultValue = "*:10000",
+-    hotSwappable = true
+-  )
+-
+   /**
+    * Whether or not to receive admin delete messages.
+    */

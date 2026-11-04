@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:09:57 +0100
+Subject: [PATCH] calls: preserve call history and Telecom integration
+
+Keep direct/group call and platform call integration behavior, including the existing history policy.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-CALL-001, MOL-TELECOM-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/webrtc/v2/CallIntent.kt b/app/src/main/java/org/thoughtcrime/securesms/components/webrtc/v2/CallIntent.kt
+index baa0a6757c472a725a566c3eb2c8750a9a4ebd94..0881ab6c532d837b1e3ddc8ecea6453bef7890c4 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/webrtc/v2/CallIntent.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/webrtc/v2/CallIntent.kt
+@@ -13,7 +13,7 @@ import android.content.Intent
+  * CallIntent wraps an intent inside one of the call activities to allow for easy typed access to the necessary data within it.
+  */
+ class CallIntent(
+-  private val intent: Intent
++  val intent: Intent
+ ) {
+ 
+   companion object {
+@@ -61,6 +61,7 @@ class CallIntent(
+ 
+   enum class Action(val code: String) {
+     VIEW(Intent.ACTION_VIEW),
++    NO_ACTION("NO_ACTION"),
+     ANSWER_AUDIO("ANSWER_ACTION"),
+     ANSWER_VIDEO("ANSWER_VIDEO_ACTION"),
+     DENY("DENY_ACTION"),
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/MessageTypes.java b/app/src/main/java/org/thoughtcrime/securesms/database/MessageTypes.java
+index fe6b6f5fa72fad54bd1356812341a171a85b1779..f0167e270b928bde234056cff18a111a8fdfa7f5 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/database/MessageTypes.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/database/MessageTypes.java
+@@ -328,6 +328,10 @@ public interface MessageTypes {
+     return type == MISSED_VIDEO_CALL_TYPE;
+   }
+ 
++  static boolean isMissedCall(long type) {
++    return isMissedAudioCall(type) || isMissedVideoCall(type);
++  }
++
+   static boolean isGroupCall(long type) {
+     return type == GROUP_CALL_TYPE;
+   }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/model/MessageRecord.java b/app/src/main/java/org/thoughtcrime/securesms/database/model/MessageRecord.java
+index 7d772c6bbe0500d199b45a54833ea1a18f87a723..56837a31199fbbb0c766e2e357018c8d77d1059d 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/database/model/MessageRecord.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/database/model/MessageRecord.java
+@@ -223,17 +223,17 @@ public abstract class MessageRecord extends DisplayRecord {
+     } else if (isGroupQuit()) {
+       return fromRecipient(getFromRecipient(), r -> context.getString(R.string.ConversationItem_group_action_left, r.getDisplayName(context)), Glyph.LEAVE);
+     } else if (isIncomingAudioCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_incoming_voice_call), getCallDateString(context)), Glyph.PHONE);
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_incoming_voice_call), getCallDateString(context)), Glyph.PHONE);
+     } else if (isIncomingVideoCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_incoming_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA);
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_incoming_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA);
+     } else if (isOutgoingAudioCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_outgoing_voice_call), getCallDateString(context)), Glyph.PHONE);
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_outgoing_voice_call), getCallDateString(context)), Glyph.PHONE);
+     } else if (isOutgoingVideoCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_outgoing_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA);
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_outgoing_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA);
+     } else if (isMissedAudioCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_missed_voice_call), getCallDateString(context)), Glyph.PHONE, ContextCompat.getColor(context, R.color.core_red_shade), ContextCompat.getColor(context, R.color.core_red));
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_missed_voice_call), getCallDateString(context)), Glyph.PHONE, ContextCompat.getColor(context, R.color.core_red_shade), ContextCompat.getColor(context, R.color.core_red));
+     } else if (isMissedVideoCall()) {
+-      return staticUpdateDescription(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_missed_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA, ContextCompat.getColor(context, R.color.core_red_shade), ContextCompat.getColor(context, R.color.core_red));
++      return staticUpdateDescriptionWithExpiration(context.getString(R.string.MessageRecord_call_message_with_date, context.getString(R.string.MessageRecord_missed_video_call), getCallDateString(context)), Glyph.VIDEO_CAMERA, ContextCompat.getColor(context, R.color.core_red_shade), ContextCompat.getColor(context, R.color.core_red));
+     } else if (isGroupCall()) {
+       return getGroupCallUpdateDescription(context, getBody(), true);
+     } else if (isJoined()) {
+@@ -504,7 +504,7 @@ public abstract class MessageRecord extends DisplayRecord {
+   }
+ 
+   protected static @NonNull UpdateDescription staticUpdateDescriptionWithExpiration(@NonNull String string, Glyph glyph) {
+-    return UpdateDescription.staticDescriptionWithExpiration(string, glyph);
++    return staticUpdateDescriptionWithExpiration(string, glyph, 0, 0);
+   }
+ 
+   protected static @NonNull UpdateDescription staticUpdateDescriptionWithExpiration(@NonNull String string, Glyph glyph, @ColorInt int lightTint, @ColorInt int darkTint) {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/AndroidTelecomUtil.kt b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/AndroidTelecomUtil.kt
+index cdc3ca380333b95ab05adf6a7676ae876ea3256a..707dc6d1b419dad05483771c34cb0789a2eaac51 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/AndroidTelecomUtil.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/AndroidTelecomUtil.kt
+@@ -212,6 +212,7 @@ object AndroidTelecomUtil {
+     if (RemoteConfig.internalUser) {
+       return !SignalStore.internal.callingDisableTelecom
+     }
+-    return RingRtcDynamicConfiguration.isTelecomAllowedForDevice()
++//    return RingRtcDynamicConfiguration.isTelecomAllowedForDevice()
++    return false
+   }
+ }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/webrtc/CallNotificationBuilder.java b/app/src/main/java/org/thoughtcrime/securesms/webrtc/CallNotificationBuilder.java
+index 479c4114b753635836c2a06ec4e466422390f96c..6c28410a355fb975c90657b3efcf62ac7e56d807 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/webrtc/CallNotificationBuilder.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/webrtc/CallNotificationBuilder.java
+@@ -238,6 +238,8 @@ public class CallNotificationBuilder {
+     builder.withAction(launchCallScreenIntentState.action);
+ 
+     if (launchCallScreenIntentState == LaunchCallScreenIntentState.CONTENT) {
++      // MOLLY: Set a non-empty action to clear any pending action held by the screen lock
++      builder.withAction(CallIntent.Action.NO_ACTION);
+       builder.withIntentFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+     }
+ 

@@ -1,0 +1,691 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:09:58 +0100
+Subject: [PATCH] media: preserve private attachment and archive consumers
+
+Retain attachment streaming/caching and archive-format consumers. No physical erasure or full-provider parity claim.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-ATTACHMENT-001, MOL-ARCHIVE-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
+index ed91a14c3fd48c46ea1a1e7d093a0239c793a611..bb69975830c00d562d1e7f31cfe18404a28565cc 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
+@@ -18,7 +18,7 @@ sealed interface BackupState {
+   /**
+    * User has no active backup tier, no tier history
+    */
+-  data object None : BackupState
++  data class None(val featureSupported: Boolean) : BackupState
+ 
+   /**
+    * Temporary state object that just denotes what the local store thinks we are.
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
+index cb263e7eef1a176c3cdd84a6a4b4d753ca13d14f..2e6262d2e4638771c1bb5c892b98265ca78fefa9 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
+@@ -102,7 +102,7 @@ class BackupsSettingsFragment : ComposeFragment() {
+         when (state.backupState) {
+           is BackupState.Error -> Unit
+ 
+-          BackupState.None -> {
++          is BackupState.None -> {
+             checkoutLauncher.launch(null)
+           }
+ 
+@@ -195,12 +195,14 @@ private fun BackupsSettingsContent(
+             OtherWaysToBackUpHeading()
+           }
+ 
+-          BackupState.None -> {
+-            NeverEnabledBackupsRow(
+-              onBackupsRowClick = onBackupsRowClick
+-            )
++          is BackupState.None -> {
++            if (backupsSettingsState.backupState.featureSupported) {
++              NeverEnabledBackupsRow(
++                onBackupsRowClick = onBackupsRowClick
++              )
+ 
+-            OtherWaysToBackUpHeading()
++              OtherWaysToBackUpHeading()
++            }
+           }
+ 
+           is BackupState.Error -> {
+@@ -656,7 +658,7 @@ private fun BackupsSettingsContentBackupTierInternalOverridePreview() {
+   Previews.Preview {
+     BackupsSettingsContent(
+       backupsSettingsState = BackupsSettingsState(
+-        backupState = BackupState.None,
++        backupState = BackupState.None(featureSupported = true),
+         showBackupTierInternalOverride = true,
+         backupTierInternalOverride = null,
+         lastBackupAt = 0.seconds
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
+index 0c5fa895b6f1d36cbde94363f7a571e85ac59c54..12763afb40eb0597174e33185fe89426e76ba246 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
+@@ -456,7 +456,7 @@ private fun RemoteBackupsSettingsContent(
+             )
+           }
+ 
+-          BackupState.None -> Unit
++          is BackupState.None -> Unit
+ 
+           is BackupState.WithTypeAndRenewalTime -> {
+             BackupCard(
+@@ -2018,7 +2018,7 @@ private fun BackupReadyToDownloadPreview() {
+   Previews.Preview {
+     BackupReadyToDownloadRow(
+       ready = BackupRestoreState.Ready("12GB"),
+-      backupState = BackupState.None
++      backupState = BackupState.None(featureSupported = true)
+     )
+   }
+ }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
+index 2c82a5e05c652af12c63b5490a10f14a1036807f..e3b0547cff2f833fa6e9940a2ef7e09cde67272a 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
+@@ -41,7 +41,6 @@ import org.signal.core.util.bitmaps.BitmapDecodingException
+ import org.signal.core.util.copyTo
+ import org.signal.core.util.count
+ import org.signal.core.util.crypto.AttachmentSecret
+-import org.signal.core.util.crypto.ClassicDecryptingPartInputStream
+ import org.signal.core.util.crypto.ModernDecryptingPartInputStream
+ import org.signal.core.util.crypto.ModernEncryptingPartOutputStream
+ import org.signal.core.util.delete
+@@ -2713,13 +2712,7 @@ class AttachmentTable(
+       if (random.size == 32) {
+         ModernDecryptingPartInputStream.createFor(attachmentSecret, random, file, offset)
+       } else {
+-        val stream = ClassicDecryptingPartInputStream.createFor(attachmentSecret, file)
+-        val skipped = stream.skip(offset)
+-        if (skipped != offset) {
+-          Log.w(TAG, "Skip failed: $skipped vs $offset")
+-          return null
+-        }
+-        stream
++        return null
+       }
+     } catch (e: FileNotFoundException) {
+       Log.w(TAG, e)
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/BackupUpsellSchedule.kt b/app/src/main/java/org/thoughtcrime/securesms/megaphone/BackupUpsellSchedule.kt
+deleted file mode 100644
+index 873fb740cbdad62b332cc8f88ec3c9db0274fcbb..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/BackupUpsellSchedule.kt
++++ /dev/null
+@@ -1,51 +0,0 @@
+-package org.thoughtcrime.securesms.megaphone
+-
+-import org.thoughtcrime.securesms.database.model.MegaphoneRecord
+-import kotlin.time.Duration.Companion.days
+-
+-/**
+- * Schedule for backup upsell megaphones that combines:
+- * 1. Per-megaphone recurring display timing (like [RecurringSchedule])
+- * 2. Cross-megaphone shared snooze: if any other backup upsell was seen recently, suppress display
+- *
+- * @param records   All megaphone records, used to find the most recent lastSeen across backup upsell events.
+- * @param gaps      Per-megaphone recurring gaps, same semantics as [RecurringSchedule].
+- */
+-class BackupUpsellSchedule(
+-  private val records: Map<Megaphones.Event, MegaphoneRecord>,
+-  vararg val gaps: Long
+-) : MegaphoneSchedule {
+-
+-  companion object {
+-    @JvmField
+-    val BACKUP_UPSELL_EVENTS: Set<Megaphones.Event> = setOf(
+-      Megaphones.Event.BACKUPS_GENERIC_UPSELL,
+-      Megaphones.Event.BACKUP_MESSAGE_COUNT_UPSELL,
+-      Megaphones.Event.BACKUP_MEDIA_SIZE_UPSELL,
+-      Megaphones.Event.BACKUP_LOW_STORAGE_UPSELL
+-    )
+-
+-    @JvmField
+-    val MIN_TIME_BETWEEN_BACKUP_UPSELLS: Long = 60.days.inWholeMilliseconds
+-  }
+-
+-  override fun shouldDisplay(seenCount: Int, lastSeen: Long, firstVisible: Long, currentTime: Long): Boolean {
+-    val lastSeen = lastSeen.coerceAtMost(currentTime)
+-
+-    val lastSeenAnyBackupUpsell: Long = records.entries
+-      .filter { it.key in BACKUP_UPSELL_EVENTS }
+-      .mapNotNull { it.value.lastInteractionTime.takeIf { t -> t > 0 } }
+-      .maxOrNull() ?: 0L
+-
+-    if (currentTime - lastSeenAnyBackupUpsell <= MIN_TIME_BETWEEN_BACKUP_UPSELLS) {
+-      return false
+-    }
+-
+-    if (seenCount == 0) {
+-      return true
+-    }
+-
+-    val gap = gaps[minOf(seenCount - 1, gaps.size - 1)]
+-    return lastSeen + gap <= currentTime
+-  }
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
+index f43dbff12fd44ad69c8d4101deedb1169d25db27..9fe7466191e75de2e39fdab0167e2d0e12371ea9 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
+@@ -13,14 +13,13 @@ import androidx.core.app.NotificationManagerCompat;
+ 
+ import com.bumptech.glide.Glide;
+ 
+-import org.signal.core.util.DiskUtil;
+ import org.signal.core.util.MapUtil;
+ import org.signal.core.util.SetUtil;
+ import org.signal.core.util.TranslationDetection;
+ import org.signal.core.util.logging.Log;
++import org.thoughtcrime.securesms.BuildConfig;
+ import org.thoughtcrime.securesms.R;
+-import org.thoughtcrime.securesms.backup.v2.MessageBackupTier;
+-import org.thoughtcrime.securesms.backup.v2.ui.BackupUpsellBottomSheet;
++import org.thoughtcrime.securesms.apkupdate.ApkUpdateRefreshListener;
+ import org.thoughtcrime.securesms.backup.v2.ui.verify.VerifyBackupKeyActivity;
+ import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity;
+ import org.thoughtcrime.securesms.database.SignalDatabase;
+@@ -42,7 +41,6 @@ import org.thoughtcrime.securesms.profiles.manage.EditProfileActivity;
+ import org.thoughtcrime.securesms.profiles.username.NewWaysToConnectDialogFragment;
+ import org.thoughtcrime.securesms.recipients.Recipient;
+ import org.thoughtcrime.securesms.storage.StorageSyncHelper;
+-import org.signal.core.util.ByteUnit;
+ import org.thoughtcrime.securesms.util.CommunicationActions;
+ import org.thoughtcrime.securesms.util.DateUtils;
+ import org.thoughtcrime.securesms.util.Environment;
+@@ -81,7 +79,7 @@ public final class Megaphones {
+   private static final MegaphoneSchedule ALWAYS = new ForeverSchedule(true);
+   private static final MegaphoneSchedule NEVER  = new ForeverSchedule(false);
+ 
+-  private static final Set<Event> DONATE_EVENTS                      = SetUtil.newHashSet(Event.BECOME_A_SUSTAINER, Event.DONATE_Q2_2022);
++  private static final Set<Event> DONATE_EVENTS                      = SetUtil.newHashSet(Event.DONATE_MOLLY);
+   private static final long       MIN_TIME_BETWEEN_DONATE_MEGAPHONES = TimeUnit.DAYS.toMillis(30);
+ 
+   private Megaphones() {}
+@@ -125,14 +123,13 @@ public final class Megaphones {
+       put(Event.BACKUP_SCHEDULE_PERMISSION, shouldShowBackupSchedulePermissionMegaphone(context) ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(3)) : NEVER);
+       put(Event.ONBOARDING, shouldShowOnboardingMegaphone(context) ? ALWAYS : NEVER);
+       put(Event.TURN_OFF_CENSORSHIP_CIRCUMVENTION, shouldShowTurnOffCircumventionMegaphone() ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(7)) : NEVER);
++      put(Event.ENABLE_APP_UPDATES, shouldShowEnableAppUpdatesMegaphone(context) ? ALWAYS : NEVER);
++      put(Event.DONATE_MOLLY, shouldShowDonateMegaphone(context, Event.DONATE_MOLLY, records) ? ShowForDurationSchedule.showForDays(7) : NEVER);
+       put(Event.REMOTE_MEGAPHONE, shouldShowRemoteMegaphone(records) ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(1)) : NEVER);
+       put(Event.LINKED_DEVICE_INACTIVE, shouldShowLinkedDeviceInactiveMegaphone() ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(3)) : NEVER);
+ 
+       // Specifically putting backup reminders here, above PIN reminders
+-      put(Event.BACKUP_LOW_STORAGE_UPSELL, shouldShowBackupLowStorageUpsell(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60), TimeUnit.DAYS.toMillis(120)) : NEVER);
+-      put(Event.BACKUP_MEDIA_SIZE_UPSELL, shouldShowBackupMediaSizeUpsell() ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60), TimeUnit.DAYS.toMillis(120)) : NEVER);
+-      put(Event.BACKUP_MESSAGE_COUNT_UPSELL, shouldShowBackupMessageCountUpsell(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60)) : NEVER);
+-      put(Event.BACKUPS_GENERIC_UPSELL, shouldShowGenericBackupsMegaphone(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60)) : NEVER);
++      put(Event.BACKUPS_GENERIC_UPSELL, shouldShowGenericBackupsMegaphone(context) ? new RecurringSchedule(TimeUnit.DAYS.toMillis(30), TimeUnit.DAYS.toMillis(120)) : NEVER);
+       put(Event.VERIFY_BACKUP_KEY, new VerifyBackupKeyReminderSchedule());
+       put(Event.USE_NEW_ON_DEVICE_BACKUPS, shouldShowUseNewOnDeviceBackupsMegaphone() ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(14)) : NEVER);
+ 
+@@ -177,6 +174,10 @@ public final class Megaphones {
+         return buildNotificationsMegaphone(context);
+       case ADD_A_PROFILE_PHOTO:
+         return buildAddAProfilePhotoMegaphone(context);
++      case ENABLE_APP_UPDATES:
++        return buildEnableAppUpdatesMegaphone(context);
++      case DONATE_MOLLY:
++        return buildDonateQ2Megaphone(context);
+       case TURN_OFF_CENSORSHIP_CIRCUMVENTION:
+         return buildTurnOffCircumventionMegaphone(context);
+       case LINKED_DEVICE_INACTIVE:
+@@ -195,12 +196,6 @@ public final class Megaphones {
+         return buildNewLinkedDeviceMegaphone(context);
+       case BACKUPS_GENERIC_UPSELL:
+         return buildBackupGenericUpsellMegaphone();
+-      case BACKUP_MESSAGE_COUNT_UPSELL:
+-        return buildBackupMessageCountUpsellMegaphone();
+-      case BACKUP_MEDIA_SIZE_UPSELL:
+-        return buildBackupMediaSizeUpsellMegaphone();
+-      case BACKUP_LOW_STORAGE_UPSELL:
+-        return buildBackupLowStorageUpsellMegaphone();
+       case VERIFY_BACKUP_KEY:
+         return buildVerifyBackupKeyMegaphone();
+       case USE_NEW_ON_DEVICE_BACKUPS:
+@@ -336,6 +331,36 @@ public final class Megaphones {
+         .build();
+   }
+ 
++  private static @NonNull Megaphone buildEnableAppUpdatesMegaphone(@NonNull Context context) {
++    return new Megaphone.Builder(Event.ENABLE_APP_UPDATES, Megaphone.Style.BASIC)
++        .setTitle(R.string.EnableAppUpdatesMegaphone_check_for_updates_automatically)
++        .setImage(R.drawable.ic_avatar_celebration)
++        .setBody(R.string.EnableAppUpdatesMegaphone_molly_can_periodically_check_for_new_releases_and_ask_you_to_install_them)
++        .setActionButton(R.string.EnableAppUpdatesMegaphone_check_for_updates, (megaphone, listener) -> {
++          TextSecurePreferences.setUpdateApkEnabled(context, true);
++          ApkUpdateRefreshListener.scheduleIfAllowed(context);
++          listener.onMegaphoneCompleted(Event.ENABLE_APP_UPDATES);
++          listener.onMegaphoneToastRequested(context.getString(R.string.EnableAppUpdatesMegaphone_you_will_be_notified_when_updates_are_available));
++        })
++        .setSecondaryButton(R.string.CensorshipCircumventionMegaphone_no_thanks, (megaphone, listener) -> {
++          listener.onMegaphoneCompleted(Event.ENABLE_APP_UPDATES);
++        })
++        .build();
++  }
++
++  private static @NonNull Megaphone buildDonateQ2Megaphone(@NonNull Context context) {
++    return new Megaphone.Builder(Event.DONATE_MOLLY, Megaphone.Style.BASIC)
++        .setTitle(R.string.DonateMegaphone_molly_is_free_software)
++        .setBody(R.string.DonateMegaphone_we_maintain_molly_with_your_support_consider_donating_at_open_collective)
++        .setImage(R.drawable.ic_donate_megaphone)
++        .setActionButton(R.string.BecomeASustainerMegaphone__donate, (megaphone, listener) -> {
++          CommunicationActions.openBrowserLink(listener.getMegaphoneActivity(), context.getString(R.string.donate_url));
++          listener.onMegaphoneCompleted(megaphone.getEvent());
++        })
++        .setSecondaryButton(R.string.RatingManager_no_thanks, (megaphone, controller) -> controller.onMegaphoneCompleted(megaphone.getEvent()))
++        .build();
++  }
++
+   private static @NonNull Megaphone buildNewLinkedDeviceMegaphone(@NonNull Context context) {
+     String createdAt = DateUtils.getDateTimeString(context, Locale.getDefault(), SignalStore.misc().getNewLinkedDeviceCreatedTime());
+     return new Megaphone.Builder(Event.NEW_LINKED_DEVICE, Megaphone.Style.BASIC)
+@@ -422,6 +447,19 @@ public final class Megaphones {
+         .build();
+   }
+ 
++  private static boolean shouldShowEnableAppUpdatesMegaphone(@NonNull Context context) {
++    return BuildConfig.MANAGE_MOLLY_UPDATES &&
++           !TextSecurePreferences.isUpdateApkEnabled(context) &&
++           VersionTracker.getDaysSinceFirstInstalled(context) > 0;
++  }
++
++  private static boolean shouldShowDonateMegaphone(@NonNull Context context, @NonNull Event event, @NonNull Map<Event, MegaphoneRecord> records) {
++    long timeSinceLastDonatePrompt = timeSinceLastDonatePrompt(event, records);
++
++    return timeSinceLastDonatePrompt > MIN_TIME_BETWEEN_DONATE_MEGAPHONES &&
++           VersionTracker.getDaysSinceFirstInstalled(context) >= 7;
++  }
++
+   public static @NonNull Megaphone buildSetUpYourUsernameMegaphone(@NonNull Context context) {
+     return new Megaphone.Builder(Event.SET_UP_YOUR_USERNAME, Megaphone.Style.BASIC)
+         .setTitle(R.string.NewWaysToConnectDialogFragment__new_ways_to_connect)
+@@ -477,9 +515,9 @@ public final class Megaphones {
+   public static @NonNull Megaphone buildBackupGenericUpsellMegaphone() {
+     return new Megaphone.Builder(Event.BACKUPS_GENERIC_UPSELL, Megaphone.Style.BASIC)
+         .setImage(R.drawable.backups_megaphone_image)
+-        .setTitle(R.string.TurnOnSignalBackups__title)
++        .setTitle(R.string.preferences_chats__backups)
+         .setBody(R.string.TurnOnSignalBackups__body)
+-        .setActionButton(R.string.TurnOnSignalBackups__turn_on, (megaphone, controller) -> {
++        .setActionButton(R.string.BackupsSettingsFragment_set_up, (megaphone, controller) -> {
+           Intent intent = AppSettingsActivity.backupsSettings(controller.getMegaphoneActivity(), true);
+ 
+           controller.onMegaphoneNavigationRequested(intent);
+@@ -621,11 +659,7 @@ public final class Megaphones {
+   }
+ 
+   private static boolean shouldShowGenericBackupsMegaphone(@NonNull Context context) {
+-    if (!RemoteConfig.backupsMegaphone()) {
+-      return false;
+-    }
+-
+-    if (SignalStore.backup().getLatestBackupTier() != null) {
++    if (SignalStore.backup().getLatestBackupTier() != null || SignalStore.settings().isBackupEnabled()) {
+       return false;
+     }
+ 
+@@ -672,92 +706,6 @@ public final class Megaphones {
+     return System.currentTimeMillis() - lastSeenDonatePrompt;
+   }
+ 
+-  private static boolean shouldShowBackupMessageCountUpsell(@NonNull Context context) {
+-    if (!SignalStore.account().isRegistered() || TextSecurePreferences.isUnauthorizedReceived(context) || SignalStore.account().isLinkedDevice()) {
+-      return false;
+-    }
+-
+-    if (SignalStore.backup().getLatestBackupTier() != null) {
+-      return false;
+-    }
+-
+-    return SignalDatabase.messages().getApproximateTotalMessageCount() > 1000;
+-  }
+-
+-  private static boolean shouldShowBackupMediaSizeUpsell() {
+-    if (!SignalStore.account().isRegistered() || SignalStore.account().isLinkedDevice() || !Environment.Backups.supportsGooglePlayBilling()) {
+-      return false;
+-    }
+-
+-    if (SignalStore.backup().getLatestBackupTier() != MessageBackupTier.FREE) {
+-      return false;
+-    }
+-
+-    return SignalDatabase.attachments().getApproximateTotalMediaSize() > ByteUnit.GIGABYTES.toBytes(1);
+-  }
+-
+-  private static boolean shouldShowBackupLowStorageUpsell(@NonNull Context context) {
+-    if (!SignalStore.account().isRegistered() || TextSecurePreferences.isUnauthorizedReceived(context) || SignalStore.account().isLinkedDevice() || !Environment.Backups.supportsGooglePlayBilling()) {
+-      return false;
+-    }
+-
+-    if (SignalStore.backup().getLatestBackupTier() == MessageBackupTier.PAID) {
+-      return false;
+-    }
+-
+-    long available = DiskUtil.getAvailableSpace(context).getBytes();
+-    long total     = DiskUtil.getTotalDiskSize(context).getBytes();
+-
+-    return total > 0 && ((double) available / total) < 0.10;
+-  }
+-
+-  private static @NonNull Megaphone buildBackupMessageCountUpsellMegaphone() {
+-    return new Megaphone.Builder(Event.BACKUP_MESSAGE_COUNT_UPSELL, Megaphone.Style.BASIC)
+-        .setImage(R.drawable.megaphone_backup_message_count)
+-        .setTitle(R.string.BackupMessagesUpsell__title)
+-        .setBody(R.string.BackupMessagesUpsell__body)
+-        .setActionButton(R.string.BackupMessagesUpsell__turn_on, (megaphone, controller) -> {
+-          Intent intent = AppSettingsActivity.backupsSettings(controller.getMegaphoneActivity(), true);
+-          controller.onMegaphoneNavigationRequested(intent);
+-          controller.onMegaphoneSnooze(Event.BACKUP_MESSAGE_COUNT_UPSELL);
+-        })
+-        .setSecondaryButton(R.string.BackupMessagesUpsell__not_now, (megaphone, controller) -> {
+-          controller.onMegaphoneSnooze(Event.BACKUP_MESSAGE_COUNT_UPSELL);
+-        })
+-        .build();
+-  }
+-
+-  private static @NonNull Megaphone buildBackupMediaSizeUpsellMegaphone() {
+-    return new Megaphone.Builder(Event.BACKUP_MEDIA_SIZE_UPSELL, Megaphone.Style.BASIC)
+-        .setImage(R.drawable.megaphone_backup_media_size)
+-        .setTitle(R.string.BackupMediaUpsell__title)
+-        .setBody(R.string.BackupMediaUpsell__body)
+-        .setActionButton(R.string.BackupMediaUpsell__upgrade, (megaphone, controller) -> {
+-          controller.onMegaphoneDialogFragmentRequested(BackupUpsellBottomSheet.create(false));
+-          controller.onMegaphoneSnooze(Event.BACKUP_MEDIA_SIZE_UPSELL);
+-        })
+-        .setSecondaryButton(R.string.BackupMediaUpsell__not_now, (megaphone, controller) -> {
+-          controller.onMegaphoneSnooze(Event.BACKUP_MEDIA_SIZE_UPSELL);
+-        })
+-        .build();
+-  }
+-
+-  private static @NonNull Megaphone buildBackupLowStorageUpsellMegaphone() {
+-    boolean hasBackups = SignalStore.backup().getLatestBackupTier() != null;
+-
+-    return new Megaphone.Builder(Event.BACKUP_LOW_STORAGE_UPSELL, Megaphone.Style.BASIC)
+-        .setImage(R.drawable.megaphone_backup_storage_low)
+-        .setTitle(R.string.BackupStorageUpsell__title)
+-        .setBody(R.string.BackupStorageUpsell__body)
+-        .setActionButton(hasBackups ? R.string.BackupStorageUpsell__upgrade : R.string.BackupStorageUpsell__turn_on, (megaphone, controller) -> {
+-          controller.onMegaphoneDialogFragmentRequested(BackupUpsellBottomSheet.create(true));
+-          controller.onMegaphoneSnooze(Event.BACKUP_LOW_STORAGE_UPSELL);
+-        })
+-        .setSecondaryButton(R.string.BackupStorageUpsell__not_now, (megaphone, controller) -> {
+-          controller.onMegaphoneSnooze(Event.BACKUP_LOW_STORAGE_UPSELL);
+-        })
+-        .build();
+-  }
+ 
+   public enum Event {
+     PINS_FOR_ALL("pins_for_all"),
+@@ -766,8 +714,8 @@ public final class Megaphones {
+     ONBOARDING("onboarding"),
+     NOTIFICATIONS("notifications"),
+     ADD_A_PROFILE_PHOTO("add_a_profile_photo"),
+-    BECOME_A_SUSTAINER("become_a_sustainer"),
+-    DONATE_Q2_2022("donate_q2_2022"),
++    ENABLE_APP_UPDATES("enable_app_updates_molly"),
++    DONATE_MOLLY("donate_molly"),
+     TURN_OFF_CENSORSHIP_CIRCUMVENTION("turn_off_censorship_circumvention"),
+     REMOTE_MEGAPHONE("remote_megaphone"),
+     LINKED_DEVICE_INACTIVE("linked_device_inactive"),
+@@ -777,9 +725,6 @@ public final class Megaphones {
+     GRANT_FULL_SCREEN_INTENT("grant_full_screen_intent"),
+     NEW_LINKED_DEVICE("new_linked_device"),
+     BACKUPS_GENERIC_UPSELL("turn_on_signal_backups"),
+-    BACKUP_MESSAGE_COUNT_UPSELL("backup_messages_upsell"),
+-    BACKUP_MEDIA_SIZE_UPSELL("backup_media_upsell"),
+-    BACKUP_LOW_STORAGE_UPSELL("backup_storage_upsell"),
+     VERIFY_BACKUP_KEY("verify_backup_key"),
+     USE_NEW_ON_DEVICE_BACKUPS("use_new_on_device_backups"),
+     INACTIVE_PRIMARY("inactive_primary");
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/video/ClassicEncryptedMediaDataSource.java b/app/src/main/java/org/thoughtcrime/securesms/video/ClassicEncryptedMediaDataSource.java
+deleted file mode 100644
+index 95d00caa63c2c60a8d4b79a2608a19ad3b1ec327..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/video/ClassicEncryptedMediaDataSource.java
++++ /dev/null
+@@ -1,52 +0,0 @@
+-package org.thoughtcrime.securesms.video;
+-
+-import android.media.MediaDataSource;
+-
+-import androidx.annotation.NonNull;
+-
+-import org.signal.core.util.crypto.AttachmentSecret;
+-import org.signal.core.util.crypto.ClassicDecryptingPartInputStream;
+-import org.signal.core.util.Util;
+-
+-import java.io.File;
+-import java.io.IOException;
+-import java.io.InputStream;
+-
+-final class ClassicEncryptedMediaDataSource extends MediaDataSource {
+-
+-  private final AttachmentSecret attachmentSecret;
+-  private final File             mediaFile;
+-  private final long             length;
+-
+-  ClassicEncryptedMediaDataSource(@NonNull AttachmentSecret attachmentSecret, @NonNull File mediaFile, long length) {
+-    this.attachmentSecret = attachmentSecret;
+-    this.mediaFile        = mediaFile;
+-    this.length           = length;
+-  }
+-
+-  @Override
+-  public int readAt(long position, byte[] bytes, int offset, int length) throws IOException {
+-    try (InputStream inputStream = ClassicDecryptingPartInputStream.createFor(attachmentSecret, mediaFile)) {
+-      byte[] buffer          = new byte[4096];
+-      long   headerRemaining = position;
+-
+-      while (headerRemaining > 0) {
+-        int read = inputStream.read(buffer, 0, Util.toIntExact(Math.min((long)buffer.length, headerRemaining)));
+-
+-        if (read == -1) return -1;
+-
+-        headerRemaining -= read;
+-      }
+-
+-      return inputStream.read(bytes, offset, length);
+-    }
+-  }
+-
+-  @Override
+-  public long getSize() {
+-    return length;
+-  }
+-
+-  @Override
+-  public void close() {}
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/video/EncryptedMediaDataSource.java b/app/src/main/java/org/thoughtcrime/securesms/video/EncryptedMediaDataSource.java
+index 9ca5cf66420ced943c2ec00c05a1d8798928981a..663a973cff3205632d1bc1fb48842ea922dc1d64 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/video/EncryptedMediaDataSource.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/video/EncryptedMediaDataSource.java
+@@ -12,11 +12,7 @@ import java.io.File;
+ public final class EncryptedMediaDataSource {
+ 
+   public static MediaDataSource createFor(@NonNull AttachmentSecret attachmentSecret, @NonNull File mediaFile, @Nullable byte[] random, long length) {
+-    if (random == null) {
+-      return new ClassicEncryptedMediaDataSource(attachmentSecret, mediaFile, length);
+-    } else {
+-      return new ModernEncryptedMediaDataSource(attachmentSecret, mediaFile, random, length);
+-    }
++    return new ModernEncryptedMediaDataSource(attachmentSecret, mediaFile, random, length);
+   }
+ 
+   public static MediaDataSource createForDiskBlob(@NonNull AttachmentSecret attachmentSecret, @NonNull File mediaFile) {
+diff --git a/core/util/src/main/java/org/signal/core/util/crypto/ClassicDecryptingPartInputStream.java b/core/util/src/main/java/org/signal/core/util/crypto/ClassicDecryptingPartInputStream.java
+deleted file mode 100644
+index a7ce08e410b2ee9449eab4f306e38110df898ab5..0000000000000000000000000000000000000000
+--- a/core/util/src/main/java/org/signal/core/util/crypto/ClassicDecryptingPartInputStream.java
++++ /dev/null
+@@ -1,158 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-package org.signal.core.util.crypto;
+-
+-import androidx.annotation.NonNull;
+-
+-import org.signal.core.util.logging.Log;
+-import org.signal.core.util.stream.LimitedInputStream;
+-import org.signal.core.util.Util;
+-
+-import java.io.File;
+-import java.io.FileInputStream;
+-import java.io.IOException;
+-import java.io.InputStream;
+-import java.security.InvalidAlgorithmParameterException;
+-import java.security.InvalidKeyException;
+-import java.security.MessageDigest;
+-import java.security.NoSuchAlgorithmException;
+-
+-import javax.crypto.Cipher;
+-import javax.crypto.CipherInputStream;
+-import javax.crypto.Mac;
+-import javax.crypto.NoSuchPaddingException;
+-import javax.crypto.spec.IvParameterSpec;
+-import javax.crypto.spec.SecretKeySpec;
+-
+-public class ClassicDecryptingPartInputStream {
+-
+-  private static final String TAG = Log.tag(ClassicDecryptingPartInputStream.class);
+-
+-  private static final int IV_LENGTH  = 16;
+-  private static final int MAC_LENGTH = 20;
+-
+-  public static InputStream createFor(@NonNull AttachmentSecret attachmentSecret, @NonNull File file)
+-      throws IOException
+-  {
+-    try {
+-      if (file.length() <= IV_LENGTH + MAC_LENGTH) {
+-        throw new IOException("File too short");
+-      }
+-
+-      verifyMac(attachmentSecret, file);
+-
+-      FileInputStream fileStream = new FileInputStream(file);
+-      byte[]          ivBytes    = new byte[IV_LENGTH];
+-      readFully(fileStream, ivBytes);
+-
+-      Cipher          cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+-      IvParameterSpec iv     = new IvParameterSpec(ivBytes);
+-      cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(attachmentSecret.getClassicCipherKey(), "AES"), iv);
+-
+-      return new CipherInputStreamWrapper(new LimitedInputStream(fileStream, file.length() - MAC_LENGTH - IV_LENGTH), cipher);
+-    } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
+-      throw new AssertionError(e);
+-    }
+-  }
+-
+-  private static void verifyMac(AttachmentSecret attachmentSecret, File file) throws IOException {
+-    Mac             mac        = initializeMac(new SecretKeySpec(attachmentSecret.getClassicMacKey(), "HmacSHA1"));
+-    FileInputStream macStream  = new FileInputStream(file);
+-    InputStream     dataStream = new LimitedInputStream(new FileInputStream(file), file.length() - MAC_LENGTH);
+-    byte[]          theirMac   = new byte[MAC_LENGTH];
+-
+-    if (macStream.skip(file.length() - MAC_LENGTH) != file.length() - MAC_LENGTH) {
+-      throw new IOException("Unable to seek");
+-    }
+-
+-    readFully(macStream, theirMac);
+-
+-    byte[] buffer = new byte[4096];
+-    int    read;
+-
+-    while ((read = dataStream.read(buffer)) != -1) {
+-      mac.update(buffer, 0, read);
+-    }
+-
+-    byte[] ourMac = mac.doFinal();
+-
+-    if (!MessageDigest.isEqual(ourMac, theirMac)) {
+-      throw new IOException("Bad MAC");
+-    }
+-
+-    macStream.close();
+-    dataStream.close();
+-  }
+-
+-  private static Mac initializeMac(SecretKeySpec key) {
+-    try {
+-      Mac hmac = Mac.getInstance("HmacSHA1");
+-      hmac.init(key);
+-
+-      return hmac;
+-    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+-      throw new AssertionError(e);
+-    }
+-  }
+-
+-  private static void readFully(InputStream in, byte[] buffer) throws IOException {
+-    int offset = 0;
+-
+-    for (;;) {
+-      int read = in.read(buffer, offset, buffer.length-offset);
+-
+-      if (read + offset < buffer.length) offset += read;
+-      else                               return;
+-    }
+-  }
+-
+-  // Note (4/3/17) -- Older versions of Android have a busted OpenSSL provider that
+-  // throws a RuntimeException on a BadPaddingException, so we have to catch
+-  // that here in case someone calls close() before reaching the end of the
+-  // stream (since close() implicitly calls doFinal())
+-  //
+-  // See Signal-Android Issue #6477
+-  // Android: https://android-review.googlesource.com/#/c/65321/
+-  private static class CipherInputStreamWrapper extends CipherInputStream {
+-
+-    CipherInputStreamWrapper(InputStream is, Cipher c) {
+-      super(is, c);
+-    }
+-
+-    @Override
+-    public void close() throws IOException {
+-      try {
+-        super.close();
+-      } catch (Throwable t) {
+-        Log.w(TAG, t);
+-      }
+-    }
+-
+-    @Override
+-    public long skip(long skipAmount)
+-        throws IOException
+-    {
+-      long remaining = skipAmount;
+-
+-      if (skipAmount <= 0) {
+-        return 0;
+-      }
+-
+-      byte[] skipBuffer = new byte[4092];
+-
+-      while (remaining > 0) {
+-        int read = super.read(skipBuffer, 0, Util.toIntExact(Math.min(skipBuffer.length, remaining)));
+-
+-        if (read < 0) {
+-          break;
+-        }
+-
+-        remaining -= read;
+-      }
+-
+-      return skipAmount - remaining;
+-    }
+-  }
+-}

@@ -1,0 +1,128 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:10:07 +0100
+Subject: [PATCH] stories: preserve Molly story presentation and reset policy
+
+Retain reference story visibility/query/reset behavior; no feature removal is approved by extraction.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-STORIES-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
+index 0f241aafd67624e8a31d00c48686fdafbbfac9ae..74e712a83dfa2b5d37706859f777e3e5d2740bbd 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
+@@ -67,6 +67,11 @@ class StoryOnboardingDownloadJob private constructor(parameters: Parameters) : B
+   override fun onFailure() = Unit
+ 
+   override fun onRun() {
++    if (!SignalStore.account.isRegistered) {
++      Log.i(TAG, "Not registered, skipping.")
++      return
++    }
++
+     if (SignalStore.story.hasDownloadedOnboardingStory) {
+       Log.i(TAG, "Already downloaded onboarding story. Exiting.")
+       return
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
+index 2560cb959a62904e0e6de0ef37ef5429fbc98eb9..3384332e6531a383f09753f944925bcfa73ba953 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
+@@ -9,8 +9,7 @@ import java.util.List;
+ 
+ public final class OnboardingValues extends SignalStoreValues {
+ 
+-  private static final String SHOW_NEW_GROUP      = "onboarding.new_group";
+-  private static final String SHOW_INVITE_FRIENDS = "onboarding.invite_friends";
++  private static final String SHOW_STORIES        = "onboarding.stories_molly";
+   private static final String SHOW_APPEARANCE     = "onboarding.appearance";
+   private static final String SHOW_ADD_PHOTO      = "onboarding.add_photo";
+ 
+@@ -20,8 +19,7 @@ public final class OnboardingValues extends SignalStoreValues {
+ 
+   @Override
+   void onFirstEverAppLaunch() {
+-    putBoolean(SHOW_NEW_GROUP, true);
+-    putBoolean(SHOW_INVITE_FRIENDS, true);
++    putBoolean(SHOW_STORIES, true);
+     putBoolean(SHOW_APPEARANCE, true);
+     putBoolean(SHOW_ADD_PHOTO, true);
+   }
+@@ -32,33 +30,23 @@ public final class OnboardingValues extends SignalStoreValues {
+   }
+ 
+   public void clearAll() {
+-    setShowNewGroup(false);
+-    setShowInviteFriends(false);
++    setShowStories(false);
+     setShowAppearance(false);
+     setShowAddPhoto(false);
+   }
+ 
+   public boolean hasOnboarding(@NonNull Context context) {
+-    return shouldShowNewGroup()      ||
+-           shouldShowInviteFriends() ||
++    return shouldShowStories()       ||
+            shouldShowAppearance()    ||
+            shouldShowAddPhoto();
+   }
+ 
+-  public void setShowNewGroup(boolean value) {
+-    putBoolean(SHOW_NEW_GROUP, value);
++  public void setShowStories(boolean value) {
++    putBoolean(SHOW_STORIES, value);
+   }
+ 
+-  public boolean shouldShowNewGroup() {
+-    return getBoolean(SHOW_NEW_GROUP, false);
+-  }
+-
+-  public void setShowInviteFriends(boolean value) {
+-    putBoolean(SHOW_INVITE_FRIENDS, value);
+-  }
+-
+-  public boolean shouldShowInviteFriends() {
+-    return getBoolean(SHOW_INVITE_FRIENDS, false);
++  public boolean shouldShowStories(){
++    return getBoolean(SHOW_STORIES, false);
+   }
+ 
+   public void setShowAppearance(boolean value) {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/StoryValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/StoryValues.kt
+index a0a7b2bae201cbcd57c1255dd687a39134a2a3d1..e52a194708ea968017e4cfe097c898bd0f98c478 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/StoryValues.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/StoryValues.kt
+@@ -56,9 +56,7 @@ class StoryValues(store: KeyValueStore) : SignalStoreValues(store) {
+     private const val ARCHIVE_DURATION = "stories.archive.duration"
+   }
+ 
+-  public override fun onFirstEverAppLaunch() {
+-    viewedReceiptsEnabled = true
+-  }
++  public override fun onFirstEverAppLaunch() = Unit
+ 
+   public override fun getKeysToIncludeInBackup(): MutableList<String> = mutableListOf(
+     MANUAL_FEATURE_DISABLE,
+@@ -72,7 +70,7 @@ class StoryValues(store: KeyValueStore) : SignalStoreValues(store) {
+     ARCHIVE_DURATION
+   )
+ 
+-  var isFeatureDisabled: Boolean by booleanValue(MANUAL_FEATURE_DISABLE, false)
++  var isFeatureDisabled: Boolean by booleanValue(MANUAL_FEATURE_DISABLE, true)
+ 
+   var lastFontVersionCheck: Long by longValue(LAST_FONT_VERSION_CHECK, 0)
+ 
+@@ -84,7 +82,7 @@ class StoryValues(store: KeyValueStore) : SignalStoreValues(store) {
+ 
+   var userHasViewedOnboardingStory: Boolean by booleanValue(USER_HAS_VIEWED_ONBOARDING_STORY, false)
+ 
+-  var viewedReceiptsEnabled: Boolean by booleanValue(STORY_VIEWED_RECEIPTS, false)
++  var viewedReceiptsEnabled: Boolean by booleanValue(STORY_VIEWED_RECEIPTS, true)
+ 
+   var userHasSeenGroupStoryEducationSheet: Boolean by booleanValue(USER_HAS_SEEN_GROUP_STORY_EDUCATION_SHEET, false)
+ 

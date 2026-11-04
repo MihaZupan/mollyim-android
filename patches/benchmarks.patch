@@ -1,0 +1,2073 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:10:31 +0100
+Subject: [PATCH] tooling: retain reference benchmark and developer-tool scope
+
+Preserve existing benchmark/profile/developer support decisions, including optimization/coverage implications; not a new restoration or removal.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: DROP-BENCH-001, DROP-TOOL-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestMessages.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestMessages.kt
+deleted file mode 100644
+index 8d26c612505579be88dfd1999eefc6245df68ecf..0000000000000000000000000000000000000000
+--- a/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestMessages.kt
++++ /dev/null
+@@ -1,201 +0,0 @@
+-package org.signal.benchmark.setup
+-
+-import org.thoughtcrime.securesms.attachments.Cdn
+-import org.thoughtcrime.securesms.attachments.PointerAttachment
+-import org.thoughtcrime.securesms.database.AttachmentTable
+-import org.thoughtcrime.securesms.database.MessageType
+-import org.thoughtcrime.securesms.database.SignalDatabase
+-import org.thoughtcrime.securesms.database.TestDbUtils
+-import org.thoughtcrime.securesms.mms.IncomingMessage
+-import org.thoughtcrime.securesms.mms.OutgoingMessage
+-import org.thoughtcrime.securesms.mms.QuoteModel
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.whispersystems.signalservice.api.messages.SignalServiceAttachment
+-import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentPointer
+-import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentRemoteId
+-import java.util.Collections
+-import java.util.Optional
+-
+-object TestMessages {
+-  fun insertOutgoingTextMessage(other: Recipient, body: String, timestamp: Long = System.currentTimeMillis()) {
+-    insertOutgoingMessage(
+-      recipient = other,
+-      message = OutgoingMessage(
+-        recipient = other,
+-        body = body,
+-        timestamp = timestamp,
+-        isSecure = true
+-      ),
+-      timestamp = timestamp
+-    )
+-  }
+-
+-  fun insertOutgoingImageMessage(other: Recipient, body: String? = null, attachmentCount: Int, timestamp: Long = System.currentTimeMillis()): Long {
+-    val attachments: List<SignalServiceAttachmentPointer> = (0 until attachmentCount).map {
+-      imageAttachment()
+-    }
+-    val message = OutgoingMessage(
+-      recipient = other,
+-      body = body,
+-      attachments = PointerAttachment.forPointers(Optional.of(attachments)),
+-      timestamp = timestamp,
+-      isSecure = true
+-    )
+-    return insertOutgoingMediaMessage(recipient = other, message = message, timestamp = timestamp)
+-  }
+-
+-  private fun insertOutgoingMediaMessage(recipient: Recipient, message: OutgoingMessage, timestamp: Long): Long {
+-    val insert = insertOutgoingMessage(recipient, message = message, timestamp = timestamp)
+-    setMessageMediaTransfered(insert)
+-
+-    return insert
+-  }
+-
+-  private fun insertOutgoingMessage(recipient: Recipient, message: OutgoingMessage, timestamp: Long? = null): Long {
+-    val insert = SignalDatabase.messages.insertMessageOutbox(
+-      message,
+-      SignalDatabase.threads.getOrCreateThreadIdFor(recipient),
+-      false,
+-      null
+-    )
+-    if (timestamp != null) {
+-      TestDbUtils.setMessageReceived(insert.messageId, timestamp)
+-    }
+-    SignalDatabase.messages.markAsSent(insert.messageId, true)
+-
+-    return insert.messageId
+-  }
+-  fun insertIncomingTextMessage(other: Recipient, body: String, timestamp: Long? = null) {
+-    val message = IncomingMessage(
+-      type = MessageType.NORMAL,
+-      from = other.id,
+-      body = body,
+-      sentTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      serverTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      receivedTimeMillis = timestamp ?: System.currentTimeMillis()
+-    )
+-
+-    SignalDatabase.messages.insertMessageInbox(message, SignalDatabase.threads.getOrCreateThreadIdFor(other)).get().messageId
+-  }
+-  fun insertIncomingQuoteTextMessage(other: Recipient, body: String, quote: QuoteModel, timestamp: Long?) {
+-    val message = IncomingMessage(
+-      type = MessageType.NORMAL,
+-      from = other.id,
+-      body = body,
+-      sentTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      serverTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      receivedTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      quote = quote
+-    )
+-    insertIncomingMessage(other, message = message)
+-  }
+-  fun insertIncomingImageMessage(other: Recipient, body: String? = null, attachmentCount: Int, timestamp: Long? = null, failed: Boolean = false): Long {
+-    val attachments: List<SignalServiceAttachmentPointer> = (0 until attachmentCount).map {
+-      imageAttachment()
+-    }
+-    val message = IncomingMessage(
+-      type = MessageType.NORMAL,
+-      from = other.id,
+-      body = body,
+-      sentTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      serverTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      receivedTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      attachments = PointerAttachment.forPointers(Optional.of(attachments))
+-    )
+-    return insertIncomingMessage(recipient = other, message = message, failed = failed)
+-  }
+-
+-  fun insertIncomingVoiceMessage(other: Recipient, timestamp: Long? = null): Long {
+-    val message = IncomingMessage(
+-      type = MessageType.NORMAL,
+-      from = other.id,
+-      sentTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      serverTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      receivedTimeMillis = timestamp ?: System.currentTimeMillis(),
+-      attachments = PointerAttachment.forPointers(Optional.of(Collections.singletonList(voiceAttachment()) as List<SignalServiceAttachment>))
+-    )
+-    return insertIncomingMessage(recipient = other, message = message, failed = false)
+-  }
+-
+-  private fun insertIncomingMessage(recipient: Recipient, message: IncomingMessage, failed: Boolean = false): Long {
+-    val id = insertIncomingMessage(recipient = recipient, message = message)
+-    if (failed) {
+-      setMessageMediaFailed(id)
+-    } else {
+-      setMessageMediaTransfered(id)
+-    }
+-
+-    return id
+-  }
+-
+-  private fun insertIncomingMessage(recipient: Recipient, message: IncomingMessage): Long {
+-    return SignalDatabase.messages.insertMessageInbox(message, SignalDatabase.threads.getOrCreateThreadIdFor(recipient)).get().messageId
+-  }
+-
+-  private fun setMessageMediaFailed(messageId: Long) {
+-    SignalDatabase.attachments.getAttachmentsForMessage(messageId).forEachIndexed { index, attachment ->
+-      SignalDatabase.attachments.setTransferProgressPermanentFailure(attachment.attachmentId, messageId)
+-    }
+-  }
+-
+-  private fun setMessageMediaTransfered(messageId: Long) {
+-    SignalDatabase.attachments.getAttachmentsForMessage(messageId).forEachIndexed { _, attachment ->
+-      SignalDatabase.attachments.setTransferState(messageId, attachment.attachmentId, AttachmentTable.TRANSFER_PROGRESS_DONE)
+-    }
+-  }
+-  private fun imageAttachment(): SignalServiceAttachmentPointer {
+-    return SignalServiceAttachmentPointer(
+-      Cdn.S3.cdnNumber,
+-      SignalServiceAttachmentRemoteId.from("", Cdn.S3.cdnNumber),
+-      "image/webp",
+-      null,
+-      Optional.empty(),
+-      Optional.empty(),
+-      1024,
+-      1024,
+-      Optional.empty(),
+-      Optional.empty(),
+-      0,
+-      Optional.of("/not-there.jpg"),
+-      false,
+-      false,
+-      false,
+-      Optional.empty(),
+-      Optional.empty(),
+-      System.currentTimeMillis(),
+-      null
+-    )
+-  }
+-
+-  private fun voiceAttachment(): SignalServiceAttachmentPointer {
+-    return SignalServiceAttachmentPointer(
+-      Cdn.S3.cdnNumber,
+-      SignalServiceAttachmentRemoteId.from("", Cdn.S3.cdnNumber),
+-      "audio/aac",
+-      null,
+-      Optional.empty(),
+-      Optional.empty(),
+-      1024,
+-      1024,
+-      Optional.empty(),
+-      Optional.empty(),
+-      0,
+-      Optional.of("/not-there.aac"),
+-      true,
+-      false,
+-      false,
+-      Optional.empty(),
+-      Optional.empty(),
+-      System.currentTimeMillis(),
+-      null
+-    )
+-  }
+-
+-  class TimestampGenerator(private var start: Long = System.currentTimeMillis()) {
+-    fun nextTimestamp(): Long {
+-      start += 500L
+-
+-      return start
+-    }
+-  }
+-}
+diff --git a/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt b/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt
+deleted file mode 100644
+index 6f001fe2ff357f7f0d78c38b21e1a5f14cd91845..0000000000000000000000000000000000000000
+--- a/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt
++++ /dev/null
+@@ -1,126 +0,0 @@
+-package org.thoughtcrime.securesms.database
+-
+-import android.content.ContentValues
+-import org.signal.core.util.SqlUtil.buildArgs
+-import org.thoughtcrime.securesms.recipients.RecipientId
+-import org.whispersystems.signalservice.internal.push.Content
+-
+-object TestDbUtils {
+-
+-  fun setMessageReceived(messageId: Long, timestamp: Long) {
+-    val database: SQLiteDatabase = SignalDatabase.messages.databaseHelper.signalWritableDatabase
+-    val contentValues = ContentValues()
+-    contentValues.put(MessageTable.DATE_RECEIVED, timestamp)
+-    val rowsUpdated = database.update(MessageTable.TABLE_NAME, contentValues, DatabaseTable.ID_WHERE, buildArgs(messageId))
+-  }
+-
+-  /**
+-   * Bulk-inserts a reaction on every Nth message (by _id modulo) in the given thread.
+-   */
+-  fun insertReactionsForThread(threadId: Long, authorId: RecipientId, moduloFilter: Int) {
+-    val db = SignalDatabase.messages.databaseHelper.signalWritableDatabase
+-    db.execSQL(
+-      """
+-      INSERT INTO reaction (message_id, author_id, emoji, date_sent, date_received)
+-      SELECT ${MessageTable.ID}, ?, '👍', ${MessageTable.DATE_SENT}, ${MessageTable.DATE_RECEIVED}
+-      FROM ${MessageTable.TABLE_NAME}
+-      WHERE ${MessageTable.THREAD_ID} = ? AND ${MessageTable.ID} % ? = 0
+-      """.trimIndent(),
+-      arrayOf(authorId.toLong().toString(), threadId.toString(), moduloFilter.toString())
+-    )
+-  }
+-
+-  /**
+-   * Bulk-inserts group receipt rows for every message in the given thread, one row per member.
+-   */
+-  fun insertGroupReceiptsForThread(threadId: Long, memberRecipientIds: List<RecipientId>) {
+-    val db = SignalDatabase.messages.databaseHelper.signalWritableDatabase
+-    db.beginTransaction()
+-    try {
+-      for (recipientId in memberRecipientIds) {
+-        db.execSQL(
+-          """
+-          INSERT INTO group_receipts (mms_id, address, status, timestamp)
+-          SELECT ${MessageTable.ID}, ?, 2, ${MessageTable.DATE_SENT}
+-          FROM ${MessageTable.TABLE_NAME}
+-          WHERE ${MessageTable.THREAD_ID} = ?
+-          """.trimIndent(),
+-          arrayOf(recipientId.toLong().toString(), threadId.toString())
+-        )
+-      }
+-      db.setTransactionSuccessful()
+-    } finally {
+-      db.endTransaction()
+-    }
+-  }
+-
+-  /**
+-   * Bulk-inserts a mention on every Nth message (by _id modulo) in the given thread.
+-   */
+-  fun insertMentionsForThread(threadId: Long, mentionedRecipientId: RecipientId, moduloFilter: Int) {
+-    val db = SignalDatabase.messages.databaseHelper.signalWritableDatabase
+-    db.execSQL(
+-      """
+-      INSERT INTO mention (thread_id, message_id, recipient_id, range_start, range_length)
+-      SELECT ${MessageTable.THREAD_ID}, ${MessageTable.ID}, ?, 0, 5
+-      FROM ${MessageTable.TABLE_NAME}
+-      WHERE ${MessageTable.THREAD_ID} = ? AND ${MessageTable.ID} % ? = 0
+-      """.trimIndent(),
+-      arrayOf(mentionedRecipientId.toLong().toString(), threadId.toString(), moduloFilter.toString())
+-    )
+-  }
+-
+-  fun getOutgoingMessageTimestamps(threadId: Long, selfRecipientId: Long): List<Long> {
+-    val timestamps = mutableListOf<Long>()
+-    SignalDatabase.messages.databaseHelper.signalReadableDatabase.query(
+-      MessageTable.TABLE_NAME,
+-      arrayOf(MessageTable.DATE_SENT),
+-      "${MessageTable.THREAD_ID} = ? AND ${MessageTable.FROM_RECIPIENT_ID} = ?",
+-      arrayOf(threadId.toString(), selfRecipientId.toString()),
+-      null,
+-      null,
+-      "${MessageTable.DATE_SENT} ASC"
+-    ).use { cursor ->
+-      while (cursor.moveToNext()) {
+-        timestamps += cursor.getLong(0)
+-      }
+-    }
+-    return timestamps
+-  }
+-
+-  fun insertMessageSendLogEntries(messageIds: List<Long>, timestamps: List<Long>, recipientIds: List<RecipientId>) {
+-    val db = SignalDatabase.messages.databaseHelper.signalWritableDatabase
+-    val dummyContent = Content.Builder().build().encode()
+-
+-    db.beginTransaction()
+-    try {
+-      for (i in messageIds.indices) {
+-        val payloadValues = ContentValues().apply {
+-          put("date_sent", timestamps[i])
+-          put("content", dummyContent)
+-          put("content_hint", 0)
+-          put("urgent", 1)
+-        }
+-        val payloadId = db.insert("msl_payload", null, payloadValues)
+-
+-        val messageValues = ContentValues().apply {
+-          put("payload_id", payloadId)
+-          put("message_id", messageIds[i])
+-        }
+-        db.insert("msl_message", null, messageValues)
+-
+-        for (recipientId in recipientIds) {
+-          val recipientValues = ContentValues().apply {
+-            put("payload_id", payloadId)
+-            put("recipient_id", recipientId.toLong())
+-            put("device", 1)
+-          }
+-          db.insert("msl_recipient", null, recipientValues)
+-        }
+-      }
+-      db.setTransactionSuccessful()
+-    } finally {
+-      db.endTransaction()
+-    }
+-  }
+-}
+diff --git a/app/src/canary/java/org/thoughtcrime/securesms/CanaryApplicationContext.kt b/app/src/canary/java/org/thoughtcrime/securesms/CanaryApplicationContext.kt
+deleted file mode 100644
+index c8c8b963c4b0a414d864cedaf2a891951d121217..0000000000000000000000000000000000000000
+--- a/app/src/canary/java/org/thoughtcrime/securesms/CanaryApplicationContext.kt
++++ /dev/null
+@@ -1,65 +0,0 @@
+-package org.thoughtcrime.securesms
+-
+-import android.os.StrictMode
+-import android.os.StrictMode.ThreadPolicy
+-import leakcanary.LeakCanary
+-import shark.AndroidReferenceMatchers
+-
+-class CanaryApplicationContext : ApplicationContext() {
+-  override fun onCreate() {
+-    super.onCreate()
+-
+-    StrictMode.setThreadPolicy(
+-      ThreadPolicy.Builder()
+-        .detectDiskReads()
+-        .detectDiskWrites()
+-        .detectNetwork()
+-        .penaltyLog()
+-        .build()
+-    )
+-
+-    try {
+-      Class.forName("dalvik.system.CloseGuard")
+-        .getMethod("setEnabled", Boolean::class.javaPrimitiveType)
+-        .invoke(null, true)
+-    } catch (e: ReflectiveOperationException) {
+-      throw RuntimeException(e)
+-    }
+-
+-    LeakCanary.config = LeakCanary.config.copy(
+-      referenceMatchers = AndroidReferenceMatchers.appDefaults +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "android.service.media.MediaBrowserService\$ServiceBinder",
+-          fieldName = "this\$0"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "androidx.media.MediaBrowserServiceCompat\$MediaBrowserServiceImplApi26\$MediaBrowserServiceApi26",
+-          fieldName = "mBase"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "android.support.v4.media.MediaBrowserCompat",
+-          fieldName = "mImpl"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "android.support.v4.media.session.MediaControllerCompat",
+-          fieldName = "mToken"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "android.support.v4.media.session.MediaControllerCompat",
+-          fieldName = "mImpl"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "org.thoughtcrime.securesms.components.voice.VoiceNotePlaybackService",
+-          fieldName = "mApplication"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "org.thoughtcrime.securesms.service.GenericForegroundService\$LocalBinder",
+-          fieldName = "this\$0"
+-        ) +
+-        AndroidReferenceMatchers.ignoredInstanceField(
+-          className = "org.thoughtcrime.securesms.contacts.ContactsSyncAdapter",
+-          fieldName = "mContext"
+-        )
+-    )
+-  }
+-}
+diff --git a/baseline-profile/src/main/AndroidManifest.xml b/baseline-profile/src/main/AndroidManifest.xml
+deleted file mode 100644
+index cc947c56799598205b8fb518f3ba95843c1bab71..0000000000000000000000000000000000000000
+--- a/baseline-profile/src/main/AndroidManifest.xml
++++ /dev/null
+@@ -1 +0,0 @@
+-<manifest />
+diff --git a/baseline-profile/src/main/java/org/signal/baselineprofile/BaselineProfileGenerator.kt b/baseline-profile/src/main/java/org/signal/baselineprofile/BaselineProfileGenerator.kt
+deleted file mode 100644
+index 41e73bca8540bbed9a37561ac1221253e1dd7952..0000000000000000000000000000000000000000
+--- a/baseline-profile/src/main/java/org/signal/baselineprofile/BaselineProfileGenerator.kt
++++ /dev/null
+@@ -1,47 +0,0 @@
+-package org.signal.baselineprofile
+-
+-import androidx.benchmark.macro.junit4.BaselineProfileRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.filters.LargeTest
+-import androidx.test.platform.app.InstrumentationRegistry
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.Until
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * WARNING! THIS WILL WIPE YOUR SIGNAL INSTALL
+- *
+- * Test that generates a Baseline profile from a user journey. Our journey is:
+- *  - start the app
+- *  - open a conversation
+- */
+-@RunWith(AndroidJUnit4::class)
+-@LargeTest
+-class BaselineProfileGenerator {
+-
+-  @get:Rule
+-  val baselineProfileRule = BaselineProfileRule()
+-
+-  @Test
+-  fun startup() {
+-    var setup = false
+-    baselineProfileRule.collect(
+-      packageName = "org.thoughtcrime.securesms",
+-      includeInStartupProfile = true,
+-      profileBlock = {
+-        if (!setup) {
+-          BenchmarkSetup.setup("cold-start", device)
+-          setup = true
+-        }
+-
+-        pressHome()
+-        startActivityAndWait()
+-        device.findObject(By.textContains("Buddy")).click()
+-        device.wait(Until.hasObject(By.textContains("Signal message")), 10_000L)
+-        device.wait(Until.hasObject(By.textContains("Test")), 5_000L)
+-      }
+-    )
+-  }
+-}
+diff --git a/benchmark/.gitignore b/benchmark/.gitignore
+deleted file mode 100644
+index 42afabfd2abebf31384ca7797186a27a4b7dbee8..0000000000000000000000000000000000000000
+--- a/benchmark/.gitignore
++++ /dev/null
+@@ -1 +0,0 @@
+-/build
+\ No newline at end of file
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkMetrics.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkMetrics.kt
+deleted file mode 100644
+index 70ce13f38dd811b65c6e0a01a7b68da10df6b1df..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkMetrics.kt
++++ /dev/null
+@@ -1,62 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.TraceSectionMetric
+-import androidx.benchmark.macro.TraceSectionMetric.Mode
+-
+-@OptIn(ExperimentalMetricApi::class)
+-object BenchmarkMetrics {
+-
+-  val incomingMessageObserver: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("IncomingMessageObserver#decryptMessage", Mode.Average),
+-      TraceSectionMetric("IncomingMessageObserver#perMessageTransaction", Mode.Average),
+-      TraceSectionMetric("IncomingMessageObserver#processMessage", Mode.Average),
+-      TraceSectionMetric("IncomingMessageObserver#totalProcessing", Mode.Sum)
+-    )
+-
+-  val groupDataMessageProcessor: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("DataMessageProcessor#gv2PreProcessing", Mode.Average),
+-      TraceSectionMetric("DataMessageProcessor#messageInsert", Mode.Average),
+-      TraceSectionMetric("DataMessageProcessor#postProcess", Mode.Average)
+-    )
+-
+-  val individualDataMessageProcessor: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("DataMessageProcessor#messageInsert", Mode.Average),
+-      TraceSectionMetric("DataMessageProcessor#postProcess", Mode.Average)
+-    )
+-
+-  val messageDecryptor: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("MessageDecryptor#cipherDecrypt", Mode.Average),
+-    )
+-
+-  val messageContentProcessor: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("MessageContentProcessor#handleMessage", Mode.Average)
+-    )
+-
+-  val deliveryReceipt: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("ReceiptMessageProcessor#incrementDeliveryReceiptCounts", Mode.Average)
+-    )
+-
+-  val readReceipt: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("ReceiptMessageProcessor#incrementReadReceiptCounts", Mode.Average)
+-    )
+-
+-  val threadDeletion: List<TraceSectionMetric>
+-    get() = listOf(
+-      TraceSectionMetric("ThreadTable#deleteConversations", Mode.Sum),
+-      TraceSectionMetric("MessageTable#deleteMessagesInThread", Mode.Sum),
+-      TraceSectionMetric("deleteMessages", Mode.Sum)
+-    )
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkSetup.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkSetup.kt
+deleted file mode 100644
+index c77fd930634f8f20f02c988717cc98818452bfe9..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/BenchmarkSetup.kt
++++ /dev/null
+@@ -1,47 +0,0 @@
+-package org.thoughtcrime.benchmark
+-
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.UiDevice
+-import androidx.test.uiautomator.Until
+-
+-object BenchmarkSetup {
+-  private const val TARGET_PACKAGE = "org.thoughtcrime.securesms.benchmark"
+-  private const val RECEIVER = "org.signal.benchmark.BenchmarkCommandReceiver"
+-
+-  fun setup(type: String, device: UiDevice, timeout: Long = 25_000L, clearData: Boolean = true) {
+-    if (clearData) {
+-      device.executeShellCommand("pm clear $TARGET_PACKAGE")
+-    }
+-
+-    device.executeShellCommand("am start -W -n $TARGET_PACKAGE/org.signal.benchmark.BenchmarkSetupActivity --es setup-type $type")
+-    device.wait(Until.hasObject(By.textContains("done")), timeout)
+-  }
+-
+-  fun setupIndividualSend(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("individual-send")
+-  }
+-
+-  fun setupGroupSend(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("group-send")
+-  }
+-
+-  fun setupGroupDeliveryReceipt(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("group-delivery-receipt")
+-  }
+-
+-  fun setupGroupReadReceipt(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("group-read-receipt")
+-  }
+-
+-  fun releaseMessages(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("release-messages")
+-  }
+-
+-  fun deleteThread(device: UiDevice) {
+-    device.benchmarkCommandBroadcast("delete-thread")
+-  }
+-
+-  private fun UiDevice.benchmarkCommandBroadcast(command: String) {
+-    executeShellCommand("am broadcast -a org.signal.benchmark.action.COMMAND -e command $command -n $TARGET_PACKAGE/$RECEIVER")
+-  }
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/ConversationBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/ConversationBenchmarks.kt
+deleted file mode 100644
+index 5aad99be57143e892d68416904dbb4f5219e6fe3..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/ConversationBenchmarks.kt
++++ /dev/null
+@@ -1,56 +0,0 @@
+-package org.thoughtcrime.benchmark
+-
+-import android.Manifest
+-import android.os.Build
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.TraceSectionMetric
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.Until
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class ConversationBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @OptIn(ExperimentalMetricApi::class)
+-  @Test
+-  fun simpleConversationOpen() {
+-    var setup = false
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = listOf(
+-        TraceSectionMetric("6-ConversationOpen"),
+-        TraceSectionMetric("1-ConversationOpen-ViewModel-Init"),
+-        TraceSectionMetric("2-ConversationOpen-Metadata-Loaded"),
+-        TraceSectionMetric("3-ConversationOpen-Data-Loaded"),
+-        TraceSectionMetric("4-ConversationOpen-Data-Posted"),
+-        TraceSectionMetric("5-ConversationOpen-Render"),
+-      ),
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        if (!setup) {
+-          BenchmarkSetup.setup("conversation-open", device)
+-          setup = true
+-        }
+-        killProcess()
+-        if (Build.VERSION.SDK_INT >= 33) {
+-          device.executeShellCommand("pm grant $packageName ${Manifest.permission.POST_NOTIFICATIONS}")
+-        }
+-        startActivityAndWait()
+-        device.waitForIdle()
+-      }) {
+-      device.findObject(By.textContains("Buddy")).click()
+-      device.wait(Until.hasObject(By.textContains("Signal message")), 10_000L)
+-      device.wait(Until.hasObject(By.textContains("Test")), 5_000L)
+-    }
+-  }
+-}
+\ No newline at end of file
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/GroupMessageProcessingBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/GroupMessageProcessingBenchmarks.kt
+deleted file mode 100644
+index 0ce900a5aba536047f44935a173ffe752bafe4ad..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/GroupMessageProcessingBenchmarks.kt
++++ /dev/null
+@@ -1,129 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.MacrobenchmarkScope
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.UiDevice
+-import androidx.test.uiautomator.Until
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * Macrobenchmark benchmarks for message processing performance.
+- */
+-@OptIn(ExperimentalMetricApi::class)
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class GroupMessageProcessingBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @Test
+-  fun groupMessageReceiveOnConversationList() {
+-    runGroupMessageReceive(withConversationOpen = false)
+-  }
+-
+-  @Test
+-  fun groupMessageReceiveOnConversation() {
+-    runGroupMessageReceive(withConversationOpen = true)
+-  }
+-
+-  private fun runGroupMessageReceive(withConversationOpen: Boolean) {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.incomingMessageObserver + BenchmarkMetrics.messageDecryptor + BenchmarkMetrics.messageContentProcessor + BenchmarkMetrics.groupDataMessageProcessor,
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        setupGroup("group-message-send", BenchmarkSetup::setupGroupSend, withConversationOpen)
+-      }
+-    ) {
+-
+-      BenchmarkSetup.releaseMessages(device)
+-
+-      device.wait(Until.hasObject(By.textContains("505")),10_000L)
+-    }
+-  }
+-
+-  @Test
+-  fun groupDeliveryReceiptOnConversationList() {
+-    runGroupDeliveryReceipt(withConversationOpen = false)
+-  }
+-
+-  @Test
+-  fun groupDeliveryReceiptOnConversation() {
+-    runGroupDeliveryReceipt(withConversationOpen = true)
+-  }
+-
+-  private fun runGroupDeliveryReceipt(withConversationOpen: Boolean) {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.incomingMessageObserver + BenchmarkMetrics.messageDecryptor + BenchmarkMetrics.messageContentProcessor + BenchmarkMetrics.deliveryReceipt,
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        setupGroup("group-delivery-receipt", BenchmarkSetup::setupGroupDeliveryReceipt, withConversationOpen)
+-      }
+-    ) {
+-      BenchmarkSetup.releaseMessages(device)
+-
+-      Thread.sleep(10_000)
+-    }
+-  }
+-
+-  @Test
+-  fun groupReadReceiptOnConversationList() {
+-    runGroupReadReceipt(withConversationOpen = false)
+-  }
+-
+-  @Test
+-  fun groupReadReceiptOnConversation() {
+-    runGroupReadReceipt(withConversationOpen = true)
+-  }
+-
+-  private fun runGroupReadReceipt(withConversationOpen: Boolean) {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.incomingMessageObserver + BenchmarkMetrics.messageDecryptor  + BenchmarkMetrics.messageContentProcessor + BenchmarkMetrics.readReceipt,
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        setupGroup("group-read-receipt", BenchmarkSetup::setupGroupReadReceipt, withConversationOpen)
+-      }
+-    ) {
+-      BenchmarkSetup.releaseMessages(device)
+-
+-      Thread.sleep(10_000)
+-    }
+-  }
+-
+-  private fun MacrobenchmarkScope.setupGroup(
+-    setupType: String,
+-    prepareCommand: (UiDevice) -> Unit,
+-    withConversationOpen: Boolean
+-  ) {
+-    BenchmarkSetup.setup(setupType, device)
+-
+-    killProcess()
+-    startActivityAndWait()
+-    device.waitForIdle()
+-
+-    prepareCommand(device)
+-
+-    device.wait(Until.findObject(By.textContains("Title")), 5_000)
+-    if (withConversationOpen) {
+-      device.waitForIdle()
+-      device.findObject(By.textContains("Title")).click()
+-    }
+-  }
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/MessageProcessingBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/MessageProcessingBenchmarks.kt
+deleted file mode 100644
+index 9c4c3ec7fbd03827c9fc7c885a9c552d370bc1cb..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/MessageProcessingBenchmarks.kt
++++ /dev/null
+@@ -1,66 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.Until
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * Macrobenchmark benchmarks for message processing performance.
+- */
+-@OptIn(ExperimentalMetricApi::class)
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class MessageProcessingBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @Test
+-  fun individualMessageReceiveOnConversationList() {
+-    run(withConversationOpen = false)
+-  }
+-
+-  @Test
+-  fun individualMessageReceiveOnConversation() {
+-    run(withConversationOpen = true)
+-  }
+-
+-  private fun run(withConversationOpen: Boolean) {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.incomingMessageObserver + BenchmarkMetrics.messageContentProcessor + BenchmarkMetrics.individualDataMessageProcessor,
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        BenchmarkSetup.setup("message-send", device)
+-
+-        killProcess()
+-        startActivityAndWait()
+-        device.waitForIdle()
+-
+-        BenchmarkSetup.setupIndividualSend(device)
+-
+-        val uiObject = device.wait(Until.findObject(By.textContains("Buddy")), 5_000)
+-        if (withConversationOpen) {
+-          uiObject.click()
+-        }
+-      }
+-    ) {
+-
+-      BenchmarkSetup.releaseMessages(device)
+-
+-      device.wait(Until.hasObject(By.textContains("501")), 10_000L)
+-    }
+-  }
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/SearchBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/SearchBenchmarks.kt
+deleted file mode 100644
+index 8b64120930cd25bdedebadd484dd8fc52f821a78..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/SearchBenchmarks.kt
++++ /dev/null
+@@ -1,74 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import android.Manifest
+-import android.os.Build
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.TraceSectionMetric
+-import androidx.benchmark.macro.TraceSectionMetric.Mode
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.Until
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * Macrobenchmark for searching from the conversation list.
+- *
+- * Seeds 50 conversations with 2,000 messages each (100,000 messages total), then performs the same
+- * operations the app runs when a user searches from the conversation list: opening the search
+- * toolbar, typing a query, and waiting for results. Measures the full-text search against the
+- * search table via the [SearchRepository] trace sections.
+- */
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class SearchBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @OptIn(ExperimentalMetricApi::class)
+-  @Test
+-  fun conversationListSearch() {
+-    var setup = false
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = listOf(
+-        TraceSectionMetric("ConversationListSearch-Messages", Mode.Sum),
+-        TraceSectionMetric("ConversationListSearch-Threads", Mode.Sum)
+-      ),
+-      iterations = 3,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        if (!setup) {
+-          BenchmarkSetup.setup("conversation-list-search", device, timeout = 600_000L)
+-          setup = true
+-        }
+-        killProcess()
+-        if (Build.VERSION.SDK_INT >= 33) {
+-          device.executeShellCommand("pm grant $packageName ${Manifest.permission.POST_NOTIFICATIONS}")
+-        }
+-        startActivityAndWait()
+-        device.waitForIdle()
+-      }
+-    ) {
+-      device.findObject(By.desc("Search")).click()
+-
+-      val searchField = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 10_000L)
+-      searchField.text = SEARCH_QUERY
+-
+-      device.wait(Until.hasObject(By.textContains("Buddy")), 10_000L)
+-    }
+-  }
+-
+-  companion object {
+-    private const val SEARCH_QUERY = "lighthouse"
+-  }
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/StartupBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/StartupBenchmarks.kt
+deleted file mode 100644
+index a37c7156a98ea17c7f538f96708d3571cdd68c8c..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/StartupBenchmarks.kt
++++ /dev/null
+@@ -1,58 +0,0 @@
+-package org.thoughtcrime.benchmark
+-
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.BaselineProfileMode
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.StartupMode
+-import androidx.benchmark.macro.StartupTimingMetric
+-import androidx.benchmark.macro.TraceSectionMetric
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * Macrobenchmark benchmarks for app startup performance.
+- */
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class StartupBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @Test
+-  fun coldStartNone() {
+-    measureStartup(3, CompilationMode.None())
+-  }
+-
+-  @Test
+-  fun coldStartBaselineProfile() {
+-    measureStartup(3, CompilationMode.Partial(BaselineProfileMode.Require))
+-  }
+-
+-  @OptIn(ExperimentalMetricApi::class)
+-  private fun measureStartup(iterations: Int, compilationMode: CompilationMode) {
+-    var setup = false
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = listOf(StartupTimingMetric(), TraceSectionMetric("ConversationListDataSource#load")),
+-      iterations = iterations,
+-      startupMode = StartupMode.COLD,
+-      compilationMode = compilationMode,
+-      setupBlock = {
+-        if (!setup) {
+-          BenchmarkSetup.setup("cold-start", device)
+-
+-          killProcess()
+-          dropKernelPageCache()
+-          setup = true
+-        }
+-      }
+-    ) {
+-      pressHome()
+-      startActivityAndWait()
+-    }
+-  }
+-}
+\ No newline at end of file
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/ThreadDeletionBenchmarks.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/ThreadDeletionBenchmarks.kt
+deleted file mode 100644
+index 57532e1df11fc2e86044472275ee871fb3084b07..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/ThreadDeletionBenchmarks.kt
++++ /dev/null
+@@ -1,99 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import androidx.annotation.RequiresApi
+-import androidx.benchmark.macro.CompilationMode
+-import androidx.benchmark.macro.ExperimentalMetricApi
+-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import androidx.test.uiautomator.By
+-import androidx.test.uiautomator.Until
+-import org.junit.Ignore
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-
+-/**
+- * Macrobenchmark for measuring thread deletion performance.
+- *
+- * Inserts 20,000 messages into a conversation, then measures the time
+- * to delete the entire thread using per-batch transactions.
+- *
+- * Two variants:
+- * - [deleteThread20kMessages]: 1:1 conversation with attachments and reactions
+- * - [deleteGroupThread20kMessages]: Group conversation with attachments, reactions,
+- *   group receipts (5 members x 20k = 100k rows), and mentions
+- */
+-@OptIn(ExperimentalMetricApi::class)
+-@RunWith(AndroidJUnit4::class)
+-@RequiresApi(31)
+-class ThreadDeletionBenchmarks {
+-  @get:Rule
+-  val benchmarkRule = MacrobenchmarkRule()
+-
+-  @Test
+-  fun deleteThread20kMessages() {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.threadDeletion,
+-      iterations = 1,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        BenchmarkSetup.setup("thread-delete", device, timeout = 120_000L)
+-        killProcess()
+-        startActivityAndWait()
+-        device.waitForIdle()
+-        device.wait(Until.findObject(By.textContains("Buddy")), 10_000)
+-      }
+-    ) {
+-      BenchmarkSetup.deleteThread(device)
+-      device.wait(Until.gone(By.textContains("Buddy")), 300_000L)
+-    }
+-  }
+-
+-  @Test
+-  fun deleteGroupThread20kMessages() {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.threadDeletion,
+-      iterations = 1,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        BenchmarkSetup.setup("thread-delete-group", device, timeout = 180_000L)
+-        killProcess()
+-        startActivityAndWait()
+-        device.waitForIdle()
+-        device.wait(Until.findObject(By.textContains("Title")), 10_000)
+-      }
+-    ) {
+-      BenchmarkSetup.deleteThread(device)
+-      device.wait(Until.gone(By.textContains("Title")), 300_000L)
+-    }
+-  }
+-
+-  @Ignore("Needs locally provided backup file not available in CI yet")
+-  @Test
+-  fun deleteGroupThread20kMessagesWithBackupRestore() {
+-    benchmarkRule.measureRepeated(
+-      packageName = "org.thoughtcrime.securesms.benchmark",
+-      metrics = BenchmarkMetrics.threadDeletion,
+-      iterations = 1,
+-      compilationMode = CompilationMode.Partial(),
+-      setupBlock = {
+-        BenchmarkSetup.setup("backup-restore", device, timeout = 60_000L)
+-        killProcess()
+-
+-        startActivityAndWait()
+-        device.waitForIdle()
+-        device.wait(Until.findObject(By.textContains("CuQ75j")), 10_000)
+-      }
+-    ) {
+-      BenchmarkSetup.deleteThread(device)
+-      device.wait(Until.gone(By.textContains("CuQ75j")), 300_000L)
+-    }
+-  }
+-}
+diff --git a/benchmark/src/main/java/org/thoughtcrime/benchmark/UIDeviceExt.kt b/benchmark/src/main/java/org/thoughtcrime/benchmark/UIDeviceExt.kt
+deleted file mode 100644
+index 34fbf1209ba14ee354879b89f7f5ef90a8a35322..0000000000000000000000000000000000000000
+--- a/benchmark/src/main/java/org/thoughtcrime/benchmark/UIDeviceExt.kt
++++ /dev/null
+@@ -1,27 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.benchmark
+-
+-import android.os.SystemClock
+-import androidx.test.uiautomator.BySelector
+-import androidx.test.uiautomator.UiDevice
+-
+-/**
+- * Inspired by [androidx.test.uiautomator.WaitMixin]
+- */
+-fun UiDevice.waitForAny(timeout: Long, vararg conditions: BySelector): Boolean {
+-  val startTime = SystemClock.uptimeMillis()
+-
+-  var result = conditions.any { this.hasObject(it) }
+-  var elapsedTime = 0L
+-  while (!result && elapsedTime < timeout) {
+-    SystemClock.sleep(100)
+-    result = conditions.any { this.hasObject(it) }
+-    elapsedTime = SystemClock.uptimeMillis() - startTime
+-  }
+-
+-  return result
+-}
+diff --git a/gradle/benchmark-libs.versions.toml b/gradle/benchmark-libs.versions.toml
+deleted file mode 100644
+index 233d1a66c8c0ff0f46c0b3ba83037b039ff24197..0000000000000000000000000000000000000000
+--- a/gradle/benchmark-libs.versions.toml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# IMPORTANT: After changing a dependency, please run:
+-# ./gradlew --write-verification-metadata sha256 qa --rerun-tasks
+-
+-[versions]
+-androidx-test-ext-junit = "1.3.0"
+-baselineprofile = "1.5.0-alpha03"
+-
+-[plugins]
+-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
+-
+-[libraries]
+-# Macrobench/Baseline profiles
+-androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-test-ext-junit" }
+-espresso-core = "androidx.test.espresso:espresso-core:3.7.0"
+-uiautomator = "androidx.test.uiautomator:uiautomator:2.3.0"
+-androidx-benchmark-macro = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
+-androidx-benchmark-micro = "androidx.benchmark:benchmark-junit4:1.4.1"
+diff --git a/microbenchmark/.gitignore b/microbenchmark/.gitignore
+deleted file mode 100644
+index 42afabfd2abebf31384ca7797186a27a4b7dbee8..0000000000000000000000000000000000000000
+--- a/microbenchmark/.gitignore
++++ /dev/null
+@@ -1 +0,0 @@
+-/build
+\ No newline at end of file
+diff --git a/microbenchmark/benchmark-proguard-rules.pro b/microbenchmark/benchmark-proguard-rules.pro
+deleted file mode 100644
+index 1df370449aa1a78b8675a09787f77be5e6f79694..0000000000000000000000000000000000000000
+--- a/microbenchmark/benchmark-proguard-rules.pro
++++ /dev/null
+@@ -1,36 +0,0 @@
+-# Add project specific ProGuard rules here.
+-# You can control the set of applied configuration files using the
+-# proguardFiles setting in build.gradle.
+-#
+-# For more details, see
+-#   http://developer.android.com/guide/developing/tools/proguard.html
+-
+-# If your project uses WebView with JS, uncomment the following
+-# and specify the fully qualified class name to the JavaScript interface
+-# class:
+-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+-#   public *;
+-#}
+-
+-# Uncomment this to preserve the line number information for
+-# debugging stack traces.
+-#-keepattributes SourceFile,LineNumberTable
+-
+-# If you keep the line number information, uncomment this to
+-# hide the original source file name.
+-#-renamesourcefileattribute SourceFile
+-
+--dontobfuscate
+-
+--ignorewarnings
+-
+--keepattributes *Annotation*
+-
+--dontnote junit.framework.**
+--dontnote junit.runner.**
+-
+--dontwarn androidx.test.**
+--dontwarn org.junit.**
+--dontwarn com.squareup.javawriter.JavaWriter
+-
+--keepclasseswithmembers @org.junit.runner.RunWith public class *
+diff --git a/microbenchmark/build.gradle.kts b/microbenchmark/build.gradle.kts
+deleted file mode 100644
+index 16630360b6be375e82a94cd4b00f7d2e45b46413..0000000000000000000000000000000000000000
+--- a/microbenchmark/build.gradle.kts
++++ /dev/null
+@@ -1,65 +0,0 @@
+-@file:Suppress("UnstableApiUsage")
+-
+-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+-
+-
+-plugins {
+-  id("com.android.library")
+-  id("androidx.benchmark")
+-  id("ktlint")
+-}
+-
+-android {
+-  namespace = "org.signal.microbenchmark"
+-  compileSdkVersion(libs.versions.compileSdk.get())
+-
+-  compileOptions {
+-    isCoreLibraryDesugaringEnabled = true
+-    sourceCompatibility = JavaVersion.toVersion(libs.versions.javaVersion.get())
+-    targetCompatibility = JavaVersion.toVersion(libs.versions.javaVersion.get())
+-  }
+-
+-  defaultConfig {
+-    minSdk = libs.versions.minSdk.get().toInt()
+-
+-    testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
+-
+-    testInstrumentationRunner = "androidx.benchmark.junit4.AndroidBenchmarkRunner"
+-  }
+-
+-  testBuildType = "release"
+-  buildTypes {
+-    debug {
+-      // Since isDebuggable can't be modified by gradle for library modules,
+-      // it must be done in a manifest - see src/androidTest/AndroidManifest.xml
+-      isMinifyEnabled = true
+-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "benchmark-proguard-rules.pro")
+-    }
+-    release {
+-      isDefault = true
+-    }
+-  }
+-}
+-
+-kotlin {
+-  compilerOptions {
+-    jvmTarget = JvmTarget.fromTarget(libs.versions.kotlinJvmTarget.get())
+-  }
+-}
+-
+-dependencies {
+-  coreLibraryDesugaring(libs.android.tools.desugar)
+-  lintChecks(project(":lintchecks"))
+-
+-  implementation(project(":core:util"))
+-  implementation(project(":core:models-jvm"))
+-
+-  // Base dependencies
+-  androidTestImplementation(testLibs.junit.junit)
+-  androidTestImplementation(benchmarkLibs.androidx.test.ext.junit)
+-  androidTestImplementation(benchmarkLibs.androidx.benchmark.micro)
+-
+-  // Dependencies of modules being tested
+-  androidTestImplementation(project(":lib:libsignal-service"))
+-  androidTestImplementation(libs.libsignal.android)
+-}
+diff --git a/microbenchmark/src/androidTest/AndroidManifest.xml b/microbenchmark/src/androidTest/AndroidManifest.xml
+deleted file mode 100644
+index 405595ca6b9da86fae70958e18846b7573052218..0000000000000000000000000000000000000000
+--- a/microbenchmark/src/androidTest/AndroidManifest.xml
++++ /dev/null
+@@ -1,15 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:tools="http://schemas.android.com/tools">
+-
+-    <!--
+-      Important: disable debugging for accurate performance results
+-
+-      In a com.android.library project, this flag must be disabled from this
+-      manifest, as it is not possible to override this flag from Gradle.
+-    -->
+-    <application
+-        android:debuggable="false"
+-        tools:ignore="HardcodedDebugMode"
+-        tools:replace="android:debuggable" />
+-</manifest>
+\ No newline at end of file
+diff --git a/microbenchmark/src/androidTest/java/org/signal/microbenchmark/ProtocolBenchmarks.kt b/microbenchmark/src/androidTest/java/org/signal/microbenchmark/ProtocolBenchmarks.kt
+deleted file mode 100644
+index d22e4529bd260fb146d94fdae3d2de07cbe31db4..0000000000000000000000000000000000000000
+--- a/microbenchmark/src/androidTest/java/org/signal/microbenchmark/ProtocolBenchmarks.kt
++++ /dev/null
+@@ -1,124 +0,0 @@
+-package org.signal.microbenchmark
+-
+-import android.util.Log
+-import androidx.benchmark.junit4.BenchmarkRule
+-import androidx.benchmark.junit4.measureRepeated
+-import androidx.test.ext.junit.runners.AndroidJUnit4
+-import org.junit.Before
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-import org.signal.libsignal.protocol.logging.SignalProtocolLogger
+-import org.signal.libsignal.protocol.logging.SignalProtocolLoggerProvider
+-import org.signal.util.SignalClient
+-import org.whispersystems.signalservice.api.push.DistributionId
+-import java.util.Optional
+-
+-/**
+- * Benchmarks for decrypting messages.
+- *
+- * Note that in order to isolate all costs to just the process of decryption itself,
+- * all operations are performed in in-memory stores.
+- */
+-@RunWith(AndroidJUnit4::class)
+-class ProtocolBenchmarks {
+-
+-  @get:Rule
+-  val benchmarkRule = BenchmarkRule()
+-
+-  @Before
+-  fun setup() {
+-    SignalProtocolLoggerProvider.setProvider { priority, tag, message ->
+-      when (priority) {
+-        SignalProtocolLogger.VERBOSE -> Log.v(tag, message)
+-        SignalProtocolLogger.DEBUG -> Log.d(tag, message)
+-        SignalProtocolLogger.INFO -> Log.i(tag, message)
+-        SignalProtocolLogger.WARN -> Log.w(tag, message)
+-        SignalProtocolLogger.ERROR -> Log.w(tag, message)
+-        SignalProtocolLogger.ASSERT -> Log.e(tag, message)
+-      }
+-    }
+-  }
+-
+-  @Test
+-  fun decrypt_unsealedSender() {
+-    val (alice, bob) = buildAndInitializeClients()
+-
+-    benchmarkRule.measureRepeated {
+-      val envelope = runWithTimingDisabled {
+-        alice.encryptUnsealedSender(bob)
+-      }
+-
+-      bob.decryptMessage(envelope)
+-
+-      // Respond so that the session ratchets
+-      runWithTimingDisabled {
+-        alice.decryptMessage(bob.encryptUnsealedSender(alice))
+-      }
+-    }
+-  }
+-
+-  @Test
+-  fun decrypt_sealedSender() {
+-    val (alice, bob) = buildAndInitializeClients()
+-
+-    benchmarkRule.measureRepeated {
+-      val envelope = runWithTimingDisabled {
+-        alice.encryptSealedSender(bob)
+-      }
+-
+-      bob.decryptMessage(envelope)
+-
+-      // Respond so that the session ratchets
+-      runWithTimingDisabled {
+-        alice.decryptMessage(bob.encryptSealedSender(alice))
+-      }
+-    }
+-  }
+-
+-  @Test
+-  fun multi_encrypt_sealedSender() {
+-    val recipientCount = 10
+-    val clients = buildAndInitializeClients(recipientCount)
+-    val alice = clients.first()
+-    val others = clients.filterNot { it == alice }
+-    val distributionId = DistributionId.create()
+-
+-    clients.forEach {
+-      it.initializedGroupSession(distributionId)
+-    }
+-
+-    benchmarkRule.measureRepeated {
+-      alice.multiEncryptSealedSender(distributionId, others, Optional.empty())
+-    }
+-  }
+-
+-  private fun buildAndInitializeClients(): Pair<SignalClient, SignalClient> {
+-    val clients = buildAndInitializeClients(2)
+-    return clients[0] to clients[1]
+-  }
+-
+-  private fun buildAndInitializeClients(recipientCount: Int): List<SignalClient> {
+-    val clients = ArrayList<SignalClient>(recipientCount)
+-    for (n in 1..recipientCount) {
+-      clients.add(SignalClient())
+-    }
+-
+-    clients.forEach { alice ->
+-      clients.filterNot { it == alice }.forEach { bob ->
+-        alice.initializeSession(bob)
+-        bob.initializeSession(alice)
+-
+-        alice.decryptMessage(bob.encryptUnsealedSender(alice))
+-
+-        bob.decryptMessage(alice.encryptUnsealedSender(bob))
+-
+-        alice.decryptMessage(bob.encryptSealedSender(alice))
+-
+-        bob.decryptMessage(alice.encryptSealedSender(bob))
+-      }
+-    }
+-
+-    return clients
+-  }
+-}
+diff --git a/microbenchmark/src/androidTest/java/org/signal/util/InMemorySignalServiceAccountDataStore.kt b/microbenchmark/src/androidTest/java/org/signal/util/InMemorySignalServiceAccountDataStore.kt
+deleted file mode 100644
+index c9a1de4f7c21942e2c3d7072d4ea631028733059..0000000000000000000000000000000000000000
+--- a/microbenchmark/src/androidTest/java/org/signal/util/InMemorySignalServiceAccountDataStore.kt
++++ /dev/null
+@@ -1,210 +0,0 @@
+-package org.signal.util
+-
+-import org.signal.libsignal.protocol.IdentityKey
+-import org.signal.libsignal.protocol.IdentityKeyPair
+-import org.signal.libsignal.protocol.SignalProtocolAddress
+-import org.signal.libsignal.protocol.ecc.ECPublicKey
+-import org.signal.libsignal.protocol.groups.state.SenderKeyRecord
+-import org.signal.libsignal.protocol.state.IdentityKeyStore
+-import org.signal.libsignal.protocol.state.IdentityKeyStore.IdentityChange
+-import org.signal.libsignal.protocol.state.KyberPreKeyRecord
+-import org.signal.libsignal.protocol.state.PreKeyRecord
+-import org.signal.libsignal.protocol.state.SessionRecord
+-import org.signal.libsignal.protocol.state.SignedPreKeyRecord
+-import org.whispersystems.signalservice.api.SignalServiceAccountDataStore
+-import org.whispersystems.signalservice.api.push.DistributionId
+-import java.util.UUID
+-
+-/**
+- * An in-memory datastore specifically designed for tests.
+- */
+-class InMemorySignalServiceAccountDataStore : SignalServiceAccountDataStore {
+-
+-  private val identityKey: IdentityKeyPair = IdentityKeyPair.generate()
+-  private val identities: MutableMap<SignalProtocolAddress, IdentityKey> = mutableMapOf()
+-  private val oneTimeEcPreKeys: MutableMap<Int, PreKeyRecord> = mutableMapOf()
+-  private val signedPreKeys: MutableMap<Int, SignedPreKeyRecord> = mutableMapOf()
+-  private var sessions: MutableMap<SignalProtocolAddress, SessionRecord> = mutableMapOf()
+-  private val senderKeys: MutableMap<SenderKeyLocator, SenderKeyRecord> = mutableMapOf()
+-  private val kyberPreKeys: MutableMap<Int, KyberPreKeyRecord> = mutableMapOf()
+-
+-  override fun getIdentityKeyPair(): IdentityKeyPair {
+-    return identityKey
+-  }
+-
+-  override fun getLocalRegistrationId(): Int {
+-    return 1
+-  }
+-
+-  override fun saveIdentity(address: SignalProtocolAddress, identityKey: IdentityKey): IdentityChange {
+-    val previous = identities.put(address, identityKey)
+-    return if (previous == null || previous == identityKey) {
+-      IdentityChange.NEW_OR_UNCHANGED
+-    } else {
+-      IdentityChange.REPLACED_EXISTING
+-    }
+-  }
+-
+-  override fun isTrustedIdentity(address: SignalProtocolAddress?, identityKey: IdentityKey?, direction: IdentityKeyStore.Direction?): Boolean {
+-    return true
+-  }
+-
+-  override fun getIdentity(address: SignalProtocolAddress): IdentityKey? {
+-    return identities[address]
+-  }
+-
+-  override fun loadPreKey(preKeyId: Int): PreKeyRecord {
+-    return oneTimeEcPreKeys[preKeyId]!!
+-  }
+-
+-  override fun storePreKey(preKeyId: Int, record: PreKeyRecord) {
+-    oneTimeEcPreKeys[preKeyId] = record
+-  }
+-
+-  override fun containsPreKey(preKeyId: Int): Boolean {
+-    return oneTimeEcPreKeys.containsKey(preKeyId)
+-  }
+-
+-  override fun removePreKey(preKeyId: Int) {
+-    oneTimeEcPreKeys.remove(preKeyId)
+-  }
+-
+-  override fun loadSession(address: SignalProtocolAddress): SessionRecord {
+-    return sessions.getOrPut(address) { SessionRecord() }
+-  }
+-
+-  override fun loadExistingSessions(addresses: List<SignalProtocolAddress>): List<SessionRecord> {
+-    return addresses.map { sessions[it]!! }
+-  }
+-
+-  override fun getSubDeviceSessions(name: String): List<Int> {
+-    return sessions
+-      .filter { it.key.name == name && it.key.deviceId != 1 && it.value.isValid() }
+-      .map { it.key.deviceId }
+-  }
+-
+-  override fun storeSession(address: SignalProtocolAddress, record: SessionRecord) {
+-    sessions[address] = record
+-  }
+-
+-  override fun containsSession(address: SignalProtocolAddress): Boolean {
+-    return sessions[address]?.isValid() ?: false
+-  }
+-
+-  override fun deleteSession(address: SignalProtocolAddress) {
+-    sessions -= address
+-  }
+-
+-  override fun deleteAllSessions(name: String) {
+-    sessions = sessions.filter { it.key.name == name }.toMutableMap()
+-  }
+-
+-  override fun loadSignedPreKey(signedPreKeyId: Int): SignedPreKeyRecord {
+-    return signedPreKeys[signedPreKeyId]!!
+-  }
+-
+-  override fun loadSignedPreKeys(): List<SignedPreKeyRecord> {
+-    return signedPreKeys.values.toList()
+-  }
+-
+-  override fun storeSignedPreKey(signedPreKeyId: Int, record: SignedPreKeyRecord) {
+-    signedPreKeys[signedPreKeyId] = record
+-  }
+-
+-  override fun containsSignedPreKey(signedPreKeyId: Int): Boolean {
+-    return signedPreKeys.containsKey(signedPreKeyId)
+-  }
+-
+-  override fun removeSignedPreKey(signedPreKeyId: Int) {
+-    signedPreKeys -= signedPreKeyId
+-  }
+-
+-  override fun storeSenderKey(sender: SignalProtocolAddress, distributionId: UUID, record: SenderKeyRecord) {
+-    senderKeys[SenderKeyLocator(sender, distributionId)] = record
+-  }
+-
+-  override fun loadSenderKey(sender: SignalProtocolAddress, distributionId: UUID): SenderKeyRecord? {
+-    return senderKeys[SenderKeyLocator(sender, distributionId)]
+-  }
+-
+-  override fun loadKyberPreKey(kyberPreKeyId: Int): KyberPreKeyRecord {
+-    return kyberPreKeys[kyberPreKeyId]!!
+-  }
+-
+-  override fun loadKyberPreKeys(): List<KyberPreKeyRecord> {
+-    return kyberPreKeys.values.toList()
+-  }
+-
+-  override fun storeKyberPreKey(kyberPreKeyId: Int, record: KyberPreKeyRecord?) {
+-    kyberPreKeys[kyberPreKeyId] = record!!
+-  }
+-
+-  override fun containsKyberPreKey(kyberPreKeyId: Int): Boolean {
+-    return kyberPreKeys.containsKey(kyberPreKeyId)
+-  }
+-
+-  override fun markKyberPreKeyUsed(kyberPreKeyId: Int, signedPreKeyId: Int, baseKey: ECPublicKey) {
+-    kyberPreKeys.remove(kyberPreKeyId)
+-  }
+-
+-  override fun deleteAllStaleOneTimeEcPreKeys(threshold: Long, minCount: Int) {
+-    error("Not used")
+-  }
+-
+-  override fun markAllOneTimeEcPreKeysStaleIfNecessary(staleTime: Long) {
+-    error("Not used")
+-  }
+-
+-  override fun storeLastResortKyberPreKey(kyberPreKeyId: Int, kyberPreKeyRecord: KyberPreKeyRecord) {
+-    error("Not used")
+-  }
+-
+-  override fun removeKyberPreKey(kyberPreKeyId: Int) {
+-    error("Not used")
+-  }
+-
+-  override fun markAllOneTimeKyberPreKeysStaleIfNecessary(staleTime: Long) {
+-    error("Not used")
+-  }
+-
+-  override fun deleteAllStaleOneTimeKyberPreKeys(threshold: Long, minCount: Int) {
+-    error("Not used")
+-  }
+-
+-  override fun loadLastResortKyberPreKeys(): List<KyberPreKeyRecord> {
+-    error("Not used")
+-  }
+-
+-  override fun archiveSession(address: SignalProtocolAddress) {
+-    sessions[address]!!.archiveCurrentState()
+-  }
+-
+-  override fun getAllAddressesWithActiveSessions(addressNames: MutableList<String>): MutableMap<SignalProtocolAddress, SessionRecord> {
+-    return sessions
+-      .filter { it.key.name in addressNames }
+-      .filter { it.value.isValid() }
+-      .toMutableMap()
+-  }
+-
+-  override fun getSenderKeySharedWith(distributionId: DistributionId): Set<SignalProtocolAddress> {
+-    error("Not used")
+-  }
+-
+-  override fun markSenderKeySharedWith(distributionId: DistributionId, addresses: Collection<SignalProtocolAddress>) {
+-    // Called, but not needed
+-  }
+-
+-  override fun clearSenderKeySharedWith(addresses: Collection<SignalProtocolAddress>) {
+-    // Called, but not needed
+-  }
+-
+-  override fun isMultiDevice(): Boolean {
+-    return false
+-  }
+-
+-  private fun SessionRecord.isValid(): Boolean {
+-    return this.hasSenderChain(0.0)
+-  }
+-
+-  private data class SenderKeyLocator(val address: SignalProtocolAddress, val distributionId: UUID)
+-}
+diff --git a/microbenchmark/src/androidTest/java/org/signal/util/SignalClient.kt b/microbenchmark/src/androidTest/java/org/signal/util/SignalClient.kt
+deleted file mode 100644
+index 62f4cd2d44cfb90f32ccfaca96aa59f7cfb11475..0000000000000000000000000000000000000000
+--- a/microbenchmark/src/androidTest/java/org/signal/util/SignalClient.kt
++++ /dev/null
+@@ -1,221 +0,0 @@
+-package org.signal.util
+-
+-import okio.ByteString.Companion.toByteString
+-import org.signal.core.models.ServiceId
+-import org.signal.core.util.Base64
+-import org.signal.core.util.toByteArray
+-import org.signal.libsignal.metadata.certificate.CertificateValidator
+-import org.signal.libsignal.metadata.certificate.SenderCertificate
+-import org.signal.libsignal.metadata.certificate.ServerCertificate
+-import org.signal.libsignal.protocol.SessionBuilder
+-import org.signal.libsignal.protocol.SignalProtocolAddress
+-import org.signal.libsignal.protocol.ecc.ECKeyPair
+-import org.signal.libsignal.protocol.ecc.ECPublicKey
+-import org.signal.libsignal.protocol.groups.GroupSessionBuilder
+-import org.signal.libsignal.protocol.kem.KEMKeyPair
+-import org.signal.libsignal.protocol.kem.KEMKeyType
+-import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
+-import org.signal.libsignal.protocol.state.KyberPreKeyRecord
+-import org.signal.libsignal.protocol.state.PreKeyBundle
+-import org.signal.libsignal.protocol.state.PreKeyRecord
+-import org.signal.libsignal.protocol.state.SignedPreKeyRecord
+-import org.whispersystems.signalservice.api.SignalServiceAccountDataStore
+-import org.whispersystems.signalservice.api.SignalSessionLock
+-import org.whispersystems.signalservice.api.crypto.ContentHint
+-import org.whispersystems.signalservice.api.crypto.EnvelopeContent
+-import org.whispersystems.signalservice.api.crypto.SealedSenderAccess
+-import org.whispersystems.signalservice.api.crypto.SignalGroupSessionBuilder
+-import org.whispersystems.signalservice.api.crypto.SignalServiceCipher
+-import org.whispersystems.signalservice.api.crypto.UnidentifiedAccess
+-import org.whispersystems.signalservice.api.push.DistributionId
+-import org.whispersystems.signalservice.api.push.SignalServiceAddress
+-import org.whispersystems.signalservice.internal.push.Content
+-import org.whispersystems.signalservice.internal.push.DataMessage
+-import org.whispersystems.signalservice.internal.push.Envelope
+-import org.whispersystems.signalservice.internal.push.OutgoingPushMessage
+-import org.whispersystems.signalservice.internal.util.Util
+-import java.util.Optional
+-import java.util.UUID
+-import java.util.concurrent.locks.ReentrantLock
+-import kotlin.random.Random
+-
+-/**
+- * An in-memory signal client that can encrypt and decrypt messages.
+- *
+- * Has a single prekey bundle that can be used to initialize a session with another client.
+- */
+-class SignalClient {
+-  companion object {
+-    private val trustRoot: ECKeyPair = ECKeyPair.generate()
+-  }
+-
+-  private val lock = TestSessionLock()
+-
+-  private val aci: ServiceId.ACI = ServiceId.ACI.from(UUID.randomUUID())
+-
+-  private val store: SignalServiceAccountDataStore = InMemorySignalServiceAccountDataStore()
+-
+-  private var prekeyIndex = 0
+-
+-  private val unidentifiedAccessKey: ByteArray = Util.getSecretBytes(32)
+-
+-  private val senderCertificate: SenderCertificate = createCertificateFor(
+-    trustRoot = trustRoot,
+-    uuid = aci.rawUuid,
+-    e164 = "+${Random.nextLong(1111111111L, 9999999999L)}",
+-    deviceId = 1,
+-    identityKey = store.identityKeyPair.publicKey.publicKey,
+-    expires = Long.MAX_VALUE
+-  )
+-
+-  private val cipher = SignalServiceCipher(SignalServiceAddress(aci), 1, store, lock, CertificateValidator(trustRoot.publicKey))
+-
+-  /**
+-   * Sets up sessions using the [to] client's [preKeyBundles]. Note that you can only initialize a client up to 1,000 times because that's how many prekeys we have.
+-   */
+-  fun initializeSession(to: SignalClient) {
+-    val address = SignalProtocolAddress(to.aci.toString(), 1)
+-    val localAddress = SignalProtocolAddress(aci.libSignalAci, 1)
+-    SessionBuilder(store, address, localAddress).process(to.createPreKeyBundle())
+-  }
+-
+-  fun initializedGroupSession(distributionId: DistributionId): SenderKeyDistributionMessage {
+-    val self = SignalProtocolAddress(aci.toString(), 1)
+-    return SignalGroupSessionBuilder(lock, GroupSessionBuilder(store)).create(self, distributionId.asUuid())
+-  }
+-
+-  fun encryptUnsealedSender(to: SignalClient): Envelope {
+-    val sentTimestamp = System.currentTimeMillis()
+-
+-    val content = Content(
+-      dataMessage = DataMessage(
+-        body = "Test Message",
+-        timestamp = sentTimestamp
+-      )
+-    )
+-
+-    val outgoingPushMessage: OutgoingPushMessage = cipher.encrypt(
+-      SignalProtocolAddress(to.aci.toString(), 1),
+-      SealedSenderAccess.NONE,
+-      EnvelopeContent.encrypted(content, ContentHint.RESENDABLE, Optional.empty())
+-    )
+-
+-    val encryptedContent: ByteArray = Base64.decode(outgoingPushMessage.content)
+-    val serviceGuid = UUID.randomUUID()
+-
+-    return Envelope(
+-      sourceServiceId = aci.toString(),
+-      sourceDeviceId = 1,
+-      destinationServiceId = to.aci.toString(),
+-      clientTimestamp = sentTimestamp,
+-      serverTimestamp = sentTimestamp,
+-      serverGuid = serviceGuid.toString(),
+-      type = Envelope.Type.fromValue(outgoingPushMessage.type),
+-      urgent = true,
+-      content = encryptedContent.toByteString(),
+-      sourceServiceIdBinary = aci.toByteString(),
+-      destinationServiceIdBinary = to.aci.toByteString(),
+-      serverGuidBinary = serviceGuid.toByteArray().toByteString()
+-    )
+-  }
+-
+-  fun encryptSealedSender(to: SignalClient): Envelope {
+-    val sentTimestamp = System.currentTimeMillis()
+-
+-    val content = Content(
+-      dataMessage = DataMessage(
+-        body = "Test Message",
+-        timestamp = sentTimestamp
+-      )
+-    )
+-
+-    val outgoingPushMessage: OutgoingPushMessage = cipher.encrypt(
+-      SignalProtocolAddress(to.aci.toString(), 1),
+-      SealedSenderAccess.forIndividual(UnidentifiedAccess(to.unidentifiedAccessKey, senderCertificate.serialized, false)),
+-      EnvelopeContent.encrypted(content, ContentHint.RESENDABLE, Optional.empty())
+-    )
+-
+-    val encryptedContent: ByteArray = Base64.decode(outgoingPushMessage.content)
+-    val serverGuid = UUID.randomUUID()
+-
+-    return Envelope(
+-      sourceServiceId = aci.toString(),
+-      sourceDeviceId = 1,
+-      destinationServiceId = to.aci.toString(),
+-      clientTimestamp = sentTimestamp,
+-      serverTimestamp = sentTimestamp,
+-      serverGuid = serverGuid.toString(),
+-      type = Envelope.Type.fromValue(outgoingPushMessage.type),
+-      urgent = true,
+-      content = encryptedContent.toByteString(),
+-      sourceServiceIdBinary = aci.toByteString(),
+-      destinationServiceIdBinary = to.aci.toByteString(),
+-      serverGuidBinary = serverGuid.toByteArray().toByteString()
+-    )
+-  }
+-
+-  fun multiEncryptSealedSender(distributionId: DistributionId, others: List<SignalClient>, groupId: Optional<ByteArray>): ByteArray {
+-    val sentTimestamp = System.currentTimeMillis()
+-
+-    val content = Content(
+-      dataMessage = DataMessage(
+-        body = "Test Message",
+-        timestamp = sentTimestamp
+-      )
+-    )
+-    val destinations = others.map { other ->
+-      SignalProtocolAddress(other.aci.toString(), 1)
+-    }
+-    val sessionMap = store.getAllAddressesWithActiveSessions(destinations.map { it.name })
+-
+-    return cipher.encryptForGroup(distributionId, destinations, sessionMap, senderCertificate, content.encode(), ContentHint.DEFAULT, groupId)
+-  }
+-
+-  fun decryptMessage(envelope: Envelope) {
+-    cipher.decrypt(envelope, System.currentTimeMillis())
+-  }
+-
+-  private fun createPreKeyBundle(): PreKeyBundle {
+-    val prekeyId = prekeyIndex++
+-    val preKeyRecord = PreKeyRecord(prekeyId, ECKeyPair.generate())
+-    val signedPreKeyPair = ECKeyPair.generate()
+-    val signedPreKeySignature = store.identityKeyPair.privateKey.calculateSignature(signedPreKeyPair.publicKey.serialize())
+-
+-    val kyberPair = KEMKeyPair.generate(KEMKeyType.KYBER_1024)
+-    val kyberPreKeyRecord = KyberPreKeyRecord(prekeyId, System.currentTimeMillis() - 10, kyberPair, store.identityKeyPair.privateKey.calculateSignature(kyberPair.publicKey.serialize()))
+-
+-    store.storePreKey(prekeyId, preKeyRecord)
+-    store.storeSignedPreKey(prekeyId, SignedPreKeyRecord(prekeyId, System.currentTimeMillis(), signedPreKeyPair, signedPreKeySignature))
+-
+-    store.storeKyberPreKey(prekeyId, kyberPreKeyRecord)
+-
+-    return PreKeyBundle(
+-      registrationId = prekeyId,
+-      deviceId = 1,
+-      preKeyId = prekeyId,
+-      preKeyPublic = preKeyRecord.keyPair.publicKey,
+-      signedPreKeyId = prekeyId,
+-      signedPreKeyPublic = signedPreKeyPair.publicKey,
+-      signedPreKeySignature = signedPreKeySignature,
+-      identityKey = store.identityKeyPair.publicKey,
+-      kyberPreKeyId = kyberPreKeyRecord.id,
+-      kyberPreKeyPublic = kyberPreKeyRecord.keyPair.publicKey,
+-      kyberPreKeySignature = kyberPreKeyRecord.signature
+-    )
+-  }
+-}
+-
+-private fun createCertificateFor(trustRoot: ECKeyPair, uuid: UUID, e164: String, deviceId: Int, identityKey: ECPublicKey, expires: Long): SenderCertificate {
+-  val serverKey: ECKeyPair = ECKeyPair.generate()
+-  val serverCertificate = ServerCertificate(trustRoot.privateKey, 1, serverKey.publicKey)
+-  return serverCertificate.issue(serverKey.privateKey, uuid.toString(), Optional.of(e164), deviceId, identityKey, expires)
+-}
+-
+-private class TestSessionLock : SignalSessionLock {
+-  val lock = ReentrantLock()
+-
+-  override fun acquire(): SignalSessionLock.Lock {
+-    lock.lock()
+-    return SignalSessionLock.Lock { lock.unlock() }
+-  }
+-}
+diff --git a/microbenchmark/src/main/AndroidManifest.xml b/microbenchmark/src/main/AndroidManifest.xml
+deleted file mode 100644
+index 568741e54f2a17f32a61c7479492dee651c09c1a..0000000000000000000000000000000000000000
+--- a/microbenchmark/src/main/AndroidManifest.xml
++++ /dev/null
+@@ -1,2 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<manifest />
+\ No newline at end of file
+diff --git a/wire-handler/README.md b/wire-handler/README.md
+deleted file mode 100644
+index ad0e006b4bac7a7c5dcb7347be5d8c6de95b891c..0000000000000000000000000000000000000000
+--- a/wire-handler/README.md
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Build
+-
+-`./gradlew build`
+-
+-# Move
+-
+-`mv lib/build/libs/wire-handler-1.0.0.jar .`
+-
+-# Update Signal project
+-
+-If version or name changed, update `build.gradle` with new wire-handler jar path in `buildScript/dependencies`
+diff --git a/wire-handler/gradle b/wire-handler/gradle
+deleted file mode 120000
+index 3337596a2668a0b95b8c5499d0d832cfacf60929..0000000000000000000000000000000000000000
+--- a/wire-handler/gradle
++++ /dev/null
+@@ -1 +0,0 @@
+-../gradle
+\ No newline at end of file
+diff --git a/wire-handler/gradlew b/wire-handler/gradlew
+deleted file mode 120000
+index 502f5a2d3ec62262f17012eea81e52ad76758930..0000000000000000000000000000000000000000
+--- a/wire-handler/gradlew
++++ /dev/null
+@@ -1 +0,0 @@
+-../gradlew
+\ No newline at end of file
+diff --git a/wire-handler/gradlew.bat b/wire-handler/gradlew.bat
+deleted file mode 120000
+index 284013288712c2901e6bf17a08e37249a4dbfbb6..0000000000000000000000000000000000000000
+--- a/wire-handler/gradlew.bat
++++ /dev/null
+@@ -1 +0,0 @@
+-../gradlew.bat
+\ No newline at end of file
+diff --git a/wire-handler/settings.gradle.kts b/wire-handler/settings.gradle.kts
+deleted file mode 100644
+index 5557c95ff508fd2a59cd9c5fc9e1c1c4e0a9157e..0000000000000000000000000000000000000000
+--- a/wire-handler/settings.gradle.kts
++++ /dev/null
+@@ -1,11 +0,0 @@
+-/*
+- * This file was generated by the Gradle 'init' task.
+- *
+- * The settings file is used to specify which projects to include in your build.
+- *
+- * Detailed information about configuring a multi-project build in Gradle can be found
+- * in the user manual at https://docs.gradle.org/8.0.2/userguide/multi_project_builds.html
+- */
+-
+-rootProject.name = "wire-handler"
+-include("lib")
+diff --git a/wire-handler/wire-handler-1.0.0.jar b/wire-handler/wire-handler-1.0.0.jar
+deleted file mode 100644
+index 1d59d8d74e492e566b079eb4e9620e939e21b497..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 5334
+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
+

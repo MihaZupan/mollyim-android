@@ -1,0 +1,294 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:10:06 +0100
+Subject: [PATCH] compat: preserve supported SMS import and legacy boundaries
+
+Retain existing readable data/import behavior without reintroducing removed messaging functionality.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-SMS-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java b/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java
+index 2c0170125fc0d8510bfe7a3b0389c1db13bc9bbb..de101d768a6f1bb5ba7a4054481e8cedcb9b4e2f 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java
+@@ -15,7 +15,7 @@ public final class ContactSelectionDisplayMode {
+   public static final int FLAG_GROUPS_AFTER_CONTACTS = 1 << 8;
+ 
+   public static final int FLAG_GROUP_MEMBERS         = 1 << 9;
+-  public static final int FLAG_ALL                   = FLAG_PUSH | FLAG_SMS | FLAG_ACTIVE_GROUPS | FLAG_INACTIVE_GROUPS | FLAG_SELF;
++  public static final int FLAG_ALL                   = FLAG_PUSH | FLAG_ACTIVE_GROUPS | FLAG_INACTIVE_GROUPS | FLAG_SELF;
+ 
+   public static Builder all() {
+     return new Builder(FLAG_ALL);
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
+index 8a6754b2a6870b5671467159718363ad838c36dd..da292a157fffedc7b47d771c2b0fcc02cea850e8 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
+@@ -5,9 +5,7 @@ import org.thoughtcrime.securesms.recipients.RecipientId
+ data class ConversationSecurityInfo(
+   val recipientId: RecipientId = RecipientId.UNKNOWN,
+   val isPushAvailable: Boolean = false,
+-  val isDefaultSmsApplication: Boolean = false,
+   val isInitialized: Boolean = false,
+-  val hasUnexportedInsecureMessages: Boolean = false,
+   val isClientExpired: Boolean = false,
+   val isUnauthorized: Boolean = false
+ )
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationState.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationState.kt
+index c0e3724566c6492008ff4fa9526e9b1f5d383255..3af45e6cf24d127fe313e460b79c73ccdcdc05d3 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationState.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationState.kt
+@@ -6,8 +6,7 @@ package org.thoughtcrime.securesms.conversation
+  * directly in the fragment that would be better relegated to a ViewModel.
+  */
+ data class ConversationState(
+-  val isMmsEnabled: Boolean = true,
+-  val securityInfo: ConversationSecurityInfo = ConversationSecurityInfo()
++  val securityInfo: ConversationSecurityInfo = ConversationSecurityInfo(),
+ ) {
+   companion object {
+     @JvmStatic
+@@ -16,6 +15,5 @@ data class ConversationState(
+     }
+   }
+ 
+-  fun withMmsEnabled(isMmsEnabled: Boolean) = copy(isMmsEnabled = isMmsEnabled)
+   fun withSecurityInfo(securityInfo: ConversationSecurityInfo) = copy(securityInfo = securityInfo)
+ }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
+index ee827a1efcaea8b51e50a7f422059b25bef3ec4e..967e8741a5650f0c9d932c52e5dd1f66213d9375 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
+@@ -311,7 +311,6 @@ class ConversationViewModel(
+         groupRecord = groupRecord.orNull(),
+         isClientExpired = SignalStore.misc.isClientDeprecated,
+         isUnauthorized = TextSecurePreferences.isUnauthorizedReceived(AppDependencies.application),
+-        threadContainsSms = !recipient.isRegistered && !recipient.isPushGroup && !recipient.isSelf && messageRequestRepository.threadContainsSms(threadId)
+       )
+     }.doOnNext {
+       hasMessageRequestStateSubject.onNext(it.messageRequestState)
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt
+index 3c2cb6c6ce0960374168511a9b12839bce2b061a..4e0dbb15657eda997455807c5d9ed2426f663d71 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt
+@@ -19,7 +19,6 @@ class InputReadyState(
+   val groupRecord: GroupRecord?,
+   val isClientExpired: Boolean,
+   val isUnauthorized: Boolean,
+-  val threadContainsSms: Boolean
+ ) {
+   private val selfMemberLevel: GroupTable.MemberLevel? = groupRecord?.let {
+     val level = it.memberLevel(Recipient.self())
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionInfoCompat.java b/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionInfoCompat.java
+deleted file mode 100644
+index 4a2837668fda6dc8f67db16e9e90f4c9bbaa8329..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionInfoCompat.java
++++ /dev/null
+@@ -1,35 +0,0 @@
+-package org.thoughtcrime.securesms.util.dualsim;
+-
+-import androidx.annotation.NonNull;
+-import androidx.annotation.Nullable;
+-
+-public class SubscriptionInfoCompat {
+-
+-  private final int subscriptionId;
+-  private final int mcc;
+-  private final int mnc;
+-  private final @Nullable CharSequence displayName;
+-
+-  public SubscriptionInfoCompat(int subscriptionId, @Nullable  CharSequence displayName, int mcc, int mnc) {
+-    this.subscriptionId = subscriptionId;
+-    this.displayName    = displayName;
+-    this.mcc            = mcc;
+-    this.mnc            = mnc;
+-  }
+-
+-  public @NonNull CharSequence getDisplayName() {
+-    return displayName != null ? displayName : "";
+-  }
+-
+-  public int getSubscriptionId() {
+-    return subscriptionId;
+-  }
+-
+-  public int getMnc() {
+-    return mnc;
+-  }
+-
+-  public int getMcc() {
+-    return mcc;
+-  }
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionManagerCompat.java b/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionManagerCompat.java
+deleted file mode 100644
+index 8587ef96e387dab1e2b1a37b59c25d9ed6dbd214..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/dualsim/SubscriptionManagerCompat.java
++++ /dev/null
+@@ -1,160 +0,0 @@
+-package org.thoughtcrime.securesms.util.dualsim;
+-
+-import android.Manifest;
+-import android.content.Context;
+-import android.content.pm.PackageManager;
+-import android.os.Build;
+-import android.telephony.SubscriptionInfo;
+-import android.telephony.SubscriptionManager;
+-import android.telephony.TelephonyManager;
+-
+-import androidx.annotation.NonNull;
+-import androidx.annotation.RequiresApi;
+-import androidx.core.content.ContextCompat;
+-
+-import org.signal.core.util.logging.Log;
+-import org.thoughtcrime.securesms.R;
+-import org.signal.core.util.ServiceUtil;
+-
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.LinkedHashMap;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.Set;
+-import java.util.function.Function;
+-
+-public final class SubscriptionManagerCompat {
+-
+-  private static final String TAG = Log.tag(SubscriptionManagerCompat.class);
+-
+-  private final Context context;
+-
+-  public SubscriptionManagerCompat(Context context) {
+-    this.context = context.getApplicationContext();
+-  }
+-
+-  public Optional<Integer> getPreferredSubscriptionId() {
+-    if (Build.VERSION.SDK_INT < 24) {
+-      return Optional.empty();
+-    }
+-
+-    return Optional.of(SubscriptionManager.getDefaultSmsSubscriptionId());
+-  }
+-
+-  public Optional<SubscriptionInfoCompat> getActiveSubscriptionInfo(int subscriptionId) {
+-    if (Build.VERSION.SDK_INT < 22) {
+-      return Optional.empty();
+-    }
+-
+-    return Optional.ofNullable(getActiveSubscriptionInfoMap(false).get(subscriptionId));
+-  }
+-
+-  public @NonNull Collection<SubscriptionInfoCompat> getActiveAndReadySubscriptionInfos() {
+-    if (Build.VERSION.SDK_INT < 22) {
+-      return Collections.emptyList();
+-    }
+-
+-    return getActiveSubscriptionInfoMap(true).values();
+-  }
+-
+-  @RequiresApi(api = 22)
+-  private @NonNull Map<Integer, SubscriptionInfoCompat> getActiveSubscriptionInfoMap(boolean excludeUnreadySubscriptions) {
+-    List<SubscriptionInfo> subscriptionInfos = getActiveSubscriptionInfoList();
+-
+-    if (subscriptionInfos.isEmpty()) {
+-      return Collections.emptyMap();
+-    }
+-
+-    Map<SubscriptionInfo, CharSequence>  descriptions = getDescriptionsFor(subscriptionInfos);
+-    Map<Integer, SubscriptionInfoCompat> map          = new LinkedHashMap<>();
+-
+-    for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
+-      if (!excludeUnreadySubscriptions || isReady(subscriptionInfo)) {
+-        map.put(subscriptionInfo.getSubscriptionId(),
+-                new SubscriptionInfoCompat(subscriptionInfo.getSubscriptionId(),
+-                                           descriptions.get(subscriptionInfo),
+-                                           subscriptionInfo.getMcc(),
+-                                           subscriptionInfo.getMnc()));
+-      }
+-    }
+-
+-    return map;
+-  }
+-
+-  public boolean isMultiSim() {
+-    if (Build.VERSION.SDK_INT < 22) {
+-      return false;
+-    }
+-
+-    return getActiveSubscriptionInfoList().size() >= 2;
+-  }
+-
+-  @RequiresApi(api = 22)
+-  private @NonNull List<SubscriptionInfo> getActiveSubscriptionInfoList() {
+-    SubscriptionManager subscriptionManager = ServiceUtil.getSubscriptionManager(context);
+-
+-    if (subscriptionManager == null) {
+-      Log.w(TAG, "Missing SubscriptionManager.");
+-      return Collections.emptyList();
+-    }
+-
+-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+-      Log.w(TAG, "Missing READ_PHONE_STATE permission.");
+-      return Collections.emptyList();
+-    }
+-
+-    List<SubscriptionInfo> list = subscriptionManager.getActiveSubscriptionInfoList();
+-
+-    return list != null? list : Collections.emptyList();
+-  }
+-
+-  @RequiresApi(api = 22)
+-  private Map<SubscriptionInfo, CharSequence> getDescriptionsFor(@NonNull Collection<SubscriptionInfo> subscriptions) {
+-    Map<SubscriptionInfo, CharSequence> descriptions;
+-
+-    descriptions = createDescriptionMap(subscriptions, SubscriptionInfo::getDisplayName);
+-    if (hasNoDuplicates(descriptions.values())) return descriptions;
+-
+-    return createDescriptionMap(subscriptions, this::describeSimIndex);
+-  }
+-
+-  @RequiresApi(api = 22)
+-  private String describeSimIndex(SubscriptionInfo info) {
+-    return context.getString(R.string.conversation_activity__sim_n, info.getSimSlotIndex() + 1);
+-  }
+-
+-  private static Map<SubscriptionInfo, CharSequence> createDescriptionMap(@NonNull Collection<SubscriptionInfo> subscriptions,
+-                                                                          @NonNull Function<SubscriptionInfo, CharSequence> createDescription)
+-  {
+-    Map<SubscriptionInfo, CharSequence> descriptions = new HashMap<>();
+-    for (SubscriptionInfo subscriptionInfo: subscriptions) {
+-      descriptions.put(subscriptionInfo, createDescription.apply(subscriptionInfo));
+-    }
+-    return descriptions;
+-  }
+-
+-  private static <T> boolean hasNoDuplicates(Collection<T> collection) {
+-    final Set<T> set = new HashSet<>();
+-
+-    for (T t : collection) {
+-      if (!set.add(t)) {
+-        return false;
+-      }
+-    }
+-    return true;
+-  }
+-
+-  private boolean isReady(@NonNull SubscriptionInfo subscriptionInfo) {
+-    if (Build.VERSION.SDK_INT < 24) return true;
+-
+-    TelephonyManager telephonyManager = ServiceUtil.getTelephonyManager(context);
+-
+-    TelephonyManager specificTelephonyManager = telephonyManager.createForSubscriptionId(subscriptionInfo.getSubscriptionId());
+-
+-    return specificTelephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY;
+-  }
+-}

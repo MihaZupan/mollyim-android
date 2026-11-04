@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MihaZupan <miha@mihubot.xyz>
+Date: Wed, 4 Nov 2026 08:10:10 +0100
+Subject: [PATCH] onboarding: preserve starter-sticker and first-boot choices
+
+Keep existing first-start hints and starter content choices without redesign.
+
+Extract final intent, not historical commit replay. All blobs/modes in this
+boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
+SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
+Feature families: MOL-STICKER-ONBOARD-001, MOL-BOOT-HINT-001
+Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
+Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
+runtime parity and independent review remain separate parent gates.
+
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
+index 0e7b253ad5fc0b00dd9d20ae62db571966122ceb..66f7d2fb6b92fdc6ca89a4cc9ac2457a75b4c9cc 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
+@@ -24,18 +24,6 @@ class ConversationTooltips(fragment: Fragment) {
+   /**
+    *  Displayed to teach the user about sticker packs
+    */
+-  fun displayStickerIntroductionTooltip(anchor: View, onDismiss: () -> Unit) {
+-    TooltipPopup.forTarget(anchor)
+-      .setBackgroundTint(ContextCompat.getColor(anchor.context, R.color.core_ultramarine))
+-      .setTextColor(ContextCompat.getColor(anchor.context, R.color.core_white))
+-      .setText(R.string.ConversationActivity_new_say_it_with_stickers)
+-      .setOnDismissListener {
+-        TextSecurePreferences.setHasSeenStickerIntroTooltip(anchor.context, true)
+-        onDismiss()
+-      }
+-      .show(TooltipPopup.POSITION_ABOVE)
+-  }
+-
+   /**
+    * Displayed after a sticker pack is installed
+    */
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/BootReceiver.java b/app/src/main/java/org/thoughtcrime/securesms/service/BootReceiver.java
+index 082bd9e356bd27d9e5d7e3cbf7864a61ce01ad09..4fafb540023fd84999c2d1a3b30474219a71abe9 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/BootReceiver.java
++++ b/app/src/main/java/org/thoughtcrime/securesms/service/BootReceiver.java
+@@ -1,16 +1,19 @@
+ package org.thoughtcrime.securesms.service;
+ 
+-import android.content.BroadcastReceiver;
+ import android.content.Context;
+ import android.content.Intent;
+ 
++import org.signal.core.util.logging.Log;
+ import org.thoughtcrime.securesms.dependencies.AppDependencies;
+ import org.thoughtcrime.securesms.jobs.MessageFetchJob;
+ 
+-public class BootReceiver extends BroadcastReceiver {
++public class BootReceiver extends ExportedBroadcastReceiver {
++
++  private static final String TAG = Log.tag(BootReceiver.class);
+ 
+   @Override
+-  public void onReceive(Context context, Intent intent) {
++  public void onReceiveUnlock(Context context, Intent intent) {
++    Log.i(TAG, "Restarting after: " + intent.getAction());
+     AppDependencies.getJobManager().add(new MessageFetchJob());
+   }
+ }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/PersistentConnectionBootListener.java b/app/src/main/java/org/thoughtcrime/securesms/service/PersistentConnectionBootListener.java
+deleted file mode 100644
+index cd855f64eb0863bbd93479a29fda12dfbd6b02e0..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/PersistentConnectionBootListener.java
++++ /dev/null
+@@ -1,20 +0,0 @@
+-package org.thoughtcrime.securesms.service;
+-
+-import android.content.BroadcastReceiver;
+-import android.content.Context;
+-import android.content.Intent;
+-
+-import org.signal.core.util.logging.Log;
+-
+-
+-public class PersistentConnectionBootListener extends BroadcastReceiver {
+-
+-  private static final String TAG = Log.tag(PersistentConnectionBootListener.class);
+-
+-  @Override
+-  public void onReceive(Context context, Intent intent) {
+-    if (intent != null && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+-      Log.i(TAG, "Received boot event. Application should be started, allowing non-GCM devices to start a foreground service.");
+-    }
+-  }
+-}

@@ -1,0 +1,95 @@
+name: Molly patch stack
+
+on:
+  push:
+    branches: ['v*/molly-patches']
+  pull_request:
+    branches: ['v*/molly-patches']
+  workflow_dispatch:
+    inputs:
+      direction:
+        description: Validate, or prepare a reviewed counterpart proposal
+        type: choice
+        options: [check, source-to-patches, patches-to-source]
+        default: check
+      source_ref:
+        description: Optional source ref for source-to-patches
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  patch-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test patch-management tooling
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Validate or prepare proposal
+        shell: bash
+        env:
+          DIRECTION: ${{ inputs.direction || 'check' }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/molly-sync"
+          destination="$RUNNER_TEMP/molly-import"
+          mkdir "$output"
+          if [ -z "$SOURCE_REF" ]; then
+            branch="$(python3 -c 'import json; print(json.load(open("patch-stack.json"))["branches"]["source"])')"
+            SOURCE_REF="refs/remotes/origin/$branch"
+          fi
+          case "$DIRECTION" in
+            check)
+              python3 scripts/patch_stack.py import --destination "$destination" > "$output/result.json"
+              python3 - "$SOURCE_REF" <<'PY'
+          import json, subprocess, sys
+          manifest = json.load(open("patch-stack.json"))
+          ref = sys.argv[1]
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+          actual = git("rev-parse", "--verify", "--end-of-options", ref + "^{commit}")
+          if git("rev-parse", actual + "^{tree}") != manifest["tree"]:
+              raise SystemExit("Source branch and patch snapshot differ; prepare a synchronization proposal")
+          subprocess.run(["git", "merge-base", "--is-ancestor", manifest["baseline"], actual], check=True)
+          if int(git("rev-list", "--count", manifest["baseline"] + ".." + actual)) != len(manifest["patches"]):
+              raise SystemExit("Source branch must contain one commit per patch")
+          PY
+              ;;
+            source-to-patches)
+              python3 scripts/patch_stack.py export --source-ref "$SOURCE_REF" --destination "$output/patch-snapshot" > "$output/result.json"
+              ;;
+            patches-to-source)
+              python3 scripts/patch_stack.py import --propose --destination "$destination" > "$output/result.json"
+              python3 - "$destination" "$output" <<'PY'
+          import json, pathlib, subprocess, sys
+          destination, output = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+          manifest = json.load(open("patch-stack.json"))
+          def git(*args):
+              return subprocess.check_output(["git", "-C", str(destination), *args], text=True).strip()
+          manifest["source"] = git("rev-parse", "HEAD")
+          manifest["tree"] = git("rev-parse", "HEAD^{tree}")
+          (output / "patch-stack.proposed.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          subprocess.run(["git", "-C", str(destination), "bundle", "create",
+                          str(output / "source.bundle"), "HEAD", "^" + manifest["baseline"]], check=True)
+          subprocess.run(["git", "bundle", "verify", str(output / "source.bundle")], check=True)
+          PY
+              ;;
+            *)
+              echo "Unknown synchronization direction" >&2
+              exit 1
+              ;;
+          esac
+      - name: Upload validation or proposal artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: molly-patch-stack-${{ github.run_id }}
+          path: ${{ runner.temp }}/molly-sync
+          if-no-files-found: error
+          retention-days: 14
