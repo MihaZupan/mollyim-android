@@ -7,7 +7,6 @@ plugins {
   id("java-library")
   id("org.jetbrains.kotlin.jvm")
   alias(libs.plugins.kotlinx.serialization)
-  id("ktlint")
 }
 
 java {
