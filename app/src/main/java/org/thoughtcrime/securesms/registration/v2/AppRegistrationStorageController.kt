@@ -353,7 +353,7 @@ class AppRegistrationStorageController(private val context: Context) : StorageCo
 
         val database = SignalDatabase.backupDatabase
         val inputStream = context.contentResolver.openInputStream(backupUri) ?: throw IOException("Unable to open backup stream for $backupUri")
-        CountingInputStream(inputStream).use { counting ->
+        val restored = CountingInputStream(inputStream).use { counting ->
           countingStream = counting
           FullBackupImporter.importFile(
             context,
@@ -369,7 +369,7 @@ class AppRegistrationStorageController(private val context: Context) : StorageCo
 
         // The importer writes the restored key-value store straight to disk, bypassing the in-memory SignalStore cache.
         // Reset it so the state we read below reflects the restored values rather than stale pre-restore ones.
-        SignalStore.onPostBackupRestore()
+        SignalStore.onPostBackupRestore(restored.legacyKeys, restored.keyValueKeys)
 
         // A post-registration restore clobbers parts of SignalStore.account with the backup's values -- V1 backups
         // carry the identity keys and AEP. Re-apply the frozen account data to heal the committed registration.

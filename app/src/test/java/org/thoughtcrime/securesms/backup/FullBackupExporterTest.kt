@@ -1,9 +1,50 @@
 package org.thoughtcrime.securesms.backup
 
+import android.database.Cursor
+import io.mockk.every
+import io.mockk.mockk
+import net.zetetic.database.sqlcipher.SQLiteDatabase
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
+import org.thoughtcrime.securesms.database.MessageTable
 
 class FullBackupExporterTest {
+
+  @Test
+  fun `started disappearing messages are excluded even with a long remaining lifetime`() {
+    val db = mockk<SQLiteDatabase>()
+    assertFalse(isNonExpiring(db, 1, System.currentTimeMillis(), 30L * 24 * 60 * 60 * 1000, 0))
+  }
+
+  @Test
+  fun `original message is excluded when its latest edit has started disappearing`() {
+    val db = mockk<SQLiteDatabase>()
+    val cursor = mockk<Cursor>(relaxed = true)
+    val values = mapOf(
+      MessageTable.ID to 2L,
+      MessageTable.EXPIRE_STARTED to System.currentTimeMillis(),
+      MessageTable.EXPIRES_IN to 30L * 24 * 60 * 60 * 1000,
+      MessageTable.LATEST_REVISION_ID to 0L
+    )
+    val columns = values.keys.toList()
+    every { cursor.moveToFirst() } returns true
+    every { cursor.getColumnIndexOrThrow(any()) } answers { columns.indexOf(firstArg()) }
+    every { cursor.getLong(any()) } answers { values.getValue(columns[firstArg()]) }
+    every { db.query(MessageTable.TABLE_NAME, any(), any(), any(), null, null, null) } returns cursor
+
+    assertFalse(isNonExpiring(db, 1, 0, 0, 2))
+  }
+
+  private fun isNonExpiring(db: SQLiteDatabase, id: Long, started: Long, duration: Long, revision: Long): Boolean {
+    val method = FullBackupExporter::class.java.getDeclaredMethod(
+      "isNonExpiringMessage", SQLiteDatabase::class.java,
+      Long::class.javaPrimitiveType, Long::class.javaPrimitiveType,
+      Long::class.javaPrimitiveType, Long::class.javaPrimitiveType
+    )
+    method.isAccessible = true
+    return method.invoke(null, db, id, started, duration, revision) as Boolean
+  }
 
   @Test
   fun `computeTableOrder - empty`() {

@@ -125,7 +125,7 @@ public final class LocalBackupJob extends BaseJob {
       String backupPassword  = SignalStore.backup().getV1BackupPassphrase();
       File   backupDirectory = StorageUtil.getOrCreateBackupDirectory();
       String timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
-      String fileName        = String.format("signal-%s.backup", timestamp);
+      String fileName        = String.format("%s-%s.backup", BackupUtil.getBackupFilenamePrefix(), timestamp);
       File   backupFile      = new File(backupDirectory, fileName);
 
       deleteOldTemporaryBackups(backupDirectory);
@@ -139,6 +139,7 @@ public final class LocalBackupJob extends BaseJob {
       }
 
       File tempFile = File.createTempFile(TEMP_BACKUP_FILE_PREFIX, TEMP_BACKUP_FILE_SUFFIX, backupDirectory);
+      FullBackupExporter.InvalidTimeoutException timeoutFailure = null;
 
       try {
         Stopwatch   stopwatch     = new Stopwatch("backup-export");
@@ -169,17 +170,28 @@ public final class LocalBackupJob extends BaseJob {
         Log.w(TAG, "Backup cancelled");
         throw e;
       } catch (IOException e) {
+        if (e instanceof FullBackupExporter.InvalidTimeoutException) {
+          timeoutFailure = (FullBackupExporter.InvalidTimeoutException) e;
+        }
         Log.w(TAG, "Error during backup!", e);
         EventBus.getDefault().post(new BackupEvent(BackupEvent.Type.FINISHED, 0, 0));
         BackupFileIOError.postNotificationForException(context, e);
         throw e;
       } finally {
-        if (tempFile.exists()) {
-          if (tempFile.delete()) {
-            Log.w(TAG, "Backup failed. Deleted temp file");
-          } else {
-            Log.w(TAG, "Backup failed. Failed to delete temp file " + tempFile);
+        try {
+          if (tempFile.exists()) {
+            if (tempFile.delete()) {
+              Log.w(TAG, "Backup failed. Deleted temp file");
+            } else {
+              Log.w(TAG, "Backup failed. Failed to delete temp file " + tempFile);
+            }
           }
+        } catch (SecurityException e) {
+          if (timeoutFailure == null) {
+            throw e;
+          }
+          timeoutFailure.addSuppressed(e);
+          Log.w(TAG, "Unable to clean up rejected timeout backup", e);
         }
       }
 

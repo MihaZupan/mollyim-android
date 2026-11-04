@@ -48,7 +48,7 @@ public final class NewDeviceServerTask implements ServerTask {
       String passphrase = SignalStore.account().getAccountEntropyPool().getValue();
 
       SignalStore.backup().setV1BackupPassphrase(passphrase);
-      FullBackupImporter.importFile(context,
+      FullBackupImporter.RestoreProvenance restored = FullBackupImporter.importFile(context,
                                     AttachmentSecretProvider.getInstance(context, AppAttachmentSecretStore.INSTANCE).getOrCreateAttachmentSecret(),
                                     database,
                                     inputStream,
@@ -58,7 +58,7 @@ public final class NewDeviceServerTask implements ServerTask {
       SignalDatabase.runPostBackupRestoreTasks(database);
       NotificationChannels.getInstance().restoreContactNotificationChannels();
 
-      AppInitialization.onPostBackupRestore(context);
+      AppInitialization.onPostBackupRestore(context, restored);
 
       Log.i(TAG, "Backup restore complete.");
     } catch (FullBackupImporter.DatabaseDowngradeException e) {

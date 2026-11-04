@@ -21,9 +21,9 @@ import org.signal.core.util.eventbus.EventBus;
 import org.signal.core.util.logging.Log;
 import org.signal.core.models.database.AttachmentId;
 import org.thoughtcrime.securesms.backup.proto.KeyValue;
+import org.thoughtcrime.securesms.backup.proto.SharedPreference;
 import org.thoughtcrime.securesms.backup.proto.SqlStatement;
 import org.signal.core.util.crypto.AttachmentSecret;
-import org.signal.core.util.crypto.ClassicDecryptingPartInputStream;
 import org.signal.core.util.crypto.ModernDecryptingPartInputStream;
 import org.thoughtcrime.securesms.database.AttachmentTable;
 import org.thoughtcrime.securesms.database.BackupMediaSnapshotTable;
@@ -52,6 +52,7 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies;
 import org.thoughtcrime.securesms.keyvalue.KeyValueDataSet;
 import org.thoughtcrime.securesms.keyvalue.SignalStore;
 import org.thoughtcrime.securesms.profiles.AvatarHelper;
+import org.thoughtcrime.securesms.util.TextSecurePreferences;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -85,7 +86,6 @@ public class FullBackupExporter extends FullBackupBase {
   private static final long TABLE_RECORD_COUNT_MULTIPLIER    = 3L;
   private static final long IDENTITY_KEY_BACKUP_RECORD_COUNT = 2L;
   private static final long FINAL_MESSAGE_COUNT              = 1L;
-  private static final long EXPIRATION_BACKUP_THRESHOLD      = TimeUnit.DAYS.toMillis(1);
 
   /**
    * Tables in list will still have their *schema* exported (so the tables will be created),
@@ -155,6 +155,14 @@ public class FullBackupExporter extends FullBackupBase {
                                             @NonNull BackupCancellationSignal cancellationSignal)
       throws IOException
   {
+    List<SharedPreference> preferences;
+    try {
+      // Validate the existing integer wire representation before writing backup frames.
+      preferences = TextSecurePreferences.getPreferencesToSaveToBackup(context);
+    } catch (TextSecurePreferences.InvalidPassphraseLockTimeoutException e) {
+      throw new InvalidTimeoutException(e);
+    }
+
     BackupFrameOutputStream outputStream          = new BackupFrameOutputStream(fileOutputStream, passphrase);
     int                     count                 = 0;
     long                    estimatedCountOutside;
@@ -166,7 +174,7 @@ public class FullBackupExporter extends FullBackupBase {
       List<String> tables = exportSchema(input, outputStream);
       count += tables.size() * TABLE_RECORD_COUNT_MULTIPLIER;
 
-      final long estimatedCount = calculateCount(context, input, tables);
+      final long estimatedCount = calculateCount(context, input, tables) + preferences.size();
       estimatedCountOutside = estimatedCount;
 
       Stopwatch stopwatch = new Stopwatch("Backup");
@@ -199,6 +207,12 @@ public class FullBackupExporter extends FullBackupBase {
         stopwatch.split("table::" + table);
       }
 
+      for (SharedPreference preference : preferences) {
+        throwIfCanceled(cancellationSignal);
+        EventBus.getDefault().post(new BackupEvent(BackupEvent.Type.PROGRESS, ++count, estimatedCount));
+        outputStream.write(preference);
+      }
+
       count = exportKeyValues(outputStream, SignalStore.getKeysToIncludeInBackup(), count, estimatedCount, cancellationSignal);
 
       stopwatch.split("key_values");
@@ -223,6 +237,12 @@ public class FullBackupExporter extends FullBackupBase {
       }
     }
     return new BackupEvent(BackupEvent.Type.FINISHED, outputStream.getFrames(), estimatedCountOutside);
+  }
+
+  public static final class InvalidTimeoutException extends IOException {
+    private InvalidTimeoutException(TextSecurePreferences.InvalidPassphraseLockTimeoutException cause) {
+      super("Passphrase lock timeout cannot be represented in a backup", cause);
+    }
   }
 
   private static long calculateCount(@NonNull Context context, @NonNull SQLiteDatabase input, List<String> tables) {
@@ -532,11 +552,7 @@ public class FullBackupExporter extends FullBackupBase {
   }
 
   private static InputStream openAttachmentStream(@NonNull AttachmentSecret attachmentSecret, @Nullable byte[] random, @NonNull String data) throws IOException {
-    if (random != null && random.length == 32) {
-      return ModernDecryptingPartInputStream.createFor(attachmentSecret, random, new File(data), 0);
-    } else {
-      return ClassicDecryptingPartInputStream.createFor(attachmentSecret, new File(data));
-    }
+    return ModernDecryptingPartInputStream.createFor(attachmentSecret, random, new File(data), 0);
   }
 
   private static int exportKeyValues(@NonNull BackupFrameOutputStream outputStream,
@@ -609,6 +625,10 @@ public class FullBackupExporter extends FullBackupBase {
     Set<Long> visited = new HashSet<>();
 
     while (latestRevisionId > 0 && latestRevisionId != id) {
+      if (expireStarted > 0 && expiresIn > 0) {
+        return false;
+      }
+
       if (!visited.add(id)) {
         Log.w(TAG, "Detected a cycle in the message revision chain! Stopping the walk at " + id);
         break;
@@ -626,10 +646,8 @@ public class FullBackupExporter extends FullBackupBase {
       }
     }
 
-    long expiresAt     = expireStarted + expiresIn;
-    long timeRemaining = expiresAt - System.currentTimeMillis();
-
-    return !(expireStarted > 0 && timeRemaining <= EXPIRATION_BACKUP_THRESHOLD);
+    // MOLLY: Exclude any message whose expire timer has started regardless of remaining time
+    return expiresIn <= 0 || expireStarted <= 0;
   }
 
   private static boolean isForNonExpiringMessage(@NonNull SQLiteDatabase db, long messageId) {

@@ -79,6 +79,16 @@ public class FullBackupImporter extends FullBackupBase {
 
   private static final Set<String> KEY_TABLES = SetsKt.setOf(KyberPreKeyTable.TABLE_NAME, LastResortKeyTupleTable.TABLE_NAME, OneTimePreKeyTable.TABLE_NAME, SignedPreKeyTable.TABLE_NAME);
 
+  public static final class RestoreProvenance {
+    public final Set<String> legacyKeys;
+    public final Set<String> keyValueKeys;
+
+    private RestoreProvenance(Set<String> legacyKeys, Set<String> keyValueKeys) {
+      this.legacyKeys = Collections.unmodifiableSet(new HashSet<>(legacyKeys));
+      this.keyValueKeys = Collections.unmodifiableSet(new HashSet<>(keyValueKeys));
+    }
+  }
+
   public static boolean validatePassphrase(@NonNull Context context,
                                            @NonNull Uri uri,
                                            @NonNull String passphrase)
@@ -97,7 +107,7 @@ public class FullBackupImporter extends FullBackupBase {
     }
   }
 
-  public static void importFile(@NonNull Context context,
+  public static RestoreProvenance importFile(@NonNull Context context,
                                 @NonNull AttachmentSecret attachmentSecret,
                                 @NonNull SQLiteDatabase db,
                                 @NonNull Uri uri,
@@ -106,11 +116,11 @@ public class FullBackupImporter extends FullBackupBase {
       throws IOException
   {
     try (InputStream is = getInputStream(context, uri)) {
-      importFile(context, attachmentSecret, db, is, passphrase, excludeKeyTables);
+      return importFile(context, attachmentSecret, db, is, passphrase, excludeKeyTables);
     }
   }
 
-  public static void importFile(@NonNull Context context,
+  public static RestoreProvenance importFile(@NonNull Context context,
                                 @NonNull AttachmentSecret attachmentSecret,
                                 @NonNull SQLiteDatabase db,
                                 @NonNull InputStream is,
@@ -119,6 +129,8 @@ public class FullBackupImporter extends FullBackupBase {
       throws IOException
   {
     int count = 0;
+    Set<String> legacyKeys = new HashSet<>();
+    Set<String> keyValueKeys = new HashSet<>();
 
     SQLiteDatabase keyValueDatabase = KeyValueDatabase.getInstance(AppDependencies.getApplication()).getSqlCipherDatabase();
 
@@ -138,11 +150,15 @@ public class FullBackupImporter extends FullBackupBase {
 
         if      (frame.version != null)    processVersion(db, frame.version);
         else if (frame.statement != null)  processStatement(db, frame.statement, excludeKeyTables);
-        else if (frame.preference != null) processPreference(context, frame.preference);
+        else if (frame.preference != null) {
+          if (processPreference(context, frame.preference)) legacyKeys.add(frame.preference.key);
+        }
         else if (frame.attachment != null) processAttachment(context, attachmentSecret, db, frame.attachment, inputStream);
         else if (frame.sticker != null)    processSticker(context, attachmentSecret, db, frame.sticker, inputStream);
         else if (frame.avatar != null)     processAvatar(context, db, frame.avatar, inputStream);
-        else if (frame.keyValue != null)   processKeyValue(frame.keyValue);
+        else if (frame.keyValue != null) {
+          if (processKeyValue(frame.keyValue)) keyValueKeys.add(frame.keyValue.key);
+        }
         else                            count--;
       }
 
@@ -167,6 +183,7 @@ public class FullBackupImporter extends FullBackupBase {
     }
 
     EventBus.getDefault().post(new BackupEvent(BackupEvent.Type.FINISHED, count, 0));
+    return new RestoreProvenance(legacyKeys, keyValueKeys);
   }
 
   /**
@@ -304,12 +321,12 @@ public class FullBackupImporter extends FullBackupBase {
     }
   }
 
-  private static void processKeyValue(KeyValue keyValue) {
+  private static boolean processKeyValue(KeyValue keyValue) {
     KeyValueDataSet dataSet = new KeyValueDataSet();
 
     if (keyValue.key == null) {
       Log.w(TAG, "Null preference key!");
-      return;
+      return false;
     }
 
     if (keyValue.blobValue != null) {
@@ -326,10 +343,11 @@ public class FullBackupImporter extends FullBackupBase {
       dataSet.putString(keyValue.key, keyValue.stringValue);
     } else {
       Log.i(TAG, "Unknown KeyValue backup value, skipping");
-      return;
+      return false;
     }
 
     KeyValueDatabase.getInstance(AppDependencies.getApplication()).writeDataSet(dataSet, Collections.emptyList());
+    return true;
   }
 
   private static final List<String> defaultSharedPreferencesFileNames = Arrays.asList(
@@ -339,8 +357,11 @@ public class FullBackupImporter extends FullBackupBase {
   );
 
   @SuppressLint("ApplySharedPref")
-  private static void processPreference(@NonNull Context context, SharedPreference preference) {
+  private static boolean processPreference(@NonNull Context context, SharedPreference preference) throws IOException {
     SharedPreferences preferences;
+    if (preference.key == null) {
+      return false;
+    }
 
     // Identity keys were moved from shared prefs into SignalStore. Need to handle importing backups made before the migration.
     if ("SecureSMS-Preferences".equals(preference.file_)) {
@@ -350,7 +371,7 @@ public class FullBackupImporter extends FullBackupBase {
         SignalStore.account().restoreLegacyIdentityPrivateKeyFromBackup(preference.value_);
       }
 
-      return;
+      return false;
     }
 
     if (defaultSharedPreferencesFileNames.contains(preference.file_)) {
@@ -359,15 +380,22 @@ public class FullBackupImporter extends FullBackupBase {
       preferences = EncryptedPreferences.create(context, preference.file_);
     }
 
+    boolean committed;
     if (preference.value_ != null) {
-      preferences.edit().putString(preference.key, preference.value_).commit();
+      committed = preferences.edit().putString(preference.key, preference.value_).commit();
     } else if (preference.booleanValue != null) {
-      preferences.edit().putBoolean(preference.key, preference.booleanValue).commit();
+      committed = preferences.edit().putBoolean(preference.key, preference.booleanValue).commit();
     } else if (preference.isStringSetValue == Boolean.TRUE) {
-      preferences.edit().putStringSet(preference.key, new HashSet<>(preference.stringSetValue)).commit();
+      committed = preferences.edit().putStringSet(preference.key, new HashSet<>(preference.stringSetValue)).commit();
     } else if (preference.integerValue != null) {
-      preferences.edit().putInt(preference.key, preference.integerValue).commit();
+      committed = preferences.edit().putInt(preference.key, preference.integerValue).commit();
+    } else {
+      return false;
     }
+    if (!committed) {
+      throw new IOException("Unable to persist restored preference");
+    }
+    return defaultSharedPreferencesFileNames.contains(preference.file_);
   }
 
   private static void dropAllTables(@NonNull SQLiteDatabase db, boolean excludeKeyTables) {

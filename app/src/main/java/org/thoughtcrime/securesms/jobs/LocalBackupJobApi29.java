@@ -102,7 +102,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
       String       backupPassword  = SignalStore.backup().getV1BackupPassphrase();
       DocumentFile backupDirectory = DocumentFile.fromTreeUri(context, backupDirectoryUri);
       String       timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
-      String       fileName        = String.format("signal-%s.backup", timestamp);
+      String       fileName        = String.format("%s-%s.backup", BackupUtil.getBackupFilenamePrefix(), timestamp);
 
       if (backupDirectory == null || !backupDirectory.canWrite()) {
         BackupFileIOError.ACCESS_ERROR.postNotification(context);
@@ -126,6 +126,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
         throw new IOException("Backup password is null");
       }
 
+      FullBackupExporter.InvalidTimeoutException timeoutFailure = null;
       try {
         Stopwatch   stopwatch     = new Stopwatch("backup-export");
         BackupEvent finishedEvent = FullBackupExporter.export(context,
@@ -152,18 +153,29 @@ public final class LocalBackupJobApi29 extends BaseJob {
         Log.w(TAG, "Backup cancelled");
         throw e;
       } catch (IOException e) {
+        if (e instanceof FullBackupExporter.InvalidTimeoutException) {
+          timeoutFailure = (FullBackupExporter.InvalidTimeoutException) e;
+        }
         Log.w(TAG, "Error during backup!", e);
         EventBus.getDefault().post(new BackupEvent(BackupEvent.Type.FINISHED, 0, 0));
         BackupFileIOError.postNotificationForException(context, e);
         throw e;
       } finally {
-        DocumentFile fileToCleanUp = backupDirectory.findFile(temporaryName);
-        if (fileToCleanUp != null) {
-          if (fileToCleanUp.delete()) {
-            Log.w(TAG, "Backup failed. Deleted temp file");
-          } else {
-            Log.w(TAG, "Backup failed. Failed to delete temp file " + temporaryName);
+        try {
+          DocumentFile fileToCleanUp = backupDirectory.findFile(temporaryName);
+          if (fileToCleanUp != null) {
+            if (fileToCleanUp.delete()) {
+              Log.w(TAG, "Backup failed. Deleted temp file");
+            } else {
+              Log.w(TAG, "Backup failed. Failed to delete temp file " + temporaryName);
+            }
           }
+        } catch (SecurityException e) {
+          if (timeoutFailure == null) {
+            throw e;
+          }
+          timeoutFailure.addSuppressed(e);
+          Log.w(TAG, "Unable to clean up rejected timeout backup", e);
         }
       }
 

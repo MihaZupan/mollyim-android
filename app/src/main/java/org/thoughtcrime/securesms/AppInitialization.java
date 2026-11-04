@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import org.signal.core.util.logging.Log;
+import org.thoughtcrime.securesms.backup.FullBackupImporter;
 import org.thoughtcrime.securesms.database.SignalDatabase;
 import org.thoughtcrime.securesms.dependencies.AppDependencies;
 import org.thoughtcrime.securesms.jobmanager.JobManager;
@@ -42,11 +43,11 @@ public final class AppInitialization {
     AppDependencies.getJobManager().addAll(BlessedPacks.getFirstInstallJobs());
   }
 
-  public static void onPostBackupRestore(@NonNull Context context) {
+  public static void onPostBackupRestore(@NonNull Context context, @NonNull FullBackupImporter.RestoreProvenance restored) {
     Log.i(TAG, "onPostBackupRestore()");
 
     AppDependencies.getMegaphoneRepository().onFirstEverAppLaunch();
-    SignalStore.onPostBackupRestore();
+    SignalStore.onPostBackupRestore(restored.legacyKeys, restored.keyValueKeys);
     SignalStore.onFirstEverAppLaunch();
     SignalStore.onboarding().clearAll();
     SignalStore.notificationProfile().setHasSeenTooltip(true);
