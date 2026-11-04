@@ -1,17 +1,17 @@
-# Molly patch management: Signal 8.19.2
+# Molly patch management: Signal 8.20.4
 
 This branch contains the maintained patch series, tooling and documentation.
 
 | Branch | Purpose |
 |---|---|
-| `v8.19.2/signal-baseline` | Official Signal v8.19.2, `c47a74ba0961903eeaeda6d22347a990056c3e83`. |
-| `v8.19.2/molly-patches` | This independent, ordinary patch-management history. |
-| `v8.19.2/molly` | The accepted36 semantic commits, HEAD `35cefb3bbf4ef3f2e6e96a5ddf7f7565aad8c13d`. |
+| `v8.20.4/signal-baseline` | Official Signal v8.20.4, `4888805873a4b8efb6b0d7a1f23d0a8f160cd36e`. |
+| `v8.20.4/molly-patches` | Ordinary history forked from fixed 8.19.2 patch-management commit `644daeb9f02cba0203baef5f9eee4ef4cde7345d`. |
+| `v8.20.4/molly` | The source port; current source/tree pins are recorded in the manifest after synchronization. |
 
-The source tree is exactly pinned Molly reference
-`892d6264ba007b5458a8b74cf9183c665f1f17a1`:
-`b1e8f33458c50620137c332d0569cca67b799ad6`.
-The original curated branch preserves the pre-rewrite source history.
+**Port in progress, not an accepted version checkpoint.** Until regeneration,
+patch files and source/tree pins retain their 8.19.2 inputs and require proposal
+mode. A synchronized series establishes tree agreement, not runtime acceptance.
+The 8.19.2 refs and original reference/source histories remain unchanged.
 The known timeout backup/restore defect is **deferred, not fixed**. Its excluded
 commit37 remains on `migration/archive/signal-8.19.2-timeout-repair-037-20261104`;
 none of its four production changes or added test is in this series.
@@ -36,7 +36,8 @@ The imported stack must also have one linear commit per patch. Reconstructed
 commit IDs need not equal the original IDs: committer metadata may differ.
 Git tree equality is not an APK, runtime, signing, native reproducibility or
 whole-product security guarantee. Existing accepted M1/reference evidence is
-reused in its actual scope; no Android preservation replay is required here.
+reused only in its actual scope; changed 8.20.4 behavior requires affected checks
+and bounded upgrade, startup and linked-shaped restore acceptance.
 
 ## Local operations
 
@@ -47,8 +48,8 @@ worktrees are never reset, overwritten or automatically cleaned.
 ```powershell
 python .\scripts\patch_stack.py inspect
 python -m unittest discover -s scripts -p 'test_*.py'
-python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8192-import-review
-python .\scripts\patch_stack.py export --source-ref v8.19.2/molly --destination D:\molly\migration-worktrees\molly-8192-export-review
+python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8204-import-review
+python .\scripts\patch_stack.py export --source-ref v8.20.4/molly --destination D:\molly\migration-worktrees\molly-8204-export-review
 ```
 
 `import` creates an isolated local clone, applies all patches and requires the
@@ -73,7 +74,7 @@ Edit the patch files and corresponding manifest entries/order. To derive a
 proposed source tree when the recorded tree is intentionally stale:
 
 ```powershell
-python .\scripts\patch_stack.py import --propose --destination D:\molly\migration-worktrees\molly-8192-patch-proposal
+python .\scripts\patch_stack.py import --propose --destination D:\molly\migration-worktrees\molly-8204-patch-proposal
 ```
 
 This is explicitly a **proposal**, not a strict validation PASS. Review the
