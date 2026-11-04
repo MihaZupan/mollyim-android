@@ -9,21 +9,17 @@ import org.json.JSONException
 import org.signal.core.models.badges.Badge
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
-import org.signal.donations.InAppPaymentType
-import org.thoughtcrime.securesms.components.settings.app.subscription.InAppDonations
-import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
-import org.thoughtcrime.securesms.components.settings.app.subscription.donate.CheckoutFlowActivity
+import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.RemoteMegaphoneTable
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.model.RemoteMegaphoneRecord
 import org.thoughtcrime.securesms.database.model.RemoteMegaphoneRecord.ActionId
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
-import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.LocaleRemoteConfig
 import org.thoughtcrime.securesms.util.RemoteConfig
 import org.thoughtcrime.securesms.util.VersionTracker
-import java.util.Objects
 import kotlin.math.min
 import kotlin.time.Duration.Companion.days
 
@@ -55,12 +51,7 @@ object RemoteMegaphoneRepository {
   }
 
   private val donate: Action = Action { context, controller, remote ->
-    controller.onMegaphoneNavigationRequested(CheckoutFlowActivity.createIntent(context, InAppPaymentType.ONE_TIME_DONATION))
-    snooze.run(context, controller, remote)
-  }
-
-  private val donateForFriend: Action = Action { context, controller, remote ->
-    controller.onMegaphoneNavigationRequested(CheckoutFlowActivity.createIntent(context, InAppPaymentType.ONE_TIME_GIFT))
+    CommunicationActions.openBrowserLink(context, context.getString(R.string.donate_url))
     snooze.run(context, controller, remote)
   }
 
@@ -68,7 +59,6 @@ object RemoteMegaphoneRepository {
     ActionId.SNOOZE.id to snooze,
     ActionId.FINISH.id to finish,
     ActionId.DONATE.id to donate,
-    ActionId.DONATE_FOR_FRIEND.id to donateForFriend
   )
 
   @WorkerThread
@@ -132,14 +122,7 @@ object RemoteMegaphoneRepository {
 
   private fun shouldShowDonateMegaphone(): Boolean {
     return VersionTracker.getDaysSinceFirstInstalled(context) >= 7 &&
-      SignalStore.account.isRegistered &&
-      InAppDonations.hasAtLeastOnePaymentMethodAvailable() &&
-      !InAppPaymentsRepository.hasPendingDonation() &&
-      Recipient.self()
-        .badges
-        .stream()
-        .filter { obj: Badge? -> Objects.nonNull(obj) }
-        .noneMatch { (_, category): Badge -> category === Badge.Category.Donor }
+      SignalStore.account.isRegistered
   }
 
   fun interface Action {

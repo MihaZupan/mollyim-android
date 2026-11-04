@@ -1,23 +1,16 @@
 package org.thoughtcrime.securesms.jobs
 
-import okio.ByteString.Companion.toByteString
 import org.signal.core.util.logging.Log
-import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.jobmanager.CoroutineJob
 import org.thoughtcrime.securesms.jobmanager.Job
 import org.thoughtcrime.securesms.jobmanager.JsonJobData
 import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint
 import org.thoughtcrime.securesms.jobmanager.impl.SealedSenderConstraint
-import org.thoughtcrime.securesms.keyvalue.SignalStore
-import org.thoughtcrime.securesms.net.SignalNetwork
-import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.util.OutgoingContent
-import org.whispersystems.signalservice.internal.push.SyncMessage
 import java.util.UUID
 import kotlin.time.Duration.Companion.days
 
 /**
- * Tells a linked device about sent payments.
+ * Retains the serialized outgoing-payment job contract without running the retired wallet sync.
  */
 class MultiDeviceOutgoingPaymentSyncJob private constructor(
   parameters: Parameters,
@@ -51,60 +44,8 @@ class MultiDeviceOutgoingPaymentSyncJob private constructor(
   override fun getFactoryKey(): String = KEY
 
   override suspend fun doRun(): Result {
-    if (!Recipient.self().isRegistered) {
-      Log.w(TAG, "Not registered, aborting...")
-      return Result.failure()
-    }
-
-    if (!SignalStore.account.isMultiDevice) {
-      Log.i(TAG, "Not multi device, aborting...")
-      return Result.success()
-    }
-
-    val payment = SignalDatabase.payments.getPayment(uuid)
-
-    if (payment == null) {
-      Log.w(TAG, "Payment not found $uuid")
-      return Result.success()
-    }
-
-    val txoIdentification = payment.paymentMetaData.mobileCoinTxoIdentification!!
-    val defrag = payment.isDefrag
-
-    val recipientServiceId = if (!defrag && payment.payee.hasRecipientId()) {
-      SignalDatabase.recipients.getRecord(payment.payee.requireRecipientId()).serviceId
-    } else {
-      null
-    }
-
-    val receipt = payment.receipt ?: throw AssertionError("Trying to sync payment before sent?")
-
-    val outgoingPayment = SyncMessage.OutgoingPayment(
-      recipientServiceId = recipientServiceId?.toString(),
-      note = if (defrag) null else payment.note,
-      mobileCoin = SyncMessage.OutgoingPayment.MobileCoin(
-        recipientAddress = if (defrag) null else payment.payee.requirePublicAddress().serialize().toByteString(),
-        amountPicoMob = payment.amount.requireMobileCoin().toPicoMobUint64(),
-        feePicoMob = payment.fee.requireMobileCoin().toPicoMobUint64(),
-        receipt = receipt.toByteString(),
-        ledgerBlockTimestamp = payment.timestamp,
-        ledgerBlockIndex = payment.blockIndex,
-        outputPublicKeys = txoIdentification.publicKey,
-        spentKeyImages = txoIdentification.keyImages
-      )
-    )
-
-    val result = SignalNetwork.messageService.sendSyncMessage(
-      timestamp = System.currentTimeMillis(),
-      envelopeContent = OutgoingContent.syncOutgoingPayment(outgoingPayment),
-      urgent = false,
-      onEncrypted = null
-    )
-
-    return result.fold(
-      ifRight = { Result.success() },
-      ifLeft = { error -> error.toSyncJobResult(TAG, "outgoing payment sync", defaultBackoff()) }
-    )
+    Log.i(TAG, "Outgoing payment sync is disabled in Molly.")
+    return Result.failure()
   }
 
   override fun onFailure() {

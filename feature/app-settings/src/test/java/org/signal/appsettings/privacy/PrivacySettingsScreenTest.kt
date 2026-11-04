@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performFirstLinkClick
 import androidx.compose.ui.test.performScrollToNode
 import assertk.assertThat
 import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -191,33 +192,13 @@ class PrivacySettingsScreenTest {
   }
 
   @Test
-  fun `turning on payment lock emits EnablePaymentLockClicked`() {
-    setContent(PrivacySettingsState(paymentLock = false))
+  fun `stale wallet lock flags do not add a control or emit events`() {
+    setContent(PrivacySettingsState(paymentLock = true, scrollToPaymentLock = true))
 
-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
+    scrollTo(PrivacySettingsTestTags.ROW_ADVANCED)
+    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).assertDoesNotExist()
 
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.EnablePaymentLockClicked)
-  }
-
-  @Test
-  fun `turning off payment lock emits PaymentLockDisableAuthenticated once authenticated`() {
-    setContent(PrivacySettingsState(paymentLock = true))
-
-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
-
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.PaymentLockDisableAuthenticated)
-  }
-
-  @Test
-  fun `payment lock reads as off on an insecure device, so tapping it tries to turn it on`() {
-    setContent(PrivacySettingsState(paymentLock = true, isDeviceSecure = false))
-
-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
-
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.EnablePaymentLockClicked)
+    assertThat(interactionEvents).isEmpty()
   }
 
   @Test
@@ -231,16 +212,6 @@ class PrivacySettingsScreenTest {
   }
 
   @Test
-  fun `asking to scroll to payment lock emits ScrolledToPaymentLock`() {
-    setContent(PrivacySettingsState(scrollToPaymentLock = true))
-
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).assertIsDisplayed()
-
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.ScrolledToPaymentLock)
-  }
-
-  @Test
   fun `confirming the disable passphrase dialog emits DisablePassphraseConfirmed`() {
     setContent(PrivacySettingsState(isObsoletePassphraseEnabled = true, dialog = PrivacySettingsState.Dialog.ConfirmDisablePassphrase))
 
@@ -250,21 +221,16 @@ class PrivacySettingsScreenTest {
   }
 
   @Test
-  fun `accepting the payment lock dialog emits OpenDeviceSecuritySettingsClicked`() {
+  fun `a stale wallet dialog is absent and leaves screen lock usable`() {
     setContent(PrivacySettingsState(dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
 
-    composeTestRule.onNodeWithText("Turn On").performClick()
+    composeTestRule.onNodeWithText("Turn On").assertDoesNotExist()
+    composeTestRule.onNodeWithText("Not Now").assertDoesNotExist()
 
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked)
-  }
+    scrollTo(PrivacySettingsTestTags.ROW_SCREEN_LOCK)
+    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_SCREEN_LOCK).performClick()
 
-  @Test
-  fun `declining the payment lock dialog emits DialogDismissed`() {
-    setContent(PrivacySettingsState(dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
-
-    composeTestRule.onNodeWithText("Not Now").performClick()
-
-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.DialogDismissed)
+    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.ScreenLockClicked)
   }
 
   @Test

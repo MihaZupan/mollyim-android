@@ -24,8 +24,7 @@ class PrivacySettingsLayoutTest : SignalLayoutStressTest() {
     screenLock = true,
     screenLockTimeout = 6.days + 23.hours,
     screenSecurity = true,
-    incognitoKeyboard = true,
-    paymentLock = true
+    incognitoKeyboard = true
   )
 
   @Test
@@ -59,8 +58,8 @@ class PrivacySettingsLayoutTest : SignalLayoutStressTest() {
   }
 
   @Test
-  fun `payment lock needs device security`() = assertPassesLayoutChecks {
-    Screen(populated.copy(isDeviceSecure = false, dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
+  fun `stale wallet flags and dialog leave the privacy layout available`() = assertPassesLayoutChecks {
+    Screen(populated.copy(paymentLock = true, scrollToPaymentLock = true, isDeviceSecure = false, dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
   }
 
   @Test
