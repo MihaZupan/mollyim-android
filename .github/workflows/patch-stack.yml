@@ -1,0 +1,38 @@
+name: Molly source patch stack
+
+on:
+  push:
+    branches: ['v*/molly']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.ref_name }}-patches
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test patch-management tooling
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Validate source, baseline and reconstructed patches
+        env:
+          SOURCE_REF: ${{ github.sha }}
+          GIT_COMMITTER_EMAIL: miha@mihubot.xyz
+        run: |
+          python3 scripts/patch_stack.py check \
+            --source-ref "$SOURCE_REF" \
+            --destination "$RUNNER_TEMP/molly-import" > "$RUNNER_TEMP/patch-result.json"
+      - name: Upload validation result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: molly-source-patch-stack-${{ github.run_id }}
+          path: ${{ runner.temp }}/patch-result.json
+          if-no-files-found: warn
+          retention-days: 14
