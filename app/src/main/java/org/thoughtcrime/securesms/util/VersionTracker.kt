@@ -15,14 +15,14 @@ object VersionTracker {
   private val TAG = Log.tag(VersionTracker::class.java)
 
   @JvmStatic
-  fun getLastSeenVersion(context: Context): Int {
-    return TextSecurePreferences.getLastVersionCode(context)
+  fun getLastSeenVersionForMolly(context: Context): Int {
+    return TextSecurePreferences.getLastVersionCodeForMolly(context)
   }
 
   @JvmStatic
   fun updateLastSeenVersion(context: Context) {
     val currentVersionCode = BuildConfig.VERSION_CODE
-    val lastVersionCode = TextSecurePreferences.getLastVersionCode(context)
+    val lastVersionCode = TextSecurePreferences.getLastVersionCodeForMolly(context)
 
     if (currentVersionCode != lastVersionCode) {
       Log.i(TAG, "Upgraded from $lastVersionCode to $currentVersionCode. Clearing client deprecation.", true)
@@ -34,7 +34,7 @@ object VersionTracker {
       LocalMetrics.getInstance().clear()
     }
 
-    TextSecurePreferences.setLastVersionCode(context, currentVersionCode)
+    TextSecurePreferences.setLastVersionCodeForMolly(context, currentVersionCode)
   }
 
   @JvmStatic
