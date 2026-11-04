@@ -72,18 +72,8 @@ class EditProfileViewModel(
       EditProfileEvent.AvatarCleared -> ifEditable { clearAvatar() }
       EditProfileEvent.NameClicked -> ifEditable { parentEventEmitter.navigateTo(AppSettingsRoute.AccountRoute.ProfileName) }
       EditProfileEvent.AboutClicked -> ifEditable { parentEventEmitter.navigateTo(AppSettingsRoute.AccountRoute.About) }
-      EditProfileEvent.BadgesClicked -> ifEditable {
-        if (EditProfileRepository.hasBadges()) {
-          parentEventEmitter.navigateTo(AppSettingsRoute.DonationsRoute.Badges)
-        } else {
-          _state.update { it.copy(dialog = EditProfileState.Dialog.BecomeASustainer) }
-          loadSustainerBadge()
-        }
-      }
-      EditProfileEvent.BecomeASustainerClicked -> {
-        _state.update { it.copy(dialog = EditProfileState.Dialog.None) }
-        _actions.send(EditProfileAction.OpenSubscriptions)
-      }
+      EditProfileEvent.BadgesClicked,
+      EditProfileEvent.BecomeASustainerClicked -> Unit
       EditProfileEvent.UsernameClicked -> ifEditable {
         if (EditProfileRepository.getUsername() != null) {
           _state.update { it.copy(dialog = EditProfileState.Dialog.UsernameOptions) }
@@ -127,18 +117,6 @@ class EditProfileViewModel(
       _state.update { it.copy(snackbar = EditProfileState.Snackbar.UsernameCreated) }
     }
     usernameWhenLastResumed = username
-  }
-
-  /** Loads the badge shown in [EditProfileState.Dialog.BecomeASustainer] off the event queue, since it comes from the network. */
-  private fun loadSustainerBadge() {
-    if (_state.value.sustainerBadge != null) {
-      return
-    }
-
-    viewModelScope.launch {
-      val badge = EditProfileRepository.getSustainerBadge()
-      _state.update { it.copy(sustainerBadge = badge) }
-    }
   }
 
   /** Runs [block] only if the profile can be edited, and otherwise explains why it can't. */

@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.core.text.method.LinkMovementMethodCompat
 import com.airbnb.lottie.LottieAnimationView
 import com.google.android.material.button.MaterialButton
@@ -17,8 +16,7 @@ import org.signal.core.ui.FixedRoundedCornerBottomSheetDialogFragment
 import org.signal.core.ui.util.SpanUtil
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.badges.BadgeImageView
-import org.thoughtcrime.securesms.badges.BadgeRepository
-import org.thoughtcrime.securesms.badges.BadgeRepository.DonationBadgeToggle
+import org.signal.core.ui.util.ThemeUtil
 import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
@@ -45,7 +43,6 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
   private lateinit var switch: MaterialSwitch
   private lateinit var heading: TextView
 
-  private lateinit var controlState: DonationBadgeToggle
 
   override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
     return inflater.inflate(R.layout.thanks_for_your_support_bottom_sheet_dialog_fragment, container, false)
@@ -78,7 +75,7 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
           .append(
             SpanUtil.clickable(
               getString(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__become_a_montly_sustainer),
-              ContextCompat.getColor(requireContext(), CoreUiR.color.signal_accent_primary)
+              ThemeUtil.getThemedColor(requireContext(), R.attr.signal_accent_primary)
             ) {
               requireActivity().finish()
               requireActivity().startActivity(AppSettingsActivity.subscriptions(requireContext()))
@@ -89,26 +86,9 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
       subhead.text = getString(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__youve_earned_a_donor_badge)
     }
 
-    val otherBadges = Recipient.self().badges.filterNot { it.id == args.badge.id }
-    val hasOtherBadges = otherBadges.isNotEmpty()
-    val displayingBadges = SignalStore.inAppPayments.getDisplayBadgesOnProfile()
-
-    if (hasOtherBadges && displayingBadges) {
-      switch.isChecked = false
-      controlText.setText(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__make_featured_badge)
-      controlNote.visible = true
-      controlState = DonationBadgeToggle.MAKE_FEATURED
-    } else if (hasOtherBadges) {
-      switch.isChecked = false
-      controlText.setText(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__display_on_profile)
-      controlNote.visible = false
-      controlState = DonationBadgeToggle.DISPLAY_ON_PROFILE
-    } else {
-      switch.isChecked = true
-      controlText.setText(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__display_on_profile)
-      controlNote.visible = false
-      controlState = DonationBadgeToggle.DISPLAY_ON_PROFILE
-    }
+    switch.visible = false
+    controlText.visible = false
+    controlNote.visible = false
 
     // New badge does not have a lottie, so we just hide it and show a static image.
     lottie.visible = false
@@ -120,7 +100,6 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
     super.onDismiss(dialog)
     val args = ThanksForYourSupportBottomSheetDialogFragmentArgs.fromBundle(requireArguments())
 
-    BadgeRepository.commitDonationBadgeToggle(controlState, args.badge, switch.isChecked)
 
     if (args.badge.isSubscription()) {
       requireActivity().finish()

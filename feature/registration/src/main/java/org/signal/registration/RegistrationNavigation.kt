@@ -8,6 +8,7 @@
 package org.signal.registration
 
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -750,9 +751,14 @@ private fun EntryProviderScope<NavKey>.navigationEntries(
 
         SignalLoginPaymentScreenActions.MakeGooglePlayServicesAvailable -> {
           if (activity != null) {
-            GoogleApiAvailability.getInstance()
-              .makeGooglePlayServicesAvailable(activity)
-              .addOnCompleteListener { viewModel.onEvent(SignalLoginPaymentScreenEvents.Foregrounded) }
+            val availability = GoogleApiAvailability.getInstance()
+            val resolution = availability.getErrorResolutionPendingIntent(activity, availability.isGooglePlayServicesAvailable(activity), 0)
+            try {
+              resolution?.send()
+            } catch (e: PendingIntent.CanceledException) {
+              Log.w(TAG, "[SignalLoginPayment] Google Play services resolution was canceled.", e)
+            }
+            viewModel.onEvent(SignalLoginPaymentScreenEvents.Foregrounded)
           }
         }
 

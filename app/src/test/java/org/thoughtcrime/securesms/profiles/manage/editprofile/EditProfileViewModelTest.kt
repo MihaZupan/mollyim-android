@@ -40,7 +40,6 @@ import org.signal.appsettings.editprofile.EditProfileEvent
 import org.signal.appsettings.editprofile.EditProfileState
 import org.signal.appsettings.routes.AppSettingsNavigationEvent
 import org.signal.appsettings.routes.AppSettingsRoute
-import org.signal.core.models.badges.Badge
 import org.signal.core.models.media.Media
 import org.thoughtcrime.securesms.profiles.ProfileName
 import org.thoughtcrime.securesms.profiles.manage.UsernameRepository.UsernameDeleteResult
@@ -57,7 +56,6 @@ class EditProfileViewModelTest {
 
   private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
   private val self = MutableStateFlow(recipient(name = "Alex Hart", about = "Speak freely", aboutEmoji = "👋"))
-  private val sustainerBadge = mockk<Badge>()
 
   @Before
   fun setUp() {
@@ -73,7 +71,6 @@ class EditProfileViewModelTest {
     every { EditProfileRepository.markUsernameLinkTooltipSeen() } just Runs
     every { EditProfileRepository.hasBadges() } returns false
     every { EditProfileRepository.refreshOwnProfile() } just Runs
-    coEvery { EditProfileRepository.getSustainerBadge() } returns sustainerBadge
     coEvery { EditProfileRepository.deleteUsername() } returns UsernameDeleteResult.SUCCESS
     coEvery { EditProfileRepository.readAvatar(any()) } returns byteArrayOf(1, 2, 3)
     coEvery { EditProfileRepository.setAvatar(any(), any()) } returns EditProfileRepository.SaveResult.SUCCESS
@@ -170,37 +167,41 @@ class EditProfileViewModelTest {
   }
 
   @Test
-  fun `badges opens badge management for a user who has badges`() = runTest(testDispatcher) {
+  fun `retained badge metadata cannot expose excluded badge management`() = runTest(testDispatcher) {
     every { EditProfileRepository.hasBadges() } returns true
     val viewModel = createViewModel()
 
     viewModel.onEvent(EditProfileEvent.BadgesClicked)
 
-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateToScreen(AppSettingsRoute.DonationsRoute.Badges))
-    assertThat(viewModel.state.value.dialog).isEqualTo(EditProfileState.Dialog.None)
-  }
-
-  @Test
-  fun `badges invites a user without badges to become a Sustainer`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-
-    viewModel.onEvent(EditProfileEvent.BadgesClicked)
-
     assertThat(navigationEvents).isEmpty()
-    assertThat(viewModel.state.value.dialog).isEqualTo(EditProfileState.Dialog.BecomeASustainer)
-    assertThat(viewModel.state.value.sustainerBadge).isEqualTo(sustainerBadge)
+    assertThat(viewModel.state.value.dialog).isEqualTo(EditProfileState.Dialog.None)
+    verify(exactly = 0) { EditProfileRepository.hasBadges() }
   }
 
   @Test
-  fun `BecomeASustainerClicked closes the sheet and opens subscriptions`() = runTest(testDispatcher) {
+  fun `excluded badge events do not invite subscriptions`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
     val actions = collectActions(viewModel.actions)
 
     viewModel.onEvent(EditProfileEvent.BadgesClicked)
     viewModel.onEvent(EditProfileEvent.BecomeASustainerClicked)
 
+    assertThat(navigationEvents).isEmpty()
+    assertThat(actions).isEmpty()
     assertThat(viewModel.state.value.dialog).isEqualTo(EditProfileState.Dialog.None)
-    assertThat(actions).containsExactly(EditProfileAction.OpenSubscriptions)
+  }
+
+  @Test
+  fun `stale excluded events do not dismiss an unrelated username operation`() = runTest(testDispatcher) {
+    every { EditProfileRepository.getUsername() } returns "spider.42"
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(EditProfileEvent.UsernameClicked)
+    viewModel.onEvent(EditProfileEvent.BecomeASustainerClicked)
+
+    assertThat(viewModel.state.value.dialog).isEqualTo(EditProfileState.Dialog.UsernameOptions)
+    assertThat(actions).isEmpty()
   }
 
   @Test

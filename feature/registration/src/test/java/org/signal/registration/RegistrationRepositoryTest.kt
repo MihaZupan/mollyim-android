@@ -43,6 +43,7 @@ import org.signal.registration.fakes.SystemOutLogger
 import org.signal.registration.proto.AccountData
 import org.signal.registration.proto.LinkedDeviceData
 import org.signal.registration.screens.messagesync.LinkAndSyncProgress
+import org.signal.registration.screens.signalloginpayment.PaymentAvailability
 import java.io.IOException
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -83,6 +84,35 @@ class RegistrationRepositoryTest {
       isPhoneNumberlessRegistrationAvailable = true,
       signalLoginPurchaseApi = OneTimePurchaseApi.Empty
     )
+  }
+
+  @Test
+  fun `a build without billing does not query Google services or offer their repair`() = runTest {
+    val unsupported = RegistrationRepository(
+      context = mockk<Context>(relaxed = true),
+      networkController = networkController,
+      storageController = storageController,
+      isLinkAndSyncAvailable = false,
+      signalLoginPurchaseApi = mockk(),
+      googlePlayServicesStatus = { throw AssertionError("Unsupported billing must not query Google services") }
+    )
+
+    assertThat(unsupported.getPaymentAvailability()).isEqualTo(PaymentAvailability.PurchasesUnavailable)
+  }
+
+  @Test
+  fun `a configured billing backend retains actual services unavailability`() = runTest {
+    val supported = RegistrationRepository(
+      context = mockk<Context>(relaxed = true),
+      networkController = networkController,
+      storageController = storageController,
+      isLinkAndSyncAvailable = false,
+      isGooglePlayBillingAvailable = true,
+      signalLoginPurchaseApi = mockk(),
+      googlePlayServicesStatus = { PaymentAvailability.ServiceMissing }
+    )
+
+    assertThat(supported.getPaymentAvailability()).isEqualTo(PaymentAvailability.ServiceMissing)
   }
 
   // ==================== getAndMaybeHealRemoteBackupInfo ====================

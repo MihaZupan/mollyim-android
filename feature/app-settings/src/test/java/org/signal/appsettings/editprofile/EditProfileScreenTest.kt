@@ -59,8 +59,6 @@ class EditProfileScreenTest {
     composeTestRule.onNodeWithTag(EditProfileTestTags.BUTTON_EDIT_PHOTO).performClick()
     composeTestRule.onNodeWithTag(EditProfileTestTags.ROW_NAME).performClick()
     composeTestRule.onNodeWithTag(EditProfileTestTags.ROW_ABOUT).performClick()
-    scrollTo(EditProfileTestTags.ROW_BADGES)
-    composeTestRule.onNodeWithTag(EditProfileTestTags.ROW_BADGES).performClick()
     scrollTo(EditProfileTestTags.ROW_USERNAME)
     composeTestRule.onNodeWithTag(EditProfileTestTags.ROW_USERNAME).performClick()
     scrollTo(EditProfileTestTags.ROW_USERNAME_LINK)
@@ -71,7 +69,6 @@ class EditProfileScreenTest {
       EditProfileEvent.EditPhotoClicked,
       EditProfileEvent.NameClicked,
       EditProfileEvent.AboutClicked,
-      EditProfileEvent.BadgesClicked,
       EditProfileEvent.UsernameClicked,
       EditProfileEvent.UsernameLinkClicked
     )
@@ -157,12 +154,12 @@ class EditProfileScreenTest {
   }
 
   @Test
-  fun givenTheBecomeASustainerSheet_whenIClickTheButton_thenIExpectBecomeASustainerClickedEvent() {
-    setContent(populated.copy(dialog = EditProfileState.Dialog.BecomeASustainer))
+  fun mollyProfileDoesNotExposeBadgeEditingOrSubscriptionControls() {
+    setContent(populated)
 
-    composeTestRule.onNodeWithTag(EditProfileTestTags.BUTTON_BECOME_A_SUSTAINER).performClick()
-
-    assertThat(events).contains(EditProfileEvent.BecomeASustainerClicked)
+    composeTestRule.onNodeWithTag("row-badges").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("become-a-sustainer-sheet").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("button-become-a-sustainer").assertDoesNotExist()
   }
 
   private fun scrollTo(testTag: String) {

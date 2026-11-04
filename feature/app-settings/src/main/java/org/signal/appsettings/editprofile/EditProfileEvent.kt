@@ -38,10 +38,10 @@ sealed interface EditProfileEvent {
   /** The user tapped the about row. */
   data object AboutClicked : EditProfileEvent
 
-  /** The user tapped the badges row. */
+  /** Compatibility event from the excluded badge UI; ignored by Molly. */
   data object BadgesClicked : EditProfileEvent
 
-  /** The user tapped the button in [EditProfileState.Dialog.BecomeASustainer]. */
+  /** Compatibility event from the excluded subscription UI; ignored by Molly. */
   data object BecomeASustainerClicked : EditProfileEvent
 
   /** The user tapped the username row. */

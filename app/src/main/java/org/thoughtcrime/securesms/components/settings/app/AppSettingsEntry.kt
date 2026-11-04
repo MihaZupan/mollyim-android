@@ -5,19 +5,15 @@
 
 package org.thoughtcrime.securesms.components.settings.app
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.signal.appsettings.home.AppSettingsAction
@@ -33,9 +29,7 @@ import org.thoughtcrime.securesms.avatar.AvatarImage
 import org.thoughtcrime.securesms.banner.BannerManager
 import org.thoughtcrime.securesms.banner.banners.DeprecatedBuildBanner
 import org.thoughtcrime.securesms.banner.banners.UnauthorizedBanner
-import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImageMedium
 import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.recipients.rememberRecipientField
 import org.thoughtcrime.securesms.util.CommunicationActions
 
 /**
@@ -96,20 +90,5 @@ fun AppSettingsEntry(
 
 @Composable
 private fun SelfAvatar(self: Recipient) {
-  Box {
-    AvatarImage(
-      recipient = self,
-      modifier = Modifier.fillMaxSize()
-    )
-
-    val featuredBadge by rememberRecipientField(self) { featuredBadge }
-    featuredBadge?.let { badge ->
-      BadgeImageMedium(
-        badge = badge,
-        modifier = Modifier
-          .size(24.dp)
-          .align(Alignment.BottomEnd)
-      )
-    }
-  }
+  AvatarImage(recipient = self, modifier = Modifier.fillMaxSize())
 }

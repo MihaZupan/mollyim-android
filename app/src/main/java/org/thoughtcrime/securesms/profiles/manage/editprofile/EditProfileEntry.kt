@@ -5,21 +5,13 @@
 
 package org.thoughtcrime.securesms.profiles.manage.editprofile
 
-import android.content.Intent
-import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.Flow
@@ -28,14 +20,10 @@ import org.signal.appsettings.editprofile.EditProfileAction
 import org.signal.appsettings.editprofile.EditProfileEvent
 import org.signal.appsettings.editprofile.EditProfileScreen
 import org.signal.appsettings.routes.AppSettingsNavigationEvent
-import org.signal.core.models.badges.Badge
 import org.signal.core.ui.compose.CollectActions
 import org.thoughtcrime.securesms.AvatarPreviewActivity
 import org.thoughtcrime.securesms.avatar.AvatarImage
-import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
-import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImageLarge
 import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.recipients.rememberRecipientField
 import org.thoughtcrime.securesms.registration.ui.RegistrationIntents
 import org.thoughtcrime.securesms.util.PlayStoreUtil
 
@@ -53,9 +41,7 @@ fun EditProfileEntry(
   val viewModel: EditProfileViewModel = viewModel { EditProfileViewModel(parentEventEmitter) }
   val state by viewModel.state.collectAsStateWithLifecycle()
   val self = remember { Recipient.self() }
-  val featuredBadge by rememberRecipientField(self) { featuredBadge?.takeIf { it.visible && !it.isExpired() } }
   val context = LocalContext.current
-  val activity = LocalActivity.current
 
   LaunchedEffect(resultEvents) {
     resultEvents.collect(viewModel::onEvent)
@@ -64,40 +50,16 @@ fun EditProfileEntry(
   CollectActions(viewModel.actions) { action ->
     when (action) {
       EditProfileAction.OpenAvatarPreview -> context.startActivity(AvatarPreviewActivity.intentFromRecipientId(context, Recipient.self().id))
-      EditProfileAction.OpenSubscriptions -> {
-        activity?.finish()
-        context.startActivity(AppSettingsActivity.subscriptions(context).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
-      }
       EditProfileAction.OpenAppUpdate -> PlayStoreUtil.openPlayStoreOrOurApkDownloadPage(context)
-      EditProfileAction.StartReregistration -> context.startActivity(RegistrationIntents.newIntentForReRegistration(context))
+      EditProfileAction.StartReregistration -> context.startActivity(
+        if (EditProfileRepository.isLinkedDevice()) RegistrationIntents.newIntentForReLinkDevice(context) else RegistrationIntents.newIntentForReRegistration(context)
+      )
     }
   }
 
   EditProfileScreen(
     state = state,
     onEvent = viewModel::onEvent,
-    avatar = { SelfAvatar(self = self, badge = featuredBadge, badgeSize = 36.dp, badgeOffsetY = 8.dp) },
-    sustainerBadgePreview = { SelfAvatar(self = self, badge = state.sustainerBadge, badgeSize = 32.dp) }
+    avatar = { AvatarImage(recipient = self, modifier = Modifier.fillMaxSize()) }
   )
-}
-
-/** The user's avatar, with [badge] in its bottom corner, moved down by [badgeOffsetY]. */
-@Composable
-private fun SelfAvatar(self: Recipient, badge: Badge?, badgeSize: Dp, badgeOffsetY: Dp = 0.dp) {
-  Box(modifier = Modifier.fillMaxSize()) {
-    AvatarImage(
-      recipient = self,
-      modifier = Modifier.fillMaxSize()
-    )
-
-    if (badge != null) {
-      BadgeImageLarge(
-        badge = badge,
-        modifier = Modifier
-          .align(Alignment.BottomEnd)
-          .offset(y = badgeOffsetY)
-          .size(badgeSize)
-      )
-    }
-  }
 }

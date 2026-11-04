@@ -62,7 +62,6 @@ class EditProfileFragment : ComposeFragment() {
       AppSettingsRoute.AccountRoute.About -> findNavController().safeNavigate(R.id.action_manageAbout)
       is AppSettingsRoute.AccountRoute.Username -> findNavController().safeNavigate(R.id.action_manageUsername)
       AppSettingsRoute.AccountRoute.AvatarPicker -> findNavController().safeNavigate(EditProfileFragmentDirections.actionManageProfileFragmentToAvatarPicker(null, null))
-      AppSettingsRoute.DonationsRoute.Badges -> findNavController().safeNavigate(R.id.action_manageProfileFragment_to_badgeManageFragment)
       AppSettingsRoute.UsernameLinkRoute.UsernameLink -> findNavController().safeNavigate(R.id.action_manageProfileFragment_to_usernameLinkFragment)
       else -> error("Unexpected route: ${route.javaClass.name}")
     }

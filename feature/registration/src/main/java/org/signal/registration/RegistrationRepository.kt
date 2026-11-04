@@ -32,7 +32,6 @@ import kotlinx.serialization.json.Json
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.signal.archive.LocalBackupRestoreProgress
-import org.signal.billing.BillingFactory
 import org.signal.core.models.AccountEntropyPool
 import org.signal.core.models.MasterKey
 import org.signal.core.models.ServiceId.ACI
@@ -154,10 +153,7 @@ class RegistrationRepository(
         isLinkAndSyncAvailable = dependencies.isLinkAndSyncAvailable,
         isPhoneNumberlessRegistrationAvailable = dependencies.isPhoneNumberlessRegistrationAvailable,
         isGooglePlayBillingAvailable = dependencies.isGooglePlayBillingAvailable,
-        signalLoginPurchaseApi = BillingFactory.createOneTimePurchaseApi(
-          context = application,
-          isAvailable = dependencies.isGooglePlayBillingAvailable
-        )
+        signalLoginPurchaseApi = OneTimePurchaseApi.Empty
       )
     }
 
@@ -461,15 +457,15 @@ class RegistrationRepository(
    */
   /** Whether Google Play can take a payment for a Signal Login right now, and if not, what is wrong with it. */
   suspend fun getPaymentAvailability(): PaymentAvailability = withContext(Dispatchers.IO) {
+    if (!isGooglePlayBillingAvailable) {
+      Log.w(TAG, "[getPaymentAvailability] This build has no Google Play billing, so nothing can be bought here.")
+      return@withContext PaymentAvailability.PurchasesUnavailable
+    }
+
     val services = googlePlayServicesStatus()
     if (!services.isAvailable) {
       Log.w(TAG, "[getPaymentAvailability] Google Play services cannot be used: $services")
       return@withContext services
-    }
-
-    if (!isGooglePlayBillingAvailable) {
-      Log.w(TAG, "[getPaymentAvailability] This build has no Google Play billing, so nothing can be bought here.")
-      return@withContext PaymentAvailability.PurchasesUnavailable
     }
 
     when (val billing = signalLoginPurchaseApi.getApiAvailability()) {
