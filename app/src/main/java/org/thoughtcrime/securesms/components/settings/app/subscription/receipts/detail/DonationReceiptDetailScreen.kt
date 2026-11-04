@@ -103,14 +103,6 @@ fun DonationReceiptDetailScreen(
 
 private fun LazyListScope.receiptDetails(record: InAppPaymentReceiptRecord) {
   item {
-    Image(
-      painter = painterResource(CoreUiR.drawable.image_signal_logo_wordmark),
-      contentDescription = null,
-      modifier = Modifier.fillMaxWidth()
-    )
-  }
-
-  item {
     val resources = LocalResources.current
     val amount = remember(resources, record.amount) { FiatMoneyUtil.format(resources, record.amount) }
 

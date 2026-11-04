@@ -100,7 +100,7 @@ class ViewBadgeSheetContentTest {
     setContent(state.copy(canDonateInApp = false))
 
     composeTestRule.onNodeWithTag(ViewBadgeSheetTestTags.NO_IN_APP_DONATIONS).assertExists()
-    composeTestRule.onNodeWithText("Donate to Signal").assertExists()
+    composeTestRule.onNodeWithText("Donate to Molly").assertExists()
   }
 
   private fun setContent(state: ViewBadgeSheetState) {
