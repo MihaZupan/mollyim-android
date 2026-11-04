@@ -23,6 +23,7 @@ import org.signal.appsettings.AppSettingsLazyColumn
 import org.signal.appsettings.R
 import org.signal.core.ui.compose.DayNightPreviews
 import org.signal.core.ui.compose.Dividers
+import org.signal.core.ui.compose.Dialogs
 import org.signal.core.ui.compose.Rows
 import org.signal.core.ui.compose.Rows.TextAndLabel
 import org.signal.core.ui.compose.Scaffolds
@@ -34,6 +35,8 @@ import org.signal.core.ui.R as CoreUiR
 object HelpSettingsTestTags {
   const val SCROLLER = "scroller"
   const val ROW_SUPPORT_CENTER = "row-support-center"
+  const val ROW_WEBSITE = "row-website"
+  const val ROW_LOG_ENABLED = "row-log-enabled"
   const val ROW_CONTACT_US = "row-contact-us"
   const val ROW_VERSION = "row-version"
   const val ROW_DEBUG_LOG = "row-debug-log"
@@ -48,7 +51,10 @@ object HelpSettingsTestTags {
 fun HelpSettingsScreen(
   state: HelpSettingsState,
   onEvent: (HelpSettingsEvent) -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  websiteLabel: String? = null,
+  logEnableLabel: String? = null,
+  disableLogConfirmation: String = ""
 ) {
   Scaffolds.Settings(
     title = stringResource(R.string.preferences__help),
@@ -61,6 +67,17 @@ fun HelpSettingsScreen(
       scaffoldPadding = contentPadding,
       modifier = Modifier.testTag(HelpSettingsTestTags.SCROLLER)
     ) {
+      if (websiteLabel != null) {
+        item {
+          Rows.LinkRow(
+            text = websiteLabel,
+            icon = ImageVector.vectorResource(CoreUiR.drawable.symbol_open_20),
+            onClick = { onEvent(HelpSettingsEvent.WebsiteClicked) },
+            modifier = Modifier.testTag(HelpSettingsTestTags.ROW_WEBSITE)
+          )
+        }
+      }
+
       item {
         Rows.LinkRow(
           text = stringResource(R.string.HelpSettingsFragment__support_center),
@@ -86,14 +103,27 @@ fun HelpSettingsScreen(
         Rows.TextRow(
           text = stringResource(R.string.HelpSettingsFragment__version),
           label = state.versionName,
+          onClick = { onEvent(HelpSettingsEvent.VersionClicked) },
           onLongClick = { onEvent(HelpSettingsEvent.VersionLongClicked) },
           modifier = Modifier.testTag(HelpSettingsTestTags.ROW_VERSION)
         )
       }
 
+      if (logEnableLabel != null) {
+        item {
+          Rows.ToggleRow(
+            checked = state.logEnabled,
+            text = logEnableLabel,
+            onCheckChanged = { onEvent(HelpSettingsEvent.LogEnabledChanged(it)) },
+            modifier = Modifier.testTag(HelpSettingsTestTags.ROW_LOG_ENABLED)
+          )
+        }
+      }
+
       item {
         Rows.TextRow(
           text = stringResource(R.string.HelpSettingsFragment__debug_log),
+          enabled = state.logEnabled,
           onClick = { onEvent(HelpSettingsEvent.DebugLogClicked) },
           modifier = Modifier.testTag(HelpSettingsTestTags.ROW_DEBUG_LOG)
         )
@@ -120,6 +150,17 @@ fun HelpSettingsScreen(
       item {
         LegalNotice()
       }
+    }
+    if (state.confirmDisableLogging) {
+      Dialogs.SimpleAlertDialog(
+        title = "",
+        body = disableLogConfirmation,
+        confirm = stringResource(android.R.string.ok),
+        dismiss = stringResource(android.R.string.cancel),
+        onConfirm = { onEvent(HelpSettingsEvent.DisableLoggingConfirmed) },
+        onDeny = { onEvent(HelpSettingsEvent.DialogDismissed) },
+        onDismissRequest = { onEvent(HelpSettingsEvent.DialogDismissed) }
+      )
     }
   }
 }

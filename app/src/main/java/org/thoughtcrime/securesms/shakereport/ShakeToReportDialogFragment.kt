@@ -17,7 +17,6 @@ import org.signal.core.util.Util
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectForwardFragment
 import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectForwardFragmentArgs
-import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.sharing.MultiShareArgs
 
 /**
@@ -58,13 +57,6 @@ class ShakeToReportDialogFragment : ComposeDialogFragment() {
       state = state,
       onEvent = viewModel::onEvent
     )
-  }
-
-  override fun onDestroy() {
-    super.onDestroy()
-    if (activity?.isChangingConfigurations != true) {
-      AppDependencies.shakeToReport.enableIfVisible()
-    }
   }
 
   private fun handleAction(action: ShakeToReportAction) {

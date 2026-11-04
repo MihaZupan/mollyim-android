@@ -5,8 +5,6 @@
 
 package org.thoughtcrime.securesms.shakereport
 
-import kotlinx.coroutines.withContext
-import org.signal.core.util.concurrent.SignalDispatchers
 import org.thoughtcrime.securesms.logsubmit.SubmitDebugLogRepository
 
 class ShakeToReportRepository(
@@ -14,12 +12,8 @@ class ShakeToReportRepository(
 ) {
 
   suspend fun submitLog(): SubmitResult {
-    return withContext(SignalDispatchers.IO) {
-      submitDebugLogRepository
-        .buildAndSubmitLogSync(System.currentTimeMillis())
-        .map<SubmitResult> { SubmitResult.Success(it) }
-        .orElse(SubmitResult.Failure)
-    }
+    // Molly does not provide the automatic shake-report upload backend.
+    return SubmitResult.Failure
   }
 
   sealed interface SubmitResult {

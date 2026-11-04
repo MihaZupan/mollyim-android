@@ -12,6 +12,8 @@ package org.signal.appsettings.help
  * Actions are logged, so be sure `toString()` contains nothing sensitive.
  */
 sealed interface HelpSettingsAction {
+  data object OpenWebsite : HelpSettingsAction
+  data object NavigateToAppUpdates : HelpSettingsAction
 
   /** Leave the screen. */
   data object NavigateBack : HelpSettingsAction

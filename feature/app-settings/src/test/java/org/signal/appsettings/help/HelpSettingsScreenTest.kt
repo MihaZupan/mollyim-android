@@ -7,6 +7,7 @@ package org.signal.appsettings.help
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -67,17 +68,36 @@ class HelpSettingsScreenTest {
   }
 
   @Test
-  fun `tapping the version does nothing`() {
+  fun `tapping the version opens Molly update details`() {
     setContent(HelpSettingsState(versionName = "8.33.0"))
 
     scrollTo(HelpSettingsTestTags.ROW_VERSION)
     composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_VERSION).performClick()
 
+    assertThat(events).containsExactly(HelpSettingsEvent.VersionClicked)
+  }
+
+  @Test
+  fun `debug log entry is unavailable when logging is disabled`() {
+    setContent(HelpSettingsState(logEnabled = false))
+    scrollTo(HelpSettingsTestTags.ROW_DEBUG_LOG)
+    composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_DEBUG_LOG).assertIsNotEnabled()
     assertThat(events).isEmpty()
   }
 
+  @Test
+  fun `Molly website row emits the website action`() = assertClickEmits(HelpSettingsTestTags.ROW_WEBSITE, HelpSettingsEvent.WebsiteClicked)
+
+  @Test
+  fun `logging toggle requests disable rather than opening a log`() {
+    setContent(HelpSettingsState(logEnabled = true))
+    scrollTo(HelpSettingsTestTags.ROW_LOG_ENABLED)
+    composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_LOG_ENABLED).performClick()
+    assertThat(events).containsExactly(HelpSettingsEvent.LogEnabledChanged(false))
+  }
+
   private fun assertClickEmits(tag: String, expected: HelpSettingsEvent) {
-    setContent(HelpSettingsState(versionName = "8.33.0"))
+    setContent(HelpSettingsState(versionName = "8.33.0", logEnabled = true))
 
     scrollTo(tag)
     composeTestRule.onNodeWithTag(tag).performClick()
@@ -89,7 +109,10 @@ class HelpSettingsScreenTest {
     composeTestRule.setContent {
       HelpSettingsScreen(
         state = state,
-        onEvent = { events += it }
+        onEvent = { events += it },
+        websiteLabel = "Molly website",
+        logEnableLabel = "Enable debug log",
+        disableLogConfirmation = "Disable and delete debug log"
       )
     }
   }

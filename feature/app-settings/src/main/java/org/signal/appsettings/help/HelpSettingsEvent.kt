@@ -9,6 +9,12 @@ package org.signal.appsettings.help
  * Reminder that these events are logged, so don't include anything sensitive in the toString.
  */
 sealed interface HelpSettingsEvent {
+  data object ScreenResumed : HelpSettingsEvent
+  data object WebsiteClicked : HelpSettingsEvent
+  data object VersionClicked : HelpSettingsEvent
+  data class LogEnabledChanged(val enabled: Boolean) : HelpSettingsEvent
+  data object DisableLoggingConfirmed : HelpSettingsEvent
+  data object DialogDismissed : HelpSettingsEvent
 
   /** The user tapped the navigation (back) icon. */
   data object NavigateBackClicked : HelpSettingsEvent
