@@ -265,8 +265,8 @@ private fun AppIcon(preset: AppIconPreset, isSelected: Boolean, onClick: () -> U
   )
 
   val context = LocalContext.current
-  val icon = remember(context, preset.iconPreviewResId) {
-    AppCompatResources.getDrawable(context, preset.iconPreviewResId)?.toBitmap()?.asImageBitmap()
+  val icon = remember(context, preset) {
+    AppCompatResources.getDrawable(context, preset.getIconPreviewResourceId(context))?.toBitmap()?.asImageBitmap()
   }
   if (icon != null) {
     Image(
@@ -317,6 +317,10 @@ private fun CaveatWarning(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun presetLabel(preset: AppIconPreset): String {
+  if (!LocalInspectionMode.current) {
+    preset.getLauncherLabel(LocalContext.current)?.let { return it }
+  }
+
   if (preset.labelResId == null && LocalInspectionMode.current) {
     return "Signal"
   }

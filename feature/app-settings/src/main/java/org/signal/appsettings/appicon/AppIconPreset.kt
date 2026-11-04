@@ -7,6 +7,7 @@ package org.signal.appsettings.appicon
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import org.signal.appsettings.R
@@ -27,6 +28,23 @@ enum class AppIconPreset(private val componentName: String, @DrawableRes val ico
   NOTES(".RoutingActivityAltNotes", R.drawable.ic_app_icon_notes_top_preview, R.string.app_icon_label_notes),
   WEATHER(".RoutingActivityAltWeather", R.drawable.ic_app_icon_weather_top_preview, R.string.app_icon_label_weather),
   WAVES(".RoutingActivityAltWaves", R.drawable.ic_app_icon_waves_top_preview, R.string.app_icon_label_waves);
+
+  fun getIconPreviewResourceId(context: Context): Int {
+    return try {
+      context.packageManager.getActivityInfo(getComponentName(context), PackageManager.MATCH_DISABLED_COMPONENTS).iconResource
+    } catch (_: PackageManager.NameNotFoundException) {
+      iconPreviewResId
+    }
+  }
+
+  fun getLauncherLabel(context: Context): String? {
+    return try {
+      context.packageManager.getActivityInfo(getComponentName(context), PackageManager.MATCH_DISABLED_COMPONENTS)
+        .loadLabel(context.packageManager).toString()
+    } catch (_: PackageManager.NameNotFoundException) {
+      null
+    }
+  }
 
   fun getComponentName(context: Context): ComponentName {
     val applicationContext = context.applicationContext
