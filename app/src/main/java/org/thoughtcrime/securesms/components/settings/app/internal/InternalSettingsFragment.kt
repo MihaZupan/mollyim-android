@@ -454,6 +454,22 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
       )
 
       clickPref(
+        title = DSLSettingsText.from("Delete UnifiedPush ping"),
+        summary = DSLSettingsText.from("Make as Molly never received the ping from MollySocket. Will cause UnifiedPush to stop and Websocket to restart."),
+        onClick = {
+          MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Delete UnifiedPush ping?")
+            .setMessage("Are you sure?")
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+              SignalStore.unifiedpush.lastReceivedTime = 0
+              Toast.makeText(requireContext(), "UnifiedPush ping deleted!", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        }
+      )
+
+      clickPref(
         title = DSLSettingsText.from("Run self-check key transparency"),
         summary = DSLSettingsText.from("Automatically enqueues a job to run KT against yourself without waiting for the elapsed time."),
         onClick = {
@@ -958,7 +974,7 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
           SignalDatabase.remoteMegaphones.debugRemoveAll()
           MegaphoneDatabase.getInstance(AppDependencies.application).let {
             it.delete(Megaphones.Event.REMOTE_MEGAPHONE)
-            it.markFirstVisible(Megaphones.Event.DONATE_Q2_2022, System.currentTimeMillis() - TimeUnit.DAYS.toMillis(31))
+            it.markFirstVisible(Megaphones.Event.DONATE_MOLLY, System.currentTimeMillis() - TimeUnit.DAYS.toMillis(31))
           }
           // Force repository database cache refresh
           MegaphoneRepository(AppDependencies.application).onFirstEverAppLaunch()

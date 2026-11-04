@@ -17,7 +17,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.signal.core.util.PlayServicesUtil
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SettingsValues.ForceWebsocketMode
@@ -34,9 +33,6 @@ class FcmRefreshJobTest {
   fun setUp() {
     Log.initialize(SystemOutLogger())
 
-    mockkStatic(PlayServicesUtil::class)
-    every { PlayServicesUtil.getPlayServicesStatus(any()) } returns PlayServicesUtil.PlayServicesStatus.SUCCESS
-
     mockkStatic(AppDependencies::class)
     every { AppDependencies.resetNetwork() } just runs
     every { AppDependencies.startNetwork() } just runs
@@ -46,18 +42,18 @@ class FcmRefreshJobTest {
 
   @After
   fun tearDown() {
-    unmockkStatic(PlayServicesUtil::class)
     unmockkStatic(AppDependencies::class)
   }
 
   @Test
-  fun `given fcm has failed for days and the mode is disabled automatically, when the job fails, then forced websocket mode is enabled automatically`() {
+  fun `failed FCM retries do not override Molly delivery policy or enable forced websocket mode`() {
     every { signalStore.settings.forceWebsocketMode } returns ForceWebsocketMode.DISABLED_AUTOMATICALLY
 
     createJob().onFailure()
 
-    verify { signalStore.settings.forceWebsocketMode = ForceWebsocketMode.ENABLED_AUTOMATICALLY }
-    verify { AppDependencies.startNetwork() }
+    verify(exactly = 0) { signalStore.settings.forceWebsocketMode = any() }
+    verify(exactly = 0) { signalStore.account.fcmEnabled = any() }
+    verify(exactly = 0) { AppDependencies.startNetwork() }
   }
 
   @Test

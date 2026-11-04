@@ -13,10 +13,10 @@ import org.signal.appsettings.dataandstorage.AutoDownloadMediaType
 import org.signal.appsettings.dataandstorage.AutoDownloadNetwork
 import org.signal.core.models.calls.CallDataMode
 import org.signal.core.models.media.SentMediaQuality
-import org.signal.core.util.PlayServicesUtil
 import org.thoughtcrime.securesms.components.settings.app.storage.StorageUsageRepository
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SettingsValues.ForceWebsocketMode
+import org.thoughtcrime.securesms.keyvalue.SettingsValues.NotificationDeliveryMethod
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.messages.IncomingMessageObserver
 import org.thoughtcrime.securesms.util.AttachmentUtil
@@ -80,8 +80,13 @@ object DataAndStorageSettingsRepository {
     }
   }
 
-  fun isPlayServicesAvailable(): Boolean {
-    return PlayServicesUtil.getPlayServicesStatus(AppDependencies.application) == PlayServicesUtil.PlayServicesStatus.SUCCESS
+  fun isPushAvailable(): Boolean {
+    if (!SignalStore.account.pushAvailable) return false
+    return when (SignalStore.settings.preferredNotificationMethod) {
+      NotificationDeliveryMethod.FCM -> SignalStore.account.canReceiveFcm
+      NotificationDeliveryMethod.UNIFIEDPUSH -> SignalStore.unifiedpush.isAvailableOrAirGapped
+      NotificationDeliveryMethod.WEBSOCKET -> false
+    }
   }
 
   fun isProxyEnabled(): Boolean = AppDependencies.networkManager.isProxyEnabled

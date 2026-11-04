@@ -41,6 +41,7 @@ sealed interface AppSettingsRoute : Parcelable, DetailNavKey {
       is ChatFoldersRoute.CreateChatFolders,
       is StoriesRoute.Privacy,
       NotificationsRoute.Notifications,
+      is NotificationsRoute.PlayServicesProblem,
       NotificationsRoute.NotificationProfiles,
       PrivacyRoute.Privacy,
       is BackupsRoute.Backups,
@@ -185,6 +186,12 @@ sealed interface AppSettingsRoute : Parcelable, DetailNavKey {
 
     @Serializable
     data object NotificationProfiles : NotificationsRoute
+
+    @Serializable
+    data object UnifiedPushSettings : NotificationsRoute
+
+    @Serializable
+    data class PlayServicesProblem(val errorCode: Int) : NotificationsRoute
 
     @Serializable
     data class EditProfile(val profileId: Long = -1L) : NotificationsRoute

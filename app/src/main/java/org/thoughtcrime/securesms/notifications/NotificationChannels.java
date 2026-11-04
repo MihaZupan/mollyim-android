@@ -66,19 +66,20 @@ public class NotificationChannels {
   private static final String CATEGORY_MESSAGES = "messages";
   private static final String CONTACT_PREFIX    = "contact_";
   private static final String MESSAGES_PREFIX   = "messages_";
+  private static final String OTHER_CHANNEL_ID  = "other_v3";
 
   public final String CALLS                            = "calls_v3";
   public final String FAILURES                         = "failures";
   public final String APP_UPDATES                      = "app_updates";
   public final String BACKUPS                          = "backups_v2";
-  public final String LOCKED_STATUS                    = "locked_status_v2";
-  public final String OTHER                            = "other_v3";
+  public static final String LOCKED_STATUS             = "locked_status_v2";
+  public final String OTHER                            = OTHER_CHANNEL_ID;
   public final String VOICE_NOTES                      = "voice_notes";
   public final String JOIN_EVENTS                      = "join_events";
-  public final String BACKGROUND                       = "background_connection";
+  public static final String BACKGROUND                = "background_connection";
   public final String CALL_STATUS                      = "call_status";
   public final String APP_ALERTS                       = "app_alerts";
-  public final String ADDITIONAL_MESSAGE_NOTIFICATIONS = "additional_message_notifications";
+  public static final String ADDITIONAL_MESSAGE_NOTIFICATIONS = "additional_message_notifications";
   public final String NEW_LINKED_DEVICE                = "new_linked_device";
   public final String INTERNAL_ISSUES                  = "internal_issues";
   public final String UNREAD_REMINDERS                 = "unread_reminders";
@@ -128,6 +129,22 @@ public class NotificationChannels {
    */
   public static boolean supported() {
     return Build.VERSION.SDK_INT >= 26;
+  }
+
+  /**
+   * Service notifications must be available before encrypted storage is initialized.
+   */
+  public static void ensureServiceChannels(@NonNull Context context) {
+    if (!supported()) {
+      return;
+    }
+
+    NotificationManager notificationManager = ServiceUtil.getNotificationManager(context);
+    NotificationChannel lockedStatus = new NotificationChannel(LOCKED_STATUS, context.getString(R.string.NotificationChannel_locked_status), NotificationManager.IMPORTANCE_LOW);
+    NotificationChannel background = new NotificationChannel(BACKGROUND, context.getString(R.string.NotificationChannel_background_connection), getDefaultBackgroundChannelImportance(notificationManager));
+    lockedStatus.setShowBadge(false);
+    background.setShowBadge(false);
+    notificationManager.createNotificationChannels(Arrays.asList(lockedStatus, background));
   }
 
   /**
@@ -632,11 +649,9 @@ public class NotificationChannels {
     NotificationChannel calls                          = new NotificationChannel(CALLS, context.getString(R.string.NotificationChannel_calls), NotificationManager.IMPORTANCE_HIGH);
     NotificationChannel failures                       = new NotificationChannel(FAILURES, context.getString(R.string.NotificationChannel_failures), NotificationManager.IMPORTANCE_HIGH);
     NotificationChannel backups                        = new NotificationChannel(BACKUPS, context.getString(R.string.NotificationChannel_backups), NotificationManager.IMPORTANCE_LOW);
-    NotificationChannel lockedStatus                   = new NotificationChannel(LOCKED_STATUS, context.getString(R.string.NotificationChannel_locked_status), NotificationManager.IMPORTANCE_LOW);
     NotificationChannel other                          = new NotificationChannel(OTHER, context.getString(R.string.NotificationChannel_other), NotificationManager.IMPORTANCE_LOW);
     NotificationChannel voiceNotes                     = new NotificationChannel(VOICE_NOTES, context.getString(R.string.NotificationChannel_voice_notes), NotificationManager.IMPORTANCE_LOW);
     NotificationChannel joinEvents                     = new NotificationChannel(JOIN_EVENTS, context.getString(R.string.NotificationChannel_contact_joined_signal), NotificationManager.IMPORTANCE_DEFAULT);
-    NotificationChannel background                     = new NotificationChannel(BACKGROUND, context.getString(R.string.NotificationChannel_background_connection), getDefaultBackgroundChannelImportance(notificationManager));
     NotificationChannel callStatus                     = new NotificationChannel(CALL_STATUS, context.getString(R.string.NotificationChannel_call_status), NotificationManager.IMPORTANCE_LOW);
     NotificationChannel appAlerts                      = new NotificationChannel(APP_ALERTS, context.getString(R.string.NotificationChannel_critical_app_alerts), NotificationManager.IMPORTANCE_HIGH);
     NotificationChannel additionalMessageNotifications = new NotificationChannel(ADDITIONAL_MESSAGE_NOTIFICATIONS, context.getString(R.string.NotificationChannel_additional_message_notifications), NotificationManager.IMPORTANCE_HIGH);
@@ -650,18 +665,17 @@ public class NotificationChannels {
 
     calls.setShowBadge(false);
     backups.setShowBadge(false);
-    lockedStatus.setShowBadge(false);
     other.setShowBadge(false);
     setVibrationEnabled(other, false);
     voiceNotes.setShowBadge(false);
     joinEvents.setShowBadge(false);
-    background.setShowBadge(false);
     callStatus.setShowBadge(false);
     appAlerts.setShowBadge(false);
 
-    notificationManager.createNotificationChannels(Arrays.asList(messages, calls, failures, backups, lockedStatus, other, voiceNotes, joinEvents, background, callStatus, appAlerts, additionalMessageNotifications, newLinkedDevice, unreadReminders));
+    ensureServiceChannels(context);
+    notificationManager.createNotificationChannels(Arrays.asList(messages, calls, failures, backups, other, voiceNotes, joinEvents, callStatus, appAlerts, additionalMessageNotifications, newLinkedDevice, unreadReminders));
 
-    if (BuildConfig.MANAGES_APP_UPDATES) {
+    if (BuildConfig.MANAGE_MOLLY_UPDATES) {
       NotificationChannel appUpdates = new NotificationChannel(APP_UPDATES, context.getString(R.string.NotificationChannel_app_updates), NotificationManager.IMPORTANCE_DEFAULT);
       notificationManager.createNotificationChannel(appUpdates);
     } else {
@@ -675,8 +689,8 @@ public class NotificationChannels {
   }
 
   @TargetApi(26)
-  private int getDefaultBackgroundChannelImportance(NotificationManager notificationManager) {
-    NotificationChannel existingOther = notificationManager.getNotificationChannel(OTHER);
+  private static int getDefaultBackgroundChannelImportance(NotificationManager notificationManager) {
+    NotificationChannel existingOther = notificationManager.getNotificationChannel(OTHER_CHANNEL_ID);
 
     if (existingOther != null && existingOther.getImportance() != NotificationManager.IMPORTANCE_LOW) {
       return existingOther.getImportance();

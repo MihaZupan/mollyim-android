@@ -35,6 +35,7 @@ object NotificationIds {
   const val UNREGISTERED_NOTIFICATION_ID: Int = 180
   const val USER_NOTIFICATION_MIGRATION: Int = 190
   const val DONOR_BADGE_FAILURE: Int = 200
+  const val FCM_FAILURE: Int = 210
 
   const val THREAD: Int = 10000000
   const val MESSAGE_DELIVERY_FAILURE: Int = 20000000

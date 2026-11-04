@@ -72,6 +72,8 @@ class AccountApi(private val authWebSocket: SignalWebSocket.AuthenticatedWebSock
     }
   }
 
+  fun clearFcmTokenBlocking(): RequestResult<Unit, Nothing> = runBlocking { clearFcmToken() }
+
   /**
    * Set account attributes.
    *

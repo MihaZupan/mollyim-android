@@ -7,6 +7,7 @@ import androidx.preference.PreferenceManager
 import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import org.junit.After
@@ -51,6 +52,34 @@ class SettingsValuesMigrationTest {
   fun teardown() {
     Environment.IS_INSTRUMENTATION = wasInstrumentation
     unmockkAll()
+  }
+
+  @Test
+  fun `push readiness ignores stale capabilities belonging to an unselected delivery method`() {
+    val settings = SettingsValues(store, context)
+    val unifiedPush = mockk<UnifiedPushValues>()
+    mockkObject(SignalStore.Companion)
+    every { SignalStore.settings } returns settings
+    every { SignalStore.unifiedpush } returns unifiedPush
+    every { unifiedPush.isAvailableOrAirGapped } returns true
+    val account = AccountValues(store, context)
+    account.fcmEnabled = true
+    account.fcmToken = "synthetic-token"
+    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.FCM
+    assertTrue(account.pushAvailable)
+
+    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.WEBSOCKET
+    assertFalse(account.pushAvailable)
+
+    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.UNIFIEDPUSH
+    assertTrue(account.pushAvailable)
+    every { unifiedPush.isAvailableOrAirGapped } returns false
+    assertFalse(account.pushAvailable)
+
+    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.FCM
+    account.fcmEnabled = false
+    every { unifiedPush.isAvailableOrAirGapped } returns true
+    assertFalse(account.pushAvailable)
   }
 
   @Test
