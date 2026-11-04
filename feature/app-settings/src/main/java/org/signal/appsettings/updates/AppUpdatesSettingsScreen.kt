@@ -7,46 +7,39 @@ package org.signal.appsettings.updates
 
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.PreviewWrapper
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.signal.appsettings.AppSettingsLazyColumn
 import org.signal.appsettings.R
-import org.signal.core.ui.compose.DayNightPreviews
 import org.signal.core.ui.compose.Rows
 import org.signal.core.ui.compose.Scaffolds
 import org.signal.core.ui.compose.SignalIcons
-import org.signal.core.ui.compose.SignalPreviewWrapper
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 @VisibleForTesting
 object AppUpdatesSettingsTestTags {
   const val SCROLLER = "scroller"
+  const val ROW_VERSION = "row-version"
+  const val ROW_STORE_MANAGED = "row-store-managed"
   const val ROW_AUTO_UPDATE = "row-auto-update"
+  const val ROW_INCLUDE_BETA = "row-include-beta"
   const val ROW_CHECK_FOR_UPDATES = "row-check-for-updates"
 }
 
-/**
- * Settings around app updates. Only shown for builds that manage their own app updates.
- */
 @Composable
 fun AppUpdatesSettingsScreen(
   state: AppUpdatesSettingsState,
   onEvent: (AppUpdatesSettingsEvent) -> Unit,
+  labels: AppUpdatesSettingsLabels,
   modifier: Modifier = Modifier
 ) {
   LifecycleResumeEffect(Unit) {
     onEvent(AppUpdatesSettingsEvent.ScreenResumed)
     onPauseOrDispose {}
   }
-
   Scaffolds.Settings(
     title = stringResource(R.string.preferences_app_updates__title),
     onNavigationClick = { onEvent(AppUpdatesSettingsEvent.NavigateBackClicked) },
@@ -57,62 +50,45 @@ fun AppUpdatesSettingsScreen(
       scaffoldPadding = paddingValues,
       modifier = Modifier.testTag(AppUpdatesSettingsTestTags.SCROLLER)
     ) {
-      if (state.isAutoUpdateSupported) {
+      if (!state.manageMollyUpdates) {
+        item {
+          Rows.TextRow(text = labels.storeManagedMessage, modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_STORE_MANAGED))
+        }
+      }
+      item {
+        Rows.TextRow(text = labels.version, label = state.versionName, modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_VERSION))
+      }
+      if (state.manageMollyUpdates) {
         item {
           Rows.ToggleRow(
             checked = state.autoUpdateEnabled,
-            text = "Automatic updates",
-            label = "Automatically download and install app updates",
+            text = labels.autoUpdates,
+            label = labels.autoUpdatesDescription,
             onCheckChanged = { onEvent(AppUpdatesSettingsEvent.AutoUpdateToggled(it)) },
             modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_AUTO_UPDATE)
           )
         }
-      }
-
-      item {
-        Rows.TextRow(
-          text = "Check for updates",
-          label = "Last checked on: ${rememberLastSuccessfulUpdateString(state.lastCheckedTime)}",
-          onClick = { onEvent(AppUpdatesSettingsEvent.CheckForUpdatesClicked) },
-          modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES)
-        )
+        item {
+          Rows.ToggleRow(
+            checked = state.includeBetaEnabled,
+            text = labels.includeBeta,
+            label = labels.includeBetaDescription,
+            onCheckChanged = { onEvent(AppUpdatesSettingsEvent.IncludeBetaToggled(it)) },
+            modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_INCLUDE_BETA)
+          )
+        }
+        item {
+          Rows.TextRow(
+            text = labels.checkForUpdates,
+            label = labels.lastChecked,
+            enabled = state.autoUpdateEnabled,
+            onClick = { onEvent(AppUpdatesSettingsEvent.CheckForUpdatesClicked) },
+            modifier = Modifier.testTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES).semantics {
+              contentDescription = labels.lastCheckedContentDescription
+            }
+          )
+        }
       }
     }
   }
-}
-
-@Composable
-private fun rememberLastSuccessfulUpdateString(lastUpdateTime: Duration): String {
-  return remember(lastUpdateTime) {
-    if (lastUpdateTime > Duration.ZERO) {
-      val dateFormat = SimpleDateFormat("MMMM dd, yyyy 'at' h:mma", Locale.US)
-      dateFormat.format(Date(lastUpdateTime.inWholeMilliseconds))
-    } else {
-      "Never"
-    }
-  }
-}
-
-@PreviewWrapper(SignalPreviewWrapper::class)
-@DayNightPreviews
-@Composable
-private fun AppUpdatesSettingsScreenPreview() {
-  AppUpdatesSettingsScreen(
-    state = AppUpdatesSettingsState(
-      lastCheckedTime = System.currentTimeMillis().milliseconds,
-      autoUpdateEnabled = true,
-      isAutoUpdateSupported = true
-    ),
-    onEvent = {}
-  )
-}
-
-@PreviewWrapper(SignalPreviewWrapper::class)
-@DayNightPreviews
-@Composable
-private fun AppUpdatesSettingsScreenNeverCheckedPreview() {
-  AppUpdatesSettingsScreen(
-    state = AppUpdatesSettingsState(),
-    onEvent = {}
-  )
 }

@@ -55,6 +55,20 @@ class SettingsValuesMigrationTest {
   }
 
   @Test
+  fun `updater scheduling facade uses migrated KV rather than reviving the legacy timer`() {
+    legacy.edit().putLong("pref_update_apk_refresh_time", 1234L).commit()
+    val updates = ApkUpdateValues(store, context)
+    mockkObject(SignalStore.Companion)
+    every { SignalStore.apkUpdate } returns updates
+
+    assertEquals(1234L, TextSecurePreferences.getUpdateApkRefreshTime(context))
+    TextSecurePreferences.setUpdateApkRefreshTime(context, 5678L)
+    assertEquals(5678L, updates.refreshTime)
+    assertEquals(1234L, legacy.getLong("pref_update_apk_refresh_time", 0))
+    assertEquals(5678L, ApkUpdateValues(store, context).refreshTime)
+  }
+
+  @Test
   fun `push readiness ignores stale capabilities belonging to an unselected delivery method`() {
     val settings = SettingsValues(store, context)
     val unifiedPush = mockk<UnifiedPushValues>()

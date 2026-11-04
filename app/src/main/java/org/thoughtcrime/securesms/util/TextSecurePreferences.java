@@ -703,11 +703,11 @@ public class TextSecurePreferences {
   }
 
   public static long getUpdateApkRefreshTime(Context context) {
-    return getLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, 0L);
+    return SignalStore.apkUpdate().getRefreshTime();
   }
 
   public static void setUpdateApkRefreshTime(Context context, long value) {
-    setLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, value);
+    SignalStore.apkUpdate().setRefreshTime(value);
   }
 
   public static boolean isUpdateApkEnabled(@NonNull Context context) {

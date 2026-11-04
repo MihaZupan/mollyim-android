@@ -7,7 +7,9 @@ package org.signal.appsettings.updates
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -19,100 +21,86 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class AppUpdatesSettingsScreenTest {
-
   @get:Rule
   val composeTestRule = createComposeRule()
-
   private val events = mutableListOf<AppUpdatesSettingsEvent>()
 
   @Test
-  fun `auto update row is shown when the device supports it`() {
-    setContent(createState(isAutoUpdateSupported = true))
-
+  fun `managed Molly channel shows its real controls`() {
+    setContent(managedState())
     composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_AUTO_UPDATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_INCLUDE_BETA).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_STORE_MANAGED).assertDoesNotExist()
   }
 
   @Test
-  fun `auto update row is hidden when the device does not support it`() {
-    setContent(createState(isAutoUpdateSupported = false))
-
+  fun `store channel shows version and guidance without update controls`() {
+    setContent(managedState().copy(manageMollyUpdates = false))
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_VERSION).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_STORE_MANAGED).assertIsDisplayed()
     composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_AUTO_UPDATE).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_INCLUDE_BETA).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES).assertDoesNotExist()
   }
 
   @Test
-  fun `clicking auto update when off emits AutoUpdateToggled true`() {
-    setContent(createState(autoUpdateEnabled = false))
-
+  fun `managed switches preserve original enable and beta events`() {
+    setContent(managedState())
     composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_AUTO_UPDATE).performClick()
-
-    assertThat(events).contains(AppUpdatesSettingsEvent.AutoUpdateToggled(true))
-  }
-
-  @Test
-  fun `clicking auto update when on emits AutoUpdateToggled false`() {
-    setContent(createState(autoUpdateEnabled = true))
-
-    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_AUTO_UPDATE).performClick()
-
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_INCLUDE_BETA).performClick()
     assertThat(events).contains(AppUpdatesSettingsEvent.AutoUpdateToggled(false))
+    assertThat(events).contains(AppUpdatesSettingsEvent.IncludeBetaToggled(true))
   }
 
   @Test
-  fun `clicking check for updates emits CheckForUpdatesClicked`() {
-    setContent(createState())
+  fun `manual check is disabled when periodic checking is off`() {
+    setContent(managedState().copy(autoUpdateEnabled = false))
+    composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES).assertIsNotEnabled()
+  }
 
+  @Test
+  fun `enabled manual check emits only the manual request`() {
+    setContent(managedState())
     composeTestRule.onNodeWithTag(AppUpdatesSettingsTestTags.ROW_CHECK_FOR_UPDATES).performClick()
-
-    assertThat(events).contains(AppUpdatesSettingsEvent.CheckForUpdatesClicked)
+    assertThat(events).containsExactly(AppUpdatesSettingsEvent.ScreenResumed, AppUpdatesSettingsEvent.CheckForUpdatesClicked)
   }
 
   @Test
-  fun `check for updates says never when no check has succeeded`() {
-    setContent(createState(lastCheckedTime = Duration.ZERO))
-
-    composeTestRule.onNodeWithText("Last checked on: Never").assertIsDisplayed()
+  fun `host localized timestamps and accessible descriptions are not replaced with Signal formatting`() {
+    setContent(managedState())
+    composeTestRule.onNodeWithText("Localized last check").assertIsDisplayed()
+    composeTestRule.onNodeWithContentDescription("Accessible last check").assertExists()
   }
 
   @Test
-  fun `check for updates shows when the last check succeeded`() {
-    setContent(createState(lastCheckedTime = 1_700_000_000_000L.milliseconds))
-
-    composeTestRule.onNodeWithText("Last checked on: Never").assertDoesNotExist()
-    composeTestRule.onNodeWithText("Last checked on: November", substring = true).assertIsDisplayed()
-  }
-
-  @Test
-  fun `resuming the screen emits ScreenResumed and nothing else`() {
-    setContent(createState())
-
+  fun `showing the screen only requests state refresh`() {
+    setContent(managedState())
     assertThat(events).containsExactly(AppUpdatesSettingsEvent.ScreenResumed)
   }
+
+  private fun managedState() = AppUpdatesSettingsState(versionName = "Molly", autoUpdateEnabled = true, manageMollyUpdates = true)
 
   private fun setContent(state: AppUpdatesSettingsState) {
     composeTestRule.setContent {
       AppUpdatesSettingsScreen(
         state = state,
-        onEvent = { events += it }
+        onEvent = { events += it },
+        labels = AppUpdatesSettingsLabels(
+          version = "Version",
+          storeManagedMessage = "Use your app store",
+          autoUpdates = "Molly update checks",
+          autoUpdatesDescription = "Check releases and ask before installation",
+          includeBeta = "Include beta updates",
+          includeBetaDescription = "Beta releases may contain bugs",
+          checkForUpdates = "Check for updates",
+          lastChecked = "Localized last check",
+          lastCheckedContentDescription = "Accessible last check"
+        )
       )
     }
-  }
-
-  private fun createState(
-    lastCheckedTime: Duration = 1_700_000_000_000L.milliseconds,
-    autoUpdateEnabled: Boolean = false,
-    isAutoUpdateSupported: Boolean = true
-  ): AppUpdatesSettingsState {
-    return AppUpdatesSettingsState(
-      lastCheckedTime = lastCheckedTime,
-      autoUpdateEnabled = autoUpdateEnabled,
-      isAutoUpdateSupported = isAutoUpdateSupported
-    )
   }
 }

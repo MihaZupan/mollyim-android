@@ -13,10 +13,25 @@ import kotlin.time.Duration
  * This is logged, so be sure `toString()` contains nothing sensitive.
  */
 data class AppUpdatesSettingsState(
+  val versionName: String = "",
   /** When we last successfully checked for an update, or [Duration.ZERO] if we never have. */
   val lastCheckedTime: Duration = Duration.ZERO,
-  /** Whether updates are downloaded and installed without asking. */
+  /** Molly periodically checks and asks before installing; this is its original preference. */
   val autoUpdateEnabled: Boolean = false,
-  /** Whether this device can install updates without user interaction, which is what makes automatic updates possible. */
-  val isAutoUpdateSupported: Boolean = false
+  val includeBetaEnabled: Boolean = false,
+  /** Website-managed Molly channel, not SDK/API-level auto-install support. */
+  val manageMollyUpdates: Boolean = false
+)
+
+/** Existing Molly strings are supplied by the app, avoiding copied resources or Signal-updater wording. */
+data class AppUpdatesSettingsLabels(
+  val version: String,
+  val storeManagedMessage: String,
+  val autoUpdates: String,
+  val autoUpdatesDescription: String,
+  val includeBeta: String,
+  val includeBetaDescription: String,
+  val checkForUpdates: String,
+  val lastChecked: String,
+  val lastCheckedContentDescription: String = lastChecked
 )

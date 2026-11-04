@@ -29,6 +29,7 @@ import org.thoughtcrime.securesms.components.settings.app.chats.registerChatsRou
 import org.thoughtcrime.securesms.components.settings.app.help.registerHelpRoutes
 import org.thoughtcrime.securesms.components.settings.app.notifications.registerNotificationsRoutes
 import org.thoughtcrime.securesms.components.settings.app.privacy.registerPrivacyRoutes
+import org.thoughtcrime.securesms.components.settings.app.updates.registerAppUpdatesRoutes
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.main.EmptyDetailScreen
 import org.thoughtcrime.securesms.util.DynamicNoActionBarTheme
@@ -76,6 +77,7 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
             registerNotificationsRoutes()
             registerRoleSettingsRoutes(router::onEvent)
             registerHelpRoutes(router::onEvent)
+            registerAppUpdatesRoutes(router::onEvent)
             registerPrivacyRoutes(router::onEvent)
 
             // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
@@ -112,11 +114,5 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
     super.onNewIntent(intent)
     finish()
     startActivity(intent)
-  }
-
-  @Suppress("DEPRECATION")
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    googlePayResultPublisher.onNext(GooglePayComponent.GooglePayResult(requestCode, resultCode, data))
   }
 }

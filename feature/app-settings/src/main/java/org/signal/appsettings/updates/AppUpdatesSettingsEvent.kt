@@ -19,6 +19,8 @@ sealed interface AppUpdatesSettingsEvent {
   /** The user flipped the automatic updates toggle. */
   data class AutoUpdateToggled(val enabled: Boolean) : AppUpdatesSettingsEvent
 
+  data class IncludeBetaToggled(val enabled: Boolean) : AppUpdatesSettingsEvent
+
   /** The user tapped the row to check for updates. */
   data object CheckForUpdatesClicked : AppUpdatesSettingsEvent
 }

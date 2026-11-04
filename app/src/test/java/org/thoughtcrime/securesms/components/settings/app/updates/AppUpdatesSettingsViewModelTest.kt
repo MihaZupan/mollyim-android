@@ -5,21 +5,19 @@
 
 package org.thoughtcrime.securesms.components.settings.app.updates
 
-import android.app.Application
 import assertk.assertThat
 import assertk.assertions.containsExactly
-import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import io.mockk.every
-import io.mockk.mockk
+import io.mockk.just
+import io.mockk.Runs
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -31,148 +29,129 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import org.signal.appsettings.updates.AppUpdatesSettingsAction
 import org.signal.appsettings.updates.AppUpdatesSettingsEvent
-import org.signal.appsettings.updates.AppUpdatesSettingsState
-import org.thoughtcrime.securesms.dependencies.AppDependencies
-import org.thoughtcrime.securesms.jobs.ApkUpdateJob
-import org.thoughtcrime.securesms.keyvalue.ApkUpdateValues
-import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.testing.CoroutineDispatcherRule
-import org.thoughtcrime.securesms.testutil.MockAppDependenciesRule
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
-@RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE, application = Application::class)
 class AppUpdatesSettingsViewModelTest {
-
-  companion object {
-    private const val LAST_SUCCESSFUL_CHECK = 1_700_000_000_000L
-  }
-
   private val testDispatcher = UnconfinedTestDispatcher()
 
   @get:Rule
   val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
 
-  @get:Rule
-  val appDependencies = MockAppDependenciesRule()
-
-  private val apkUpdateValues = mockk<ApkUpdateValues>(relaxUnitFun = true)
+  private var managed = true
+  private var enabled = false
+  private var beta = false
+  private var lastChecked = 1_700_000_000_000L
 
   @Before
-  fun setUp() {
+  fun setup() {
     Dispatchers.setMain(testDispatcher)
-
-    mockkObject(SignalStore)
-    every { SignalStore.apkUpdate } returns apkUpdateValues
-    every { apkUpdateValues.lastSuccessfulCheck } returns LAST_SUCCESSFUL_CHECK
-    every { apkUpdateValues.autoUpdate } returns false
+    mockkObject(AppUpdatesSettingsRepository)
+    every { AppUpdatesSettingsRepository.isManagedUpdateChannel() } answers { managed }
+    every { AppUpdatesSettingsRepository.getVersionName() } returns "Molly"
+    every { AppUpdatesSettingsRepository.getLastSuccessfulCheck() } answers { lastChecked }
+    every { AppUpdatesSettingsRepository.isUpdateApkEnabled() } answers { enabled }
+    every { AppUpdatesSettingsRepository.isIncludeBetaEnabled() } answers { beta }
+    every { AppUpdatesSettingsRepository.setUpdateApkEnabled(any()) } answers { enabled = firstArg() }
+    every { AppUpdatesSettingsRepository.setIncludeBetaEnabled(any()) } answers { beta = firstArg() }
+    every { AppUpdatesSettingsRepository.dismissInstallPrompt() } just Runs
+    every { AppUpdatesSettingsRepository.checkForUpdates() } just Runs
   }
 
   @After
-  fun tearDown() {
+  fun teardown() {
     Dispatchers.resetMain()
     unmockkAll()
   }
 
   @Test
-  fun `initial state reflects storage`() = runTest(testDispatcher) {
-    every { apkUpdateValues.autoUpdate } returns true
+  fun `constructing and resuming reads original flags and timestamp without checking`() = runTest(testDispatcher) {
+    enabled = true
+    beta = true
+    val viewModel = AppUpdatesSettingsViewModel()
+    assertThat(viewModel.state.value.manageMollyUpdates).isTrue()
+    assertThat(viewModel.state.value.autoUpdateEnabled).isTrue()
+    assertThat(viewModel.state.value.includeBetaEnabled).isTrue()
+    assertThat(viewModel.state.value.lastCheckedTime).isEqualTo(lastChecked.milliseconds)
 
-    val viewModel = createViewModel()
-
-    assertThat(viewModel.state.value).isEqualTo(
-      AppUpdatesSettingsState(
-        lastCheckedTime = LAST_SUCCESSFUL_CHECK.milliseconds,
-        autoUpdateEnabled = true,
-        isAutoUpdateSupported = true
-      )
-    )
-  }
-
-  @Test
-  fun `initial state reports a device that cannot auto update`() = runTest(testDispatcher) {
-    val viewModel = createViewModel(isAutoUpdateSupported = false)
-
-    assertThat(viewModel.state.value.isAutoUpdateSupported).isFalse()
-  }
-
-  @Test
-  fun `initial state reports never having checked`() = runTest(testDispatcher) {
-    every { apkUpdateValues.lastSuccessfulCheck } returns 0L
-
-    val viewModel = createViewModel()
-
-    assertThat(viewModel.state.value.lastCheckedTime).isEqualTo(Duration.ZERO)
-  }
-
-  @Test
-  fun `ScreenResumed picks up a check that finished while the screen was away`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-    every { apkUpdateValues.lastSuccessfulCheck } returns LAST_SUCCESSFUL_CHECK + 1000
-
+    lastChecked = 0
     viewModel.onEvent(AppUpdatesSettingsEvent.ScreenResumed)
 
-    assertThat(viewModel.state.value.lastCheckedTime).isEqualTo((LAST_SUCCESSFUL_CHECK + 1000).milliseconds)
+    assertThat(viewModel.state.value.lastCheckedTime).isEqualTo(Duration.ZERO)
+    verify(exactly = 0) { AppUpdatesSettingsRepository.checkForUpdates() }
   }
 
   @Test
-  fun `AutoUpdateToggled on saves and shows the new value`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-    every { apkUpdateValues.autoUpdate = true } answers { every { apkUpdateValues.autoUpdate } returns true }
-
-    viewModel.onEvent(AppUpdatesSettingsEvent.AutoUpdateToggled(true))
-
-    verify { apkUpdateValues.autoUpdate = true }
-    assertThat(viewModel.state.value.autoUpdateEnabled).isTrue()
-  }
-
-  @Test
-  fun `AutoUpdateToggled off saves and shows the new value`() = runTest(testDispatcher) {
-    every { apkUpdateValues.autoUpdate } returns true
-    val viewModel = createViewModel()
-    every { apkUpdateValues.autoUpdate = false } answers { every { apkUpdateValues.autoUpdate } returns false }
+  fun `store channel ignores stale events and preserves private preferences`() = runTest(testDispatcher) {
+    managed = false
+    enabled = true
+    val viewModel = AppUpdatesSettingsViewModel()
 
     viewModel.onEvent(AppUpdatesSettingsEvent.AutoUpdateToggled(false))
-
-    verify { apkUpdateValues.autoUpdate = false }
-    assertThat(viewModel.state.value.autoUpdateEnabled).isFalse()
-  }
-
-  @Test
-  fun `CheckForUpdatesClicked enqueues an update check`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-    val actions = collectActions(viewModel.actions)
-
+    viewModel.onEvent(AppUpdatesSettingsEvent.IncludeBetaToggled(true))
     viewModel.onEvent(AppUpdatesSettingsEvent.CheckForUpdatesClicked)
 
-    verify(exactly = 1) { AppDependencies.jobManager.add(ofType<ApkUpdateJob>()) }
-    assertThat(actions).isEmpty()
+    assertThat(viewModel.state.value.manageMollyUpdates).isFalse()
+    assertThat(enabled).isTrue()
+    assertThat(beta).isFalse()
+    verify(exactly = 0) { AppUpdatesSettingsRepository.setUpdateApkEnabled(any()) }
+    verify(exactly = 0) { AppUpdatesSettingsRepository.setIncludeBetaEnabled(any()) }
+    verify(exactly = 0) { AppUpdatesSettingsRepository.dismissInstallPrompt() }
+    verify(exactly = 0) { AppUpdatesSettingsRepository.checkForUpdates() }
   }
 
   @Test
-  fun `NavigateBackClicked navigates back`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
-    val actions = collectActions(viewModel.actions)
+  fun `explicit managed enable checks but disabling only saves the original flag`() = runTest(testDispatcher) {
+    val viewModel = AppUpdatesSettingsViewModel()
+
+    viewModel.onEvent(AppUpdatesSettingsEvent.AutoUpdateToggled(true))
+    assertThat(viewModel.state.value.autoUpdateEnabled).isTrue()
+    viewModel.onEvent(AppUpdatesSettingsEvent.AutoUpdateToggled(false))
+
+    assertThat(viewModel.state.value.autoUpdateEnabled).isFalse()
+    verify(exactly = 1) { AppUpdatesSettingsRepository.checkForUpdates() }
+  }
+
+  @Test
+  fun `beta selection preserves Molly dismissal and explicit check even when periodic checks are off`() = runTest(testDispatcher) {
+    val viewModel = AppUpdatesSettingsViewModel()
+
+    viewModel.onEvent(AppUpdatesSettingsEvent.IncludeBetaToggled(true))
+
+    assertThat(viewModel.state.value.includeBetaEnabled).isTrue()
+    assertThat(enabled).isFalse()
+    verify { AppUpdatesSettingsRepository.dismissInstallPrompt() }
+    verify(exactly = 1) { AppUpdatesSettingsRepository.checkForUpdates() }
+  }
+
+  @Test
+  fun `manual check requires managed channel and the original enable preference`() = runTest(testDispatcher) {
+    val viewModel = AppUpdatesSettingsViewModel()
+    viewModel.onEvent(AppUpdatesSettingsEvent.CheckForUpdatesClicked)
+    verify(exactly = 0) { AppUpdatesSettingsRepository.checkForUpdates() }
+
+    enabled = true
+    viewModel.onEvent(AppUpdatesSettingsEvent.CheckForUpdatesClicked)
+    verify(exactly = 1) { AppUpdatesSettingsRepository.checkForUpdates() }
+  }
+
+  @Test
+  fun `navigation stays event driven`() = runTest(testDispatcher) {
+    val viewModel = AppUpdatesSettingsViewModel()
+    val actions = collectActions(viewModel)
 
     viewModel.onEvent(AppUpdatesSettingsEvent.NavigateBackClicked)
 
     assertThat(actions).containsExactly(AppUpdatesSettingsAction.NavigateBack)
   }
 
-  private fun createViewModel(isAutoUpdateSupported: Boolean = true): AppUpdatesSettingsViewModel {
-    return AppUpdatesSettingsViewModel(isAutoUpdateSupported = isAutoUpdateSupported)
-  }
-
-  private fun TestScope.collectActions(actions: Flow<AppUpdatesSettingsAction>): List<AppUpdatesSettingsAction> {
-    val collected = mutableListOf<AppUpdatesSettingsAction>()
-    backgroundScope.launch { actions.toList(collected) }
-    return collected
+  private fun TestScope.collectActions(viewModel: AppUpdatesSettingsViewModel): List<AppUpdatesSettingsAction> {
+    val actions = mutableListOf<AppUpdatesSettingsAction>()
+    backgroundScope.launch { viewModel.actions.toList(actions) }
+    return actions
   }
 }
