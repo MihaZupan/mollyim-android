@@ -46,8 +46,8 @@ class PatchStackTests(unittest.TestCase):
         self.source = self.run_git("rev-parse", "HEAD")
         self.tree = self.run_git("rev-parse", "HEAD^{tree}")
         entries = [
-            {"id": "binary-feature", "file": "binary.patch", "subject": "[Feature] Add binary payload"},
-            {"id": "cleanup-feature", "file": "cleanup.patch", "subject": "Remove obsolete file"},
+            {"file": "binary.patch", "subject": "[Feature] Add binary payload"},
+            {"file": "cleanup.patch", "subject": "Remove obsolete file"},
         ]
         self.manifest = {
             "format": 1, "signal_version": "8.19.2", "baseline": self.baseline,
@@ -63,7 +63,6 @@ class PatchStackTests(unittest.TestCase):
                                 "--no-signature", "--no-stat", "--full-index", "--binary",
                                 "--no-renames", commit, "--"))
         self.write_manifest()
-        self.write_order()
         # A patch-management branch need not be the source being exported.
         self.run_git("checkout", "--quiet", "-b", "management", self.baseline)
         self.commit("Manage patch stack")
@@ -82,10 +81,6 @@ class PatchStackTests(unittest.TestCase):
         (self.repo / "patch-stack.json").write_bytes(
             (json.dumps(self.manifest) + "\n").encode("utf-8"))
 
-    def write_order(self):
-        (self.repo / "patches" / ".patch-order").write_bytes(
-            "".join(e["file"] + "\n" for e in self.manifest["patches"]).encode("utf-8"))
-
     def snapshot(self):
         return (self.run_git("show-ref"), self.run_git("status", "--porcelain"),
                 self.run_git("rev-parse", "HEAD"), self.run_git("worktree", "list", "--porcelain"))
@@ -98,6 +93,8 @@ class PatchStackTests(unittest.TestCase):
         metadata = json.loads((exported / "patch-stack.json").read_text())
         self.assertEqual(metadata["patches"], self.manifest["patches"])
         self.assertEqual({p.name for p in exported.iterdir()}, {"patch-stack.json", "patches"})
+        self.assertEqual({p.name for p in (exported / "patches").iterdir()},
+                         {entry["file"] for entry in self.manifest["patches"]})
         # Move the exported managed snapshot to a new repository's working files.
         carrier = self.owned / "carrier"
         patch_stack.git(self.repo, "clone", "--shared", "--no-checkout", "--", str(self.repo), str(carrier))
@@ -147,7 +144,7 @@ class PatchStackTests(unittest.TestCase):
                     patch_stack.inspect(self.repo)
                 self.manifest["patches"][0]["file"] = original
         self.write_manifest()
-        for field in ("id", "file", "subject"):
+        for field in ("file", "subject"):
             with self.subTest(duplicate=field):
                 original = self.manifest["patches"][1][field]
                 self.manifest["patches"][1][field] = self.manifest["patches"][0][field]
@@ -155,15 +152,19 @@ class PatchStackTests(unittest.TestCase):
                 with self.assertRaisesRegex(patch_stack.StackError, "Duplicate"):
                     patch_stack.inspect(self.repo)
                 self.manifest["patches"][1][field] = original
+        self.manifest["patches"][0]["id"] = "obsolete-id"
         self.write_manifest()
-        for order in (b"cleanup.patch\nbinary.patch\n", b"binary.patch\n",
-                      b"binary.patch\r\ncleanup.patch\r\n"):
-            (self.repo / "patches" / ".patch-order").write_bytes(order)
-            with self.assertRaisesRegex(patch_stack.StackError, "patch-order"):
-                patch_stack.inspect(self.repo)
-        self.write_order()
-        (self.repo / "patches" / ".patch-order").unlink()
-        with self.assertRaisesRegex(patch_stack.StackError, "Missing"):
+        with self.assertRaisesRegex(patch_stack.StackError, "Expected patch file/subject"):
+            patch_stack.inspect(self.repo)
+        del self.manifest["patches"][0]["id"]
+        self.manifest["patches"].reverse()
+        self.write_manifest()
+        with self.assertRaisesRegex(patch_stack.StackError, "Source subjects"):
+            patch_stack.inspect(self.repo)
+        self.manifest["patches"].reverse()
+        self.write_manifest()
+        (self.repo / "patches" / "unlisted.patch").write_bytes(b"unexpected\n")
+        with self.assertRaisesRegex(patch_stack.StackError, "Unexpected files"):
             patch_stack.inspect(self.repo)
 
     def test_tampered_patch_preserves_failed_import_and_tree_rejected(self):
@@ -225,9 +226,8 @@ class PatchStackTests(unittest.TestCase):
                             "--no-signature", "--no-stat", "--full-index", "--binary",
                             "--no-renames", "HEAD", "--"))
         self.manifest["patches"].append(
-            {"id": "added-feature", "file": filename, "subject": "Add patch-first feature"})
+            {"file": filename, "subject": "Add patch-first feature"})
         self.write_manifest()
-        self.write_order()
         before = self.snapshot()
         paths = [self.repo / "patch-stack.json", *sorted((self.repo / "patches").iterdir())]
         canonical_before = {path: path.read_bytes() for path in paths}
@@ -272,7 +272,7 @@ class PatchStackTests(unittest.TestCase):
                 with self.assertRaisesRegex(patch_stack.StackError, message):
                     patch_stack.export_stack(self.repo, ref, self.owned / "rejected")
 
-    def test_new_subject_gets_safe_stable_slug_and_rebased_subject_keeps_id(self):
+    def test_new_subject_gets_safe_filename_without_id(self):
         self.run_git("checkout", "--quiet", "-b", "new-source", self.source)
         (self.repo / "new.txt").write_bytes(b"new feature\n")
         self.commit("CON")
@@ -282,7 +282,7 @@ class PatchStackTests(unittest.TestCase):
         patch_stack.export_stack(self.repo, source, destination)
         entries = json.loads((destination / "patch-stack.json").read_text())["patches"]
         self.assertEqual(entries[:2], self.manifest["patches"])
-        self.assertEqual(entries[2]["id"], "patch-con")
+        self.assertEqual(entries[2], {"file": "patch-con.patch", "subject": "CON"})
 
     def test_rewritten_commit_ids_keep_exact_subject_mapping(self):
         destination = self.owned / "recreated"

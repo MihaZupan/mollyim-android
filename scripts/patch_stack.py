@@ -133,30 +133,21 @@ def inspect(repo, *, align_source=True):
     if (patch_dir.is_symlink() or not patch_dir.is_dir()
             or getattr(patch_dir, "is_junction", lambda: False)()):
         raise StackError("Expected non-symlink patches directory")
-    ids, files, subjects = set(), set(), set()
+    files, subjects = set(), set()
     for entry in entries:
-        if not isinstance(entry, dict) or set(entry) != {"id", "file", "subject"}:
-            raise StackError("Expected patch id/file/subject")
-        identifier = entry["id"]
-        if not isinstance(identifier, str) or not re.fullmatch(
-                r"[a-z0-9]+(?:-[a-z0-9]+)*", identifier) or len(identifier) > 120:
-            raise StackError(f"Invalid stable ID: {identifier!r}")
+        if not isinstance(entry, dict) or set(entry) != {"file", "subject"}:
+            raise StackError("Expected patch file/subject")
         filename = safe_filename(entry["file"])
         title = entry["subject"]
         if not isinstance(title, str) or not title or any(
                 ord(char) < 32 or ord(char) == 127 for char in title):
             raise StackError("Invalid patch subject")
-        if identifier in ids or filename.casefold() in files or title in subjects:
-            raise StackError("Duplicate patch ID, filename or subject")
-        ids.add(identifier)
+        if filename.casefold() in files or title in subjects:
+            raise StackError("Duplicate patch filename or subject")
         files.add(filename.casefold())
         subjects.add(title)
         regular(patch_dir / filename)
-    regular(patch_dir / ".patch-order")
-    expected_order = "".join(entry["file"] + "\n" for entry in entries).encode("utf-8")
-    if (patch_dir / ".patch-order").read_bytes() != expected_order:
-        raise StackError(".patch-order must exactly match manifest order with UTF-8/LF")
-    if {path.name.casefold() for path in patch_dir.iterdir()} != files | {".patch-order"}:
+    if {path.name.casefold() for path in patch_dir.iterdir()} != files:
         raise StackError("Unexpected files in patches directory")
     present = bool(text(repo, "rev-parse", "--disambiguate=" + source))
     if present:
@@ -231,7 +222,6 @@ def export_stack(repo, source_ref, destination):
     source = resolve_source(repo, source_ref)
     commits = linear_commits(repo, manifest["baseline"], source)
     existing = {entry["subject"]: entry for entry in manifest["patches"]}
-    used_ids = {entry["id"] for entry in manifest["patches"]}
     used_files = {entry["file"].casefold() for entry in manifest["patches"]}
     entries, patches, seen = [], [], set()
     for commit in commits:
@@ -248,13 +238,11 @@ def export_stack(repo, source_ref, destination):
             slug = slug or "patch"
             if slug.upper() in RESERVED:
                 slug = "patch-" + slug
-            identifier, suffix = slug, 2
-            while identifier in used_ids or (identifier + ".patch").casefold() in used_files:
-                identifier = f"{slug}-{suffix}"
+            filename, suffix = slug + ".patch", 2
+            while filename.casefold() in used_files:
+                filename = f"{slug}-{suffix}.patch"
                 suffix += 1
-            entry = {"id": identifier, "file": safe_filename(identifier + ".patch"),
-                     "subject": title}
-        used_ids.add(entry["id"])
+            entry = {"file": safe_filename(filename), "subject": title}
         used_files.add(entry["file"].casefold())
         entries.append(entry)
         patch = git(repo, "format-patch", "--stdout", "-1", "--zero-commit",
@@ -270,8 +258,6 @@ def export_stack(repo, source_ref, destination):
         (destination / "patches").mkdir()
         (destination / "patch-stack.json").write_bytes(
             (json.dumps(output, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
-        (destination / "patches" / ".patch-order").write_bytes(
-            "".join(entry["file"] + "\n" for entry in entries).encode("utf-8"))
         for entry, patch in zip(entries, patches):
             (destination / "patches" / entry["file"]).write_bytes(patch)
     except OSError as exc:

@@ -1,7 +1,6 @@
 # Molly patch management: Signal 8.19.2
 
-This branch contains the maintained patch series, its tooling and documentation.
-It is not the application source branch.
+This branch contains the maintained patch series, tooling and documentation.
 
 | Branch | Purpose |
 |---|---|
@@ -19,10 +18,8 @@ none of its four production changes or added test is in this series.
 
 ## Files and acceptance
 
-- `patch-stack.json` records exact upstream/source/tree identities, branch names
-  and stable patch IDs.
-- `patches/.patch-order` is the explicit application order. It must match the
-  manifest; filenames do not encode sequence numbers.
+- `patch-stack.json` records upstream/source/tree identities, branch names and
+  `file`/`subject` entries in application order.
 - `patches/*.patch` are binary-capable Git mail patches, one per semantic commit.
   Their bytes must not undergo line-ending conversion (`.gitattributes` sets
   `-text`). Authorship, rationale and attribution trailers are retained.
@@ -66,13 +63,13 @@ Develop on a separate source worktree/topic branch. Fold fixups into their ownin
 logical commits before exporting; unnormalized fixup/squash commits and merges
 are rejected. Export the source ref to a new snapshot, review its managed files,
 then update `patches/` and `patch-stack.json` on this branch. Existing exact
-subjects preserve patch IDs/filenames; subject changes need an explicit identity
+subjects preserve patch filenames; subject changes need an explicit identity
 decision. AI may propose grouping or resolve semantic conflicts, but import and
 export are mechanical Git operations.
 
 ### Patch-first changes
 
-Edit the patch files/order and corresponding manifest entries. To derive a
+Edit the patch files and corresponding manifest entries/order. To derive a
 proposed source tree when the recorded tree is intentionally stale:
 
 ```powershell
@@ -111,8 +108,7 @@ requires the workflow to be registered on the repository's default branch;
 selecting a patch-management default branch or adding a reviewed launcher is a
 separate publication decision. The unchanged source branch does not contain this
 workflow, so source-only pushes are not automatically observed by it. Use the
-local exporter or an enabled manual dispatch; no bidirectional webhook/bot is
-claimed to be installed.
+local exporter or an enabled manual dispatch.
 
 ## Next Signal version
 
@@ -126,5 +122,4 @@ application alone does not establish semantic compatibility.
 Old patch branches may continue receiving maintenance commits. Cherry-pick
 selected backports rather than merging a newer baseline configuration wholesale.
 Keep published release tags immutable. A two-dot GitHub comparison between
-patch-management branches compares their snapshots, including intentional tooling
-changes; clean patch-only comparisons are not a current requirement.
+patch-management branches compares their snapshots, including tooling changes.
