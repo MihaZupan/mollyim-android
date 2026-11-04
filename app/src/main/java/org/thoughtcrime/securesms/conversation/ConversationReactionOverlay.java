@@ -702,10 +702,6 @@ public final class ConversationReactionOverlay extends FrameLayout {
       items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_copy_android_24, getResources().getString(R.string.conversation_selection__menu_copy), () -> handleActionItemClicked(Action.COPY)));
     }
 
-    if (menuState.shouldShowPaymentDetails()) {
-      items.add(new ActionItem(R.drawable.symbol_payment_24, getResources().getString(R.string.conversation_selection__menu_payment_details), () -> handleActionItemClicked(Action.PAYMENT_DETAILS)));
-    }
-
     items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_check_circle_24, getResources().getString(R.string.conversation_selection__menu_multi_select), () -> handleActionItemClicked(Action.MULTISELECT)));
 
     if (menuState.shouldShowDetailsAction()) {
@@ -916,7 +912,6 @@ public final class ConversationReactionOverlay extends FrameLayout {
     DOWNLOAD,
     COPY,
     MULTISELECT,
-    PAYMENT_DETAILS,
     VIEW_INFO,
     DELETE,
     END_POLL,
