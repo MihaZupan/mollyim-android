@@ -90,7 +90,6 @@ interface MainToolbarCallback {
   fun onNewGroupClick()
   fun onClearPassphraseClick()
   fun onMarkReadClick()
-  fun onInviteFriendsClick()
   fun onFilterUnreadChatsClick()
   fun onClearUnreadChatsFilterClick()
   fun onSettingsClick()
@@ -114,7 +113,6 @@ interface MainToolbarCallback {
     override fun onNewGroupClick() = Unit
     override fun onClearPassphraseClick() = Unit
     override fun onMarkReadClick() = Unit
-    override fun onInviteFriendsClick() = Unit
     override fun onFilterUnreadChatsClick() = Unit
     override fun onClearUnreadChatsFilterClick() = Unit
     override fun onSettingsClick() = Unit
@@ -649,18 +647,6 @@ private fun CallDropdownItems(callFilter: CallLogFilter, callback: MainToolbarCa
 
 @Composable
 private fun ChatDropdownItems(state: MainToolbarState, callback: MainToolbarCallback, onOptionSelected: () -> Unit) {
-  DropdownMenus.Item(
-    text = {
-      Text(
-        text = stringResource(R.string.text_secure_normal__menu_new_group)
-      )
-    },
-    onClick = {
-      callback.onNewGroupClick()
-      onOptionSelected()
-    }
-  )
-
   if (state.hasPassphrase) {
     DropdownMenus.Item(
       text = {
@@ -678,11 +664,11 @@ private fun ChatDropdownItems(state: MainToolbarState, callback: MainToolbarCall
   DropdownMenus.Item(
     text = {
       Text(
-        text = stringResource(R.string.text_secure_normal__mark_all_as_read)
+        text = stringResource(R.string.text_secure_normal__menu_new_group)
       )
     },
     onClick = {
-      callback.onMarkReadClick()
+      callback.onNewGroupClick()
       onOptionSelected()
     }
   )
@@ -690,11 +676,11 @@ private fun ChatDropdownItems(state: MainToolbarState, callback: MainToolbarCall
   DropdownMenus.Item(
     text = {
       Text(
-        text = stringResource(R.string.text_secure_normal__invite_friends)
+        text = stringResource(R.string.text_secure_normal__mark_all_as_read)
       )
     },
     onClick = {
-      callback.onInviteFriendsClick()
+      callback.onMarkReadClick()
       onOptionSelected()
     }
   )

@@ -21,12 +21,13 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
+import org.signal.core.ui.util.ThemeUtil;
 import org.signal.core.util.logging.Log;
 import org.signal.imageeditor.core.ImageEditorView;
 import org.signal.imageeditor.core.model.EditorElement;
 import org.signal.imageeditor.core.model.EditorModel;
 import org.signal.imageeditor.core.renderers.FaceBlurRenderer;
-import org.thoughtcrime.securesms.BaseActivity;
+import org.thoughtcrime.securesms.PassphraseRequiredActivity;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.components.ProgressCard;
 import org.thoughtcrime.securesms.conversation.colors.ColorizerView;
@@ -43,7 +44,7 @@ import java.util.Collections;
 import java.util.Locale;
 import java.util.Objects;
 
-public final class WallpaperCropActivity extends BaseActivity {
+public final class WallpaperCropActivity extends PassphraseRequiredActivity {
 
   private static final String TAG = Log.tag(WallpaperCropActivity.class);
 
@@ -73,9 +74,14 @@ public final class WallpaperCropActivity extends BaseActivity {
   }
 
   @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+  protected void onPreCreate() {
+    super.onPreCreate();
     dynamicTheme.onCreate(this);
+  }
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState, boolean ready) {
+    super.onCreate(savedInstanceState, ready);
     setContentView(R.layout.chat_wallpaper_crop_activity);
 
     RecipientId recipientId = getIntent().getParcelableExtra(EXTRA_RECIPIENT_ID);
@@ -188,7 +194,7 @@ public final class WallpaperCropActivity extends BaseActivity {
     int   width  = displayMetrics.widthPixels;
     float ratio  = width / (float) height;
 
-    EditorModel editorModel = EditorModel.createForWallpaperEditing(ratio, ContextCompat.getColor(this, org.signal.core.ui.R.color.signal_colorBackground));
+    EditorModel editorModel = EditorModel.createForWallpaperEditing(ratio, ThemeUtil.getThemedColor(this, com.google.android.material.R.attr.colorSurface));
 
     EditorElement image = new EditorElement(new UriGlideRenderer(imageUri, true, width, height, UriGlideRenderer.WEAK_BLUR));
     image.getFlags()
@@ -228,8 +234,12 @@ public final class WallpaperCropActivity extends BaseActivity {
   }
 
   private static final class DynamicWallpaperTheme extends DynamicTheme {
-    protected @StyleRes int getTheme() {
+    protected @StyleRes int getRegularTheme() {
       return R.style.Signal_DayNight_WallpaperCropper;
+    }
+
+    protected @StyleRes int getDynamicTheme() {
+      return getRegularTheme();
     }
   }
 }

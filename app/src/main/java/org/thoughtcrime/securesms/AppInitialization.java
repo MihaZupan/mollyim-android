@@ -10,13 +10,11 @@ import org.thoughtcrime.securesms.jobmanager.JobManager;
 import org.thoughtcrime.securesms.jobs.DeleteAbandonedAttachmentsJob;
 import org.thoughtcrime.securesms.jobs.EmojiSearchIndexDownloadJob;
 import org.thoughtcrime.securesms.jobs.QuoteThumbnailBackfillJob;
-import org.thoughtcrime.securesms.jobs.StickerPackDownloadJob;
 import org.thoughtcrime.securesms.keyvalue.SignalStore;
 import org.thoughtcrime.securesms.migrations.ApplicationMigrations;
 import org.thoughtcrime.securesms.migrations.QuoteThumbnailBackfillMigrationJob;
 import org.thoughtcrime.securesms.stickers.BlessedPacks;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
-import org.signal.core.util.Util;
 
 /**
  * Rule of thumb: if there's something you want to do on the first app launch that involves
@@ -34,11 +32,7 @@ public final class AppInitialization {
 
     TextSecurePreferences.setAppMigrationVersion(context, ApplicationMigrations.CURRENT_VERSION);
     TextSecurePreferences.setJobManagerVersion(context, JobManager.CURRENT_VERSION);
-    TextSecurePreferences.setLastVersionCode(context, BuildConfig.VERSION_CODE);
-    TextSecurePreferences.setHasSeenStickerIntroTooltip(context, true);
-    SignalStore.settings().setPassphraseDisabled(true);
-    TextSecurePreferences.setReadReceiptsEnabled(context, true);
-    TextSecurePreferences.setTypingIndicatorsEnabled(context, true);
+    TextSecurePreferences.setLastVersionCodeForMolly(context, BuildConfig.VERSION_CODE);
     AppDependencies.getMegaphoneRepository().onFirstEverAppLaunch();
     SignalStore.onFirstEverAppLaunch();
     AppDependencies.getJobManager().addAll(BlessedPacks.getFirstInstallJobs());
@@ -51,10 +45,8 @@ public final class AppInitialization {
     SignalStore.onPostBackupRestore();
     SignalStore.onFirstEverAppLaunch();
     SignalStore.onboarding().clearAll();
-    SignalStore.settings().setPassphraseDisabled(true);
     SignalStore.notificationProfile().setHasSeenTooltip(true);
     TextSecurePreferences.onPostBackupRestore(context);
-    SignalStore.settings().setPassphraseDisabled(true);
     AppDependencies.getJobManager().addAll(BlessedPacks.getFirstInstallJobs());
     EmojiSearchIndexDownloadJob.scheduleImmediately();
     DeleteAbandonedAttachmentsJob.enqueue();
@@ -64,21 +56,5 @@ public final class AppInitialization {
     } else {
       AppDependencies.getJobManager().add(new QuoteThumbnailBackfillMigrationJob());
     }
-  }
-
-  /**
-   * Temporary migration method that does the safest bits of {@link #onFirstEverAppLaunch(Context)}
-   */
-  public static void onRepairFirstEverAppLaunch(@NonNull Context context) {
-    Log.w(TAG, "onRepairFirstEverAppLaunch()");
-
-    TextSecurePreferences.setAppMigrationVersion(context, ApplicationMigrations.CURRENT_VERSION);
-    TextSecurePreferences.setJobManagerVersion(context, JobManager.CURRENT_VERSION);
-    TextSecurePreferences.setLastVersionCode(context, BuildConfig.VERSION_CODE);
-    TextSecurePreferences.setHasSeenStickerIntroTooltip(context, true);
-    SignalStore.settings().setPassphraseDisabled(true);
-    AppDependencies.getMegaphoneRepository().onFirstEverAppLaunch();
-    SignalStore.onFirstEverAppLaunch();
-    AppDependencies.getJobManager().addAll(BlessedPacks.getFirstInstallJobs());
   }
 }
