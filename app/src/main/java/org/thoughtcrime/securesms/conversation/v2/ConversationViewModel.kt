@@ -353,7 +353,6 @@ class ConversationViewModel(
         groupRecord = groupRecord.orNull(),
         isClientExpired = SignalStore.misc.isClientDeprecated,
         isUnauthorized = SignalStore.account.isUnauthorizedReceived,
-        threadContainsSms = !recipient.isRegistered && !recipient.isPushGroup && !recipient.isSelf && messageRequestRepository.threadContainsSms(threadId)
       )
     }.doOnNext {
       hasMessageRequestStateSubject.onNext(it.messageRequestState)
