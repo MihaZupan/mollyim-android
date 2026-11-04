@@ -27,6 +27,7 @@ import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
@@ -41,7 +42,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.signal.core.ui.R
 import org.signal.core.ui.compose.theme.SignalTheme
+import org.signal.core.ui.compose.theme.colorAttribute
 
 object Buttons {
 
@@ -93,7 +96,10 @@ object Buttons {
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = ButtonDefaults.filledTonalShape,
-    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(
+      containerColor = colorAttribute(R.attr.extended_action_button_container_color),
+      contentColor = colorAttribute(R.attr.extended_action_button_icon_color)
+    ),
     elevation: ButtonElevation? = ButtonDefaults.filledTonalButtonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = largeButtonContentPadding,
@@ -120,7 +126,10 @@ object Buttons {
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = ButtonDefaults.filledTonalShape,
-    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(
+      containerColor = colorAttribute(R.attr.extended_action_button_container_color),
+      contentColor = colorAttribute(R.attr.extended_action_button_icon_color)
+    ),
     elevation: ButtonElevation? = ButtonDefaults.filledTonalButtonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = mediumButtonContentPadding,
@@ -147,10 +156,11 @@ object Buttons {
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = ButtonDefaults.shape,
-    colors: ButtonColors = ButtonDefaults.buttonColors(
-      containerColor = SignalTheme.colors.colorSurface2,
-      contentColor = MaterialTheme.colorScheme.onSurface
-    ),
+    tonal: Boolean = false,
+    colors: ButtonColors = if (tonal) ButtonDefaults.filledTonalButtonColors(
+      containerColor = colorAttribute(R.attr.extended_action_button_container_color),
+      contentColor = colorAttribute(R.attr.extended_action_button_icon_color)
+    ) else ButtonDefaults.buttonColors(),
     elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = smallButtonContentPadding,
@@ -193,7 +203,7 @@ object Buttons {
         painter = painterResource(iconResId),
         contentDescription = null,
         modifier = Modifier.padding(16.dp),
-        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
+        colorFilter = ColorFilter.tint(colorAttribute(R.attr.extended_action_button_icon_color))
       )
     }
   }
@@ -214,6 +224,10 @@ object Buttons {
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.size(56.dp),
+        colors = IconButtonDefaults.filledTonalIconButtonColors(
+          containerColor = colorAttribute(R.attr.extended_action_button_container_color),
+          contentColor = colorAttribute(R.attr.extended_action_button_icon_color)
+        ),
         enabled = enabled,
         content = imageContent
       )
@@ -355,14 +369,32 @@ private fun SmallButtonPreview() {
 @Composable
 private fun SmallButtonSample(
   darkMode: Boolean,
+  tonal: Boolean = false,
   enabled: Boolean
 ) {
   SampleBox(darkMode) {
     Buttons.Small(
+      tonal = tonal,
       onClick = {},
       enabled = enabled
     ) {
       Text("Button")
+    }
+  }
+}
+
+@Preview(name = "Buttons.SmallButton(tonal = true)")
+@Composable
+private fun SmallTonalButtonPreview() {
+  Column {
+    Row {
+      SmallButtonSample(darkMode = false, enabled = true, tonal = true)
+      SmallButtonSample(darkMode = true, enabled = true, tonal = true)
+    }
+
+    Row {
+      SmallButtonSample(darkMode = false, enabled = false, tonal = true)
+      SmallButtonSample(darkMode = true, enabled = false, tonal = true)
     }
   }
 }
@@ -396,7 +428,6 @@ private fun ActionButtonSample(
     ) {
       Icon(
         painter = painterResource(android.R.drawable.ic_menu_camera),
-        tint = MaterialTheme.colorScheme.onSecondaryContainer,
         contentDescription = null
       )
     }

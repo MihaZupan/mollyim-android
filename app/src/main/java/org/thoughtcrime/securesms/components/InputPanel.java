@@ -38,6 +38,7 @@ import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import org.signal.core.ui.util.ThemeUtil;
 import org.signal.core.ui.view.Stub;
 import org.signal.core.util.ThreadUtil;
 import org.signal.core.util.concurrent.ListenableFuture;
@@ -411,21 +412,17 @@ public class InputPanel extends ConstraintLayout
     final int textColor;
     final int textHintColor;
 
-    if (enabled) {
-      iconTint = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurface);
-      textColor = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurface);
-      textHintColor = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurfaceVariant);
+    iconTint = ThemeUtil.getThemedColor(getContext(), com.google.android.material.R.attr.colorOnSurface);
+    textColor = iconTint;
+    textHintColor = ThemeUtil.getThemedColor(getContext(), com.google.android.material.R.attr.colorOnSurfaceVariant);
 
+    if (enabled) {
       setBackground(null);
       composeContainer.setBackground(Objects.requireNonNull(ContextCompat.getDrawable(getContext(), R.drawable.compose_background_wallpaper)));
       quickAudioToggle.setColorFilter(iconTint);
       quickCameraToggle.setColorFilter(iconTint);
     } else {
-      iconTint = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurface);
-      textColor = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurface);
-      textHintColor = getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorOnSurfaceVariant);
-
-      setBackground(new ColorDrawable(getContext().getResources().getColor(org.signal.core.ui.R.color.signal_colorSurface)));
+      setBackground(new ColorDrawable(ThemeUtil.getThemedColor(getContext(), com.google.android.material.R.attr.colorSurface)));
       composeContainer.setBackground(Objects.requireNonNull(ContextCompat.getDrawable(getContext(), R.drawable.compose_background)));
     }
 

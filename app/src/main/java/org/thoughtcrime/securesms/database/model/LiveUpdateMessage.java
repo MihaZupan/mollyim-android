@@ -61,13 +61,8 @@ public final class LiveUpdateMessage {
   }
 
   private static @NonNull SpannableString toSpannable(@NonNull Context context, @NonNull UpdateDescription updateDescription, @NonNull Spannable string, @ColorInt int defaultTint, boolean adjustPosition) {
-    boolean isDarkTheme = ThemeUtil.isDarkTheme(context);
-    Glyph   glyph       = updateDescription.getGlyph();
-    int     tint        = isDarkTheme ? updateDescription.getDarkTint() : updateDescription.getLightTint();
-
-    if (tint == 0) {
-      tint = defaultTint;
-    }
+    Glyph glyph = updateDescription.getGlyph();
+    int   tint  = getMessageThemedColor(context, updateDescription, defaultTint);
 
     if (glyph == null) {
       return new SpannableString(string);
@@ -81,5 +76,12 @@ public final class LiveUpdateMessage {
 
       return new SpannableString(SpanUtil.color(tint, builder));
     }
+  }
+
+  public static int getMessageThemedColor(@NonNull Context context, @NonNull UpdateDescription updateDescription, @ColorInt int defaultTint) {
+    boolean  isDarkTheme = ThemeUtil.isDarkTheme(context);
+    int      tint        = isDarkTheme ? updateDescription.getDarkTint() : updateDescription.getLightTint();
+
+    return tint == 0 ? defaultTint : tint;
   }
 }

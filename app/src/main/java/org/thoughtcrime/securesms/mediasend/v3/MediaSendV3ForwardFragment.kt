@@ -8,11 +8,11 @@ package org.thoughtcrime.securesms.mediasend.v3
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import org.signal.core.ui.util.ThemeUtil
 import org.signal.core.util.getParcelableArrayListCompat
 import org.signal.core.util.logging.Log
 import org.signal.mediasend.MediaRecipientId
@@ -27,7 +27,6 @@ import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectFor
 import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.safety.SafetyNumberBottomSheet
 import org.thoughtcrime.securesms.stories.Stories
-import org.signal.core.ui.R as CoreUiR
 
 /**
  * View-backed wrapper around [MultiselectForwardFragment] that provides the [ViewGroup] container
@@ -106,7 +105,7 @@ class MediaSendV3ForwardFragment : Fragment(R.layout.multiselect_forward_activit
   }
 
   override fun getDialogBackgroundColor(): Int {
-    return ContextCompat.getColor(requireContext(), CoreUiR.color.signal_colorBackground)
+    return ThemeUtil.getThemedColor(requireContext(), com.google.android.material.R.attr.colorSurface)
   }
 
   override fun getStorySendRequirements(): Stories.MediaTransform.SendRequirements? {

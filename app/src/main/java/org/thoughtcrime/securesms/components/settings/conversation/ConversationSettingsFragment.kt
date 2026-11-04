@@ -31,6 +31,7 @@ import io.reactivex.rxjava3.kotlin.subscribeBy
 import kotlinx.coroutines.launch
 import org.signal.core.ui.isSplitPane
 import org.signal.core.ui.permissions.Permissions
+import org.signal.core.ui.util.ThemeUtil
 import org.signal.core.util.DimensionUnit
 import org.signal.core.util.Result
 import org.signal.core.util.concurrent.LifecycleDisposable
@@ -49,7 +50,6 @@ import org.thoughtcrime.securesms.badges.BadgeImageView
 import org.thoughtcrime.securesms.badges.Badges
 import org.thoughtcrime.securesms.badges.Badges.displayBadges
 import org.thoughtcrime.securesms.badges.models.Badge
-import org.thoughtcrime.securesms.badges.view.ViewBadgeBottomSheetDialogFragment
 import org.thoughtcrime.securesms.calls.YouAreAlreadyInACallSnackbar
 import org.thoughtcrime.securesms.components.AvatarImageView
 import org.thoughtcrime.securesms.components.ProgressCardDialogFragment
@@ -103,6 +103,7 @@ import org.thoughtcrime.securesms.profiles.edit.CreateProfileActivity
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientExporter
 import org.thoughtcrime.securesms.recipients.RecipientId
+import org.thoughtcrime.securesms.recipients.RecipientUtil
 import org.thoughtcrime.securesms.recipients.ui.about.AboutSheet
 import org.thoughtcrime.securesms.recipients.ui.bottomsheet.RecipientBottomSheetDialogFragment
 import org.thoughtcrime.securesms.starred.StarredMessagesActivity
@@ -281,9 +282,9 @@ class ConversationSettingsFragment :
         }
       }
     ) {
-      override val inactiveColorSet = ColorSet(
+      override val inactiveColorSet = ColorSet.from(requireContext(),
         toolbarColorRes = CoreUiR.color.signal_colorBackground_0,
-        statusBarColorRes = CoreUiR.color.signal_colorBackground
+        statusBarColorRes = com.google.android.material.R.attr.colorSurface
       )
     }
   }
@@ -308,8 +309,7 @@ class ConversationSettingsFragment :
 
     val recipientId = args.recipientId
     if (recipientId != null) {
-      Badge.register(adapter) { badge, _, _ ->
-        ViewBadgeBottomSheetDialogFragment.show(parentFragmentManager, recipientId, badge)
+      Badge.register(adapter) { _, _, _ ->
       }
     }
 
@@ -322,10 +322,6 @@ class ConversationSettingsFragment :
           .withUseSelfProfileAvatar(false)
           .withFixedSize(ViewUtil.dpToPx(80))
           .load(state.recipient)
-
-        if (!state.recipient.isSelf) {
-          toolbarBadge.setBadgeFromRecipient(state.recipient)
-        }
 
         state.withRecipientSettingsState {
           toolbarTitle.text = if (state.recipient.isSelf) getString(R.string.note_to_self) else state.recipient.getDisplayName(requireContext())
@@ -392,8 +388,7 @@ class ConversationSettingsFragment :
               startActivity(viewAvatarIntent, viewAvatarTransitionBundle)
             }
           },
-          onBadgeClick = { badge ->
-            ViewBadgeBottomSheetDialogFragment.show(parentFragmentManager, state.recipient.id, badge)
+          onBadgeClick = { _ ->
           }
         )
       )
@@ -402,9 +397,10 @@ class ConversationSettingsFragment :
         customPref(
           BioTextPreference.RecipientModel(
             recipient = state.recipient,
+            linkedDevices = RecipientUtil.getSubDeviceCount(requireContext(), state.recipient).orElse(null),
             onHeadlineClickListener = if (state.recipient.isSelf || !state.recipient.isIndividual) {
               null
-            } else {
+            } else{
               { AboutSheet.create(state.recipient).show(parentFragmentManager, null) }
             }
           )
@@ -665,7 +661,7 @@ class ConversationSettingsFragment :
           ContactLinkState.ADD -> {
             @Suppress("DEPRECATION")
             clickPref(
-              title = DSLSettingsText.from(R.string.ConversationSettingsFragment__add_as_a_contact),
+              title = DSLSettingsText.from(R.string.ConversationSettingsFragment__add_to_your_phones_contacts),
               icon = DSLSettingsIcon.from(R.drawable.ic_plus_24),
               onClick = {
                 try {
@@ -1066,7 +1062,7 @@ class ConversationSettingsFragment :
         if (!state.recipient.isReleaseNotes) {
           val reportSpamTint = if (state.isDeprecatedOrUnregistered) R.color.signal_alert_primary_50 else R.color.signal_alert_primary
           clickPref(
-            title = DSLSettingsText.from(R.string.ConversationFragment_report_spam, ContextCompat.getColor(requireContext(), reportSpamTint)),
+            title = DSLSettingsText.from(R.string.ConversationFragment_report_spam, ThemeUtil.getThemedColor(requireContext(), reportSpamTint)),
             icon = DSLSettingsIcon.from(R.drawable.symbol_spam_24, reportSpamTint),
             isEnabled = !state.isDeprecatedOrUnregistered,
             onClick = {
