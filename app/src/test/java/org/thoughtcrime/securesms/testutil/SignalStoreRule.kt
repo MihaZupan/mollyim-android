@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.keyvalue.KeyValueDataSet
 import org.thoughtcrime.securesms.keyvalue.KeyValueStore
 import org.thoughtcrime.securesms.keyvalue.MockKeyValuePersistentStorage
 import org.thoughtcrime.securesms.keyvalue.SignalStore
+import org.thoughtcrime.securesms.util.Environment
 
 /**
  * Installs a real [SignalStore] backed by in-memory storage, letting tests arrange and assert on actual
@@ -22,7 +23,13 @@ class SignalStoreRule : ExternalResource() {
 
   override fun before() {
     val application = ApplicationProvider.getApplicationContext<Application>()
-    SignalStore.testInject(SignalStore(application, KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor())))
+    val wasInstrumentation = Environment.IS_INSTRUMENTATION
+    Environment.IS_INSTRUMENTATION = true
+    try {
+      SignalStore.testInject(SignalStore(application, KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor())))
+    } finally {
+      Environment.IS_INSTRUMENTATION = wasInstrumentation
+    }
   }
 
   override fun after() {

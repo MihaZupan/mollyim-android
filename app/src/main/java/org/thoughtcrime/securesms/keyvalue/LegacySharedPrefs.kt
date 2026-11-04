@@ -7,10 +7,13 @@ package org.thoughtcrime.securesms.keyvalue
 
 import android.content.Context
 import android.net.Uri
-import androidx.preference.PreferenceManager
+import org.thoughtcrime.securesms.util.SecurePreferenceManager
+import org.thoughtcrime.securesms.util.Environment
+import org.thoughtcrime.securesms.service.KeyCachingService
 
 /**
- * Read-only access to the app's default [android.content.SharedPreferences] for the purpose of easing migration to [SignalStore].
+ * Read-only access to Molly's original preferences, after the master secret has been cached.
+ * Never use the compatibility facade here: it reads the destination rather than the migration source.
  */
 object LegacySharedPrefs {
 
@@ -40,13 +43,13 @@ object LegacySharedPrefs {
 
   /** Some values were stored as strings, but some installs ended up with ints. */
   fun getIntegerFromString(context: Context, key: String, defaultValue: Int): Int {
-    return try {
-      getString(context, key, defaultValue.toString()).toInt()
+    val stringValue = try {
+      // EncryptedPreferences returns the default (rather than throwing) on a type mismatch.
+      prefs(context).getString(key, null)
     } catch (e: ClassCastException) {
-      getInteger(context, key, defaultValue)
-    } catch (e: NumberFormatException) {
-      defaultValue
+      null
     }
+    return if (stringValue != null) stringValue.toIntOrNull() ?: defaultValue else getInteger(context, key, defaultValue)
   }
 
   /** Mirrors the URI fixup the old ringtone getters did. */
@@ -68,5 +71,10 @@ object LegacySharedPrefs {
     }
   }
 
-  private fun prefs(context: Context) = PreferenceManager.getDefaultSharedPreferences(context)
+  private fun prefs(context: Context): android.content.SharedPreferences {
+    if (!Environment.IS_INSTRUMENTATION) {
+      checkNotNull(KeyCachingService.getMasterSecret()) { "Legacy settings migration requires an unlocked master secret" }
+    }
+    return SecurePreferenceManager.getSecurePreferences(context)
+  }
 }

@@ -3,14 +3,13 @@ package org.thoughtcrime.securesms.keyvalue
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import androidx.preference.PreferenceManager
 import org.thoughtcrime.securesms.BuildConfig
+import org.thoughtcrime.securesms.util.SecurePreferenceManager
 
 /**
- * There are some values that you can't store in the normal encrypted [KeyValueStore].
- * Usually, it's because the value you're storing is needed to *open* the database that backs [SignalStore],
- * or is otherwise related to the state of the database itself. Regardless, this is just a normal
- * shared-prefs-backed class.
+ * Legacy-named facade for values needed before the database-backed [SignalStore] can open.
+ * Molly keeps these in its original preferences file, with master-secret protection except
+ * for the existing bootstrap exemptions enforced by [SecurePreferenceManager].
  */
 object PlainTextKeyValueStore {
 
@@ -32,7 +31,7 @@ object PlainTextKeyValueStore {
    */
   @JvmStatic
   fun init(context: Context) {
-    sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+    sharedPrefs = SecurePreferenceManager.getSecurePreferences(context)
   }
 
   /** Stores the ID offset that was determined during the big migration that moved all SMS messages into the MMS table. */
