@@ -22,24 +22,18 @@ import org.signal.appsettings.dataandstorage.DataAndStorageSettingsState
 import org.signal.core.ui.compose.EventDrivenViewModel
 import org.signal.core.util.logging.Log
 
-/**
- * Drives [org.signal.appsettings.dataandstorage.DataAndStorageSettingsScreen].
- */
 class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSettingsEvent>(TAG) {
-
   companion object {
     private val TAG = Log.tag(DataAndStorageSettingsViewModel::class)
   }
 
   private val _state = MutableStateFlow(DataAndStorageSettingsState())
   private val _actions = Channel<DataAndStorageSettingsAction>(Channel.BUFFERED)
-
   val state: StateFlow<DataAndStorageSettingsState> = _state.asStateFlow()
   val actions: Flow<DataAndStorageSettingsAction> = _actions.receiveAsFlow()
 
   init {
     refresh()
-
     DataAndStorageSettingsRepository.totalStorageUseBytes()
       .onEach { total -> _state.update { it.copy(totalStorageUseBytes = total) } }
       .launchIn(viewModelScope)
@@ -51,26 +45,20 @@ class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSetti
         refresh()
         DataAndStorageSettingsRepository.refreshStorageUsage()
       }
-
       DataAndStorageSettingsEvent.NavigateBackClicked -> _actions.send(DataAndStorageSettingsAction.NavigateBack)
-
       DataAndStorageSettingsEvent.ManageStorageClicked -> _actions.send(DataAndStorageSettingsAction.NavigateToManageStorage)
-
       is DataAndStorageSettingsEvent.AutoDownloadChanged -> {
         DataAndStorageSettingsRepository.setAutoDownload(event.network, event.mediaTypes)
         refresh()
       }
-
       is DataAndStorageSettingsEvent.SentMediaQualitySelected -> {
         DataAndStorageSettingsRepository.setSentMediaQuality(event.quality)
         refresh()
       }
-
       is DataAndStorageSettingsEvent.CallDataModeSelected -> {
         DataAndStorageSettingsRepository.setCallDataMode(event.mode)
         refresh()
       }
-
       is DataAndStorageSettingsEvent.StayConnectedInBackgroundToggled -> {
         if (event.enabled) {
           _state.update { it.copy(dialog = DataAndStorageSettingsState.Dialog.ConfirmStayConnectedInBackground) }
@@ -79,16 +67,14 @@ class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSetti
           refresh()
         }
       }
-
       DataAndStorageSettingsEvent.StayConnectedInBackgroundConfirmed -> {
         if (_state.value.dialog != DataAndStorageSettingsState.Dialog.ConfirmStayConnectedInBackground) return
         _state.update { it.copy(dialog = DataAndStorageSettingsState.Dialog.None) }
         DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(true)
         refresh()
       }
-
-      DataAndStorageSettingsEvent.UseProxyClicked -> _actions.send(DataAndStorageSettingsAction.NavigateToProxy)
-
+      DataAndStorageSettingsEvent.NetworkSettingsClicked,
+      DataAndStorageSettingsEvent.UseProxyClicked -> _actions.send(DataAndStorageSettingsAction.NavigateToNetwork)
       DataAndStorageSettingsEvent.DialogDismissed -> _state.update { it.copy(dialog = DataAndStorageSettingsState.Dialog.None) }
     }
   }

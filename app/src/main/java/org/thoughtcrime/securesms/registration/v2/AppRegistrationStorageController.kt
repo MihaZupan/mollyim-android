@@ -125,8 +125,7 @@ class AppRegistrationStorageController(private val context: Context) : StorageCo
    */
   @VisibleForTesting
   internal var restartNetwork: () -> Unit = {
-    AppDependencies.resetNetwork()
-    AppDependencies.startNetwork()
+    AppDependencies.resetNetwork(restartMessageObserver = true)
   }
 
   companion object {

@@ -37,7 +37,10 @@ sealed interface DataAndStorageSettingsEvent {
   /** The user confirmed they want to stay connected in the background. */
   data object StayConnectedInBackgroundConfirmed : DataAndStorageSettingsEvent
 
-  /** The user tapped the use proxy row. */
+  /** The user tapped Molly's network settings row. */
+  data object NetworkSettingsClicked : DataAndStorageSettingsEvent
+
+  /** Compatibility event; also opens Molly network settings, never Signal TLS proxy configuration. */
   data object UseProxyClicked : DataAndStorageSettingsEvent
 
   /** Dismisses whatever is in [DataAndStorageSettingsState.dialog]. */

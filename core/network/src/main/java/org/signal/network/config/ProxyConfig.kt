@@ -18,13 +18,19 @@ sealed interface ProxyConfig {
   data class ProxyAddress(
     val scheme: ProxyScheme,
     val host: String,
-    val port: Int
+    val port: Int,
+    val source: ProxySource = ProxySource.SYSTEM
   ) : ProxyConfig
+
+  enum class ProxySource {
+    USER, SYSTEM
+  }
 
   /** Supported proxy schemes by [Network]. */
   enum class ProxyScheme(val value: String) {
     TLS(Network.SIGNAL_TLS_PROXY_SCHEME),
     SOCKS("socks5"),
+    SOCKS_REMOTE_DNS("socks5h"),
     HTTP("http")
   }
 
@@ -36,14 +42,9 @@ sealed interface ProxyConfig {
     fun resolve(
       configuration: SignalServiceConfiguration,
       targetUrl: String,
-      proxySelector: ProxySelector? = ProxySelector.getDefault()
+      proxySelector: ProxySelector? = configuration.proxySelector
     ): ProxyConfig {
-      val signalProxy = configuration.signalProxy.orElse(null)
-      return when {
-        signalProxy != null -> signalProxy.toProxyConfig()
-        configuration.censored -> Direct
-        else -> resolveSystemProxy(targetUrl, proxySelector)?.let { fromSystemProxy(it) } ?: Direct
-      }
+      return resolveSystemProxy(targetUrl, proxySelector)?.let { fromSystemProxy(it) } ?: Direct
     }
 
     /**

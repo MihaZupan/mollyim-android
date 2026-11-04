@@ -55,7 +55,7 @@ class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
         }
         is AppSettingsRoute.HelpRoute.Settings -> AppSettingsFragmentDirections.actionDirectToHelpFragment()
           .setStartCategoryIndex(appSettingsRoute.startCategoryIndex)
-        AppSettingsRoute.DataAndStorageRoute.Proxy -> AppSettingsFragmentDirections.actionDirectToEditProxyFragment()
+        AppSettingsRoute.DataAndStorageRoute.Proxy -> AppSettingsFragmentDirections.actionDirectToNetworkPreferenceFragment()
         AppSettingsRoute.NotificationsRoute.Notifications -> AppSettingsFragmentDirections.actionDirectToNotificationsSettingsFragment()
         AppSettingsRoute.ChangeNumberRoute.Start -> AppSettingsFragmentDirections.actionDirectToChangeNumberFragment()
         is AppSettingsRoute.DonationsRoute.Donations -> AppSettingsFragmentDirections.actionDirectToManageDonations().setDirectToCheckoutType(appSettingsRoute.directToCheckoutType)

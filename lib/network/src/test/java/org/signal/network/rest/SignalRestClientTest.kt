@@ -15,6 +15,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import okhttp3.ConnectionSpec
+import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -36,10 +37,11 @@ import org.signal.network.rest.RequestSpec.Host
 import org.signal.network.rest.RequestSpec.Method
 import java.io.ByteArrayInputStream
 import java.io.IOException
-import java.util.Optional
+import java.net.ProxySelector
 import java.util.Random
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import javax.net.SocketFactory
 
 class SignalRestClientTest {
 
@@ -331,8 +333,9 @@ class SignalRestClientTest {
       signalCdsiUrls = emptyArray<SignalCdsiUrl>(),
       signalSvr2Urls = emptyArray<SignalSvr2Url>(),
       networkInterceptors = emptyList(),
-      dns = Optional.empty(),
-      signalProxy = Optional.empty(),
+      socketFactory = SocketFactory.getDefault(),
+      proxySelector = ProxySelector.getDefault(),
+      dns = Dns.SYSTEM,
       zkGroupServerPublicParams = ByteArray(0),
       genericServerPublicParams = ByteArray(0),
       backupServerPublicParams = ByteArray(0),

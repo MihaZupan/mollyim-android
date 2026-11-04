@@ -38,7 +38,7 @@ object DataAndStorageSettingsTestTags {
   const val ROW_SENT_MEDIA_QUALITY = "row-sent-media-quality"
   const val ROW_CALL_DATA_MODE = "row-call-data-mode"
   const val ROW_STAY_CONNECTED = "row-stay-connected"
-  const val ROW_USE_PROXY = "row-use-proxy"
+  const val ROW_NETWORK = "row-network"
 }
 
 /** Order the "use less data for calls" options are listed in, from least to most data saved. */
@@ -51,7 +51,9 @@ private val CALL_DATA_MODES = listOf(CallDataMode.HIGH_ALWAYS, CallDataMode.HIGH
 fun DataAndStorageSettingsScreen(
   state: DataAndStorageSettingsState,
   onEvent: (DataAndStorageSettingsEvent) -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  networkTitle: String? = null,
+  networkSummary: String? = null
 ) {
   Scaffolds.Settings(
     title = stringResource(R.string.preferences__data_and_storage),
@@ -164,15 +166,15 @@ fun DataAndStorageSettingsScreen(
       }
 
       item {
-        Texts.SectionHeader(stringResource(R.string.preferences_proxy))
+        Texts.SectionHeader(networkTitle ?: stringResource(R.string.preferences_proxy))
       }
 
       item {
         Rows.TextRow(
-          text = stringResource(R.string.preferences_use_proxy),
-          label = stringResource(if (state.isProxyEnabled) CoreUiR.string.preferences_on else CoreUiR.string.preferences_off),
-          onClick = { onEvent(DataAndStorageSettingsEvent.UseProxyClicked) },
-          modifier = Modifier.testTag(DataAndStorageSettingsTestTags.ROW_USE_PROXY)
+          text = networkTitle ?: stringResource(R.string.preferences_use_proxy),
+          label = networkSummary ?: stringResource(if (state.isProxyEnabled) CoreUiR.string.preferences_on else CoreUiR.string.preferences_off),
+          onClick = { onEvent(DataAndStorageSettingsEvent.NetworkSettingsClicked) },
+          modifier = Modifier.testTag(DataAndStorageSettingsTestTags.ROW_NETWORK)
         )
       }
     }

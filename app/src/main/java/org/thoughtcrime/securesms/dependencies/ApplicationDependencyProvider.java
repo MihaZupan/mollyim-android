@@ -13,7 +13,6 @@ import org.jetbrains.annotations.NotNull;
 import org.signal.billing.BillingFactory;
 import org.signal.core.models.ServiceId.ACI;
 import org.signal.core.models.ServiceId.PNI;
-import org.signal.core.util.AppForegroundObserver;
 import org.signal.core.util.ByteUnit;
 import org.signal.core.util.SleepTimer;
 import org.signal.core.util.ThreadUtil;
@@ -99,12 +98,13 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
 import org.thoughtcrime.securesms.megaphone.MegaphoneRepository;
 import org.thoughtcrime.securesms.messages.IncomingMessageObserver;
 import org.thoughtcrime.securesms.net.DeviceTransferBlockingInterceptor;
+import org.thoughtcrime.securesms.net.NetworkManager;
+import org.thoughtcrime.securesms.net.NetworkProxyKt;
+import org.thoughtcrime.securesms.net.Networking;
 import org.thoughtcrime.securesms.net.SignalWebSocketHealthMonitor;
 import org.thoughtcrime.securesms.net.StandardUserAgentInterceptor;
 import org.thoughtcrime.securesms.notifications.MessageNotifier;
 import org.thoughtcrime.securesms.notifications.OptimizedMessageNotifier;
-import org.thoughtcrime.securesms.payments.MobileCoinConfig;
-import org.thoughtcrime.securesms.payments.Payments;
 import org.thoughtcrime.securesms.push.SecurityEventListener;
 import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess;
 import org.thoughtcrime.securesms.recipients.LiveRecipientCache;
@@ -119,7 +119,6 @@ import org.thoughtcrime.securesms.service.ScheduledMessageManager;
 import org.thoughtcrime.securesms.service.TrimThreadsByDateManager;
 import org.thoughtcrime.securesms.service.UnreadReminderManager;
 import org.thoughtcrime.securesms.service.webrtc.SignalCallManager;
-import org.thoughtcrime.securesms.shakereport.ShakeToReport;
 import org.thoughtcrime.securesms.stories.Stories;
 import org.thoughtcrime.securesms.util.AdaptiveSleepTimer;
 import org.thoughtcrime.securesms.util.EarlyMessageCache;
@@ -272,6 +271,11 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
   }
 
   @Override
+  public @NonNull NetworkManager provideNetworkManager() {
+    return NetworkManager.create(context);
+  }
+
+  @Override
   public @NonNull LiveRecipientCache provideRecipientCache() {
     return new LiveRecipientCache();
   }
@@ -376,8 +380,8 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
     Network network = new Network(BuildConfig.LIBSIGNAL_NET_ENV, StandardUserAgentInterceptor.USER_AGENT, RemoteConfig.getLibsignalConfigs(), Network.BuildVariant.PRODUCTION);
     LibSignalNetworkExtensions.applyConfiguration(network, config);
 
-    ProxyConfig proxyConfig = ProxyConfig.resolve(config, BuildConfig.SIGNAL_URL);
-    LibSignalNetworkExtensions.configureProxy(network, proxyConfig);
+    ProxyConfig proxyConfig = NetworkProxyKt.resolveProxyConfig();
+    NetworkProxyKt.configureProxy(network, proxyConfig);
     proxyState.update(proxyConfig);
 
     return network;
@@ -396,23 +400,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
   @Override
   public @NonNull DatabaseObserver provideDatabaseObserver() {
     return new DatabaseObserver();
-  }
-
-  @SuppressWarnings("ConstantConditions")
-  @Override
-  public @NonNull Payments providePayments(@NonNull PaymentsApi paymentsApi) {
-    MobileCoinConfig network;
-
-    if      (BuildConfig.MOBILE_COIN_ENVIRONMENT.equals("mainnet")) network = MobileCoinConfig.getMainNet(paymentsApi);
-    else if (BuildConfig.MOBILE_COIN_ENVIRONMENT.equals("testnet")) network = MobileCoinConfig.getTestNet(paymentsApi);
-    else throw new AssertionError("Unknown network " + BuildConfig.MOBILE_COIN_ENVIRONMENT);
-
-    return new Payments(network);
-  }
-
-  @Override
-  public @NonNull ShakeToReport provideShakeToReport() {
-    return new ShakeToReport(context);
   }
 
   @Override
@@ -454,10 +441,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
                                                                                                   () -> !SignalStore.misc().isClientDeprecated() && SignalStore.account().isRegistered() && !SignalStore.account().isUnauthorizedReceived() && !DeviceTransferBlockingInterceptor.getInstance().isBlockingNetwork() && !Environment.IS_INSTRUMENTATION,
                                                                                                   sleepTimer,
                                                                                                   TimeUnit.SECONDS.toMillis(30));
-    if (AppForegroundObserver.isForegrounded()) {
-      webSocket.registerKeepAliveToken(SignalWebSocket.FOREGROUND_KEEPALIVE);
-    }
-
     healthMonitor.monitor(webSocket);
 
     return webSocket;
@@ -481,10 +464,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
                                                                                                       () -> !SignalStore.misc().isClientDeprecated() && !DeviceTransferBlockingInterceptor.getInstance().isBlockingNetwork() && !Environment.IS_INSTRUMENTATION,
                                                                                                       sleepTimer,
                                                                                                       TimeUnit.SECONDS.toMillis(30));
-    if (AppForegroundObserver.isForegrounded()) {
-      webSocket.registerKeepAliveToken(SignalWebSocket.FOREGROUND_KEEPALIVE);
-    }
-
     healthMonitor.monitor(webSocket);
     return webSocket;
   }
@@ -595,8 +574,10 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
 
       return new OkHttpClient.Builder()
           .sslSocketFactory(new Tls12SocketFactory(sslContext.getSocketFactory()), trustManager)
+          .socketFactory(Networking.getSocketFactory())
+          .proxySelector(Networking.getProxySelectorForSocks())
           .addInterceptor(new StandardUserAgentInterceptor())
-          .dns(SignalServiceNetworkAccess.DNS)
+          .dns(Networking.getDns())
           .build();
     } catch (NoSuchAlgorithmException | KeyManagementException e) {
       throw new AssertionError(e);

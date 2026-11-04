@@ -679,8 +679,8 @@
             app:popEnterAnim="@anim/fragment_close_enter"
             app:popExitAnim="@anim/fragment_close_exit" />
         <action
-            android:id="@+id/action_dataAndStorageSettingsFragment_to_editProxyFragment"
-            app:destination="@id/edit_proxy"
+            android:id="@+id/action_dataAndStorageSettingsFragment_to_networkPreferenceFragment"
+            app:destination="@id/networkPreferenceFragment"
             app:enterAnim="@anim/fragment_open_enter"
             app:exitAnim="@anim/fragment_open_exit"
             app:popEnterAnim="@anim/fragment_close_enter"
@@ -691,6 +691,11 @@
         android:id="@+id/storagePreferenceFragment"
         android:name="org.thoughtcrime.securesms.components.settings.app.storage.ManageStorageSettingsFragment"
         android:label="storage_preference_fragment" />
+
+    <fragment
+        android:id="@+id/networkPreferenceFragment"
+        android:name="org.thoughtcrime.securesms.preferences.NetworkPreferenceFragment"
+        android:label="network_preference_fragment" />
 
     <include app:graph="@navigation/edit_proxy" />
 
@@ -799,6 +804,14 @@
         app:popExitAnim="@anim/fragment_close_exit"
         app:popUpTo="@id/app_settings"
         app:popUpToInclusive="true" />
+
+    <action
+        android:id="@+id/action_direct_to_networkPreferenceFragment"
+        app:destination="@id/networkPreferenceFragment"
+        app:enterAnim="@anim/fragment_open_enter"
+        app:exitAnim="@anim/fragment_open_exit"
+        app:popEnterAnim="@anim/fragment_close_enter"
+        app:popExitAnim="@anim/fragment_close_exit" />
 
     <action
         android:id="@+id/action_direct_to_editProxyFragment"

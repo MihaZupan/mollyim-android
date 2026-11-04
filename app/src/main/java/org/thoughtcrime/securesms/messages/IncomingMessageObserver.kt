@@ -23,7 +23,7 @@ import org.signal.core.util.SleepTimer
 import org.signal.core.util.UptimeSleepTimer
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
-import org.signal.network.config.ProxyConfig
+import org.thoughtcrime.securesms.net.resolveProxyConfig
 import org.signal.network.config.SignalServiceConfiguration
 import org.signal.storageservice.storage.protos.groups.local.DecryptedGroup
 import org.thoughtcrime.securesms.BuildConfig
@@ -145,7 +145,7 @@ class IncomingMessageObserver(
     onProxyChanged = {
       // Building the network seeds networkProxyState, so its placeholder can't read as a change.
       AppDependencies.libsignalNetwork
-      val proxyConfig = ProxyConfig.resolve(networkConfiguration, BuildConfig.SIGNAL_URL)
+      val proxyConfig = resolveProxyConfig()
       if (AppDependencies.networkProxyState.currentConfig != proxyConfig) {
         Log.i(TAG, "Proxy config changed, resetting network...")
         AppDependencies.resetNetwork()

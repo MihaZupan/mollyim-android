@@ -136,13 +136,23 @@ class DataAndStorageSettingsViewModelTest {
 
     viewModel.onEvent(DataAndStorageSettingsEvent.NavigateBackClicked)
     viewModel.onEvent(DataAndStorageSettingsEvent.ManageStorageClicked)
-    viewModel.onEvent(DataAndStorageSettingsEvent.UseProxyClicked)
+    viewModel.onEvent(DataAndStorageSettingsEvent.NetworkSettingsClicked)
 
     assertThat(actions).containsExactly(
       DataAndStorageSettingsAction.NavigateBack,
       DataAndStorageSettingsAction.NavigateToManageStorage,
-      DataAndStorageSettingsAction.NavigateToProxy
+      DataAndStorageSettingsAction.NavigateToNetwork
     )
+  }
+
+  @Test
+  fun `legacy proxy event also opens Molly network settings`() = runTest(testDispatcher) {
+    val viewModel = DataAndStorageSettingsViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(DataAndStorageSettingsEvent.UseProxyClicked)
+
+    assertThat(actions).containsExactly(DataAndStorageSettingsAction.NavigateToNetwork)
   }
 
   @Test

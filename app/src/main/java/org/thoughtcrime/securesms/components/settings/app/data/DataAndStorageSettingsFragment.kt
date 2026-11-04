@@ -2,6 +2,7 @@ package org.thoughtcrime.securesms.components.settings.app.data
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.fragment.findNavController
@@ -33,7 +34,9 @@ class DataAndStorageSettingsFragment : ComposeFragment() {
 
     DataAndStorageSettingsScreen(
       state = state,
-      onEvent = viewModel::onEvent
+      onEvent = viewModel::onEvent,
+      networkTitle = stringResource(R.string.preferences__network),
+      networkSummary = stringResource(R.string.preferences_network__tunnels_network_traffic)
     )
   }
 
@@ -41,7 +44,7 @@ class DataAndStorageSettingsFragment : ComposeFragment() {
     when (action) {
       DataAndStorageSettingsAction.NavigateBack -> requireActivity().onBackPressedDispatcher.onBackPressed()
       DataAndStorageSettingsAction.NavigateToManageStorage -> findNavController().safeNavigate(R.id.action_dataAndStorageSettingsFragment_to_storagePreferenceFragment)
-      DataAndStorageSettingsAction.NavigateToProxy -> findNavController().safeNavigate(R.id.action_dataAndStorageSettingsFragment_to_editProxyFragment)
+      DataAndStorageSettingsAction.NavigateToNetwork -> findNavController().safeNavigate(R.id.action_dataAndStorageSettingsFragment_to_networkPreferenceFragment)
     }
   }
 }

@@ -18,6 +18,6 @@ sealed interface DataAndStorageSettingsAction {
   /** Open the manage storage screen. */
   data object NavigateToManageStorage : DataAndStorageSettingsAction
 
-  /** Open the proxy settings. */
-  data object NavigateToProxy : DataAndStorageSettingsAction
+  /** Open Molly's connection/SOCKS/Orbot preferences, not Signal TLS proxy settings. */
+  data object NavigateToNetwork : DataAndStorageSettingsAction
 }

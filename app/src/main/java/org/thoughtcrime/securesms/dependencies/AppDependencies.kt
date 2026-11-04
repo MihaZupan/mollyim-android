@@ -496,7 +496,8 @@ object AppDependencies {
    * they re-read their configuration through suppliers when they reconnect. See [authWebSocket].
    */
   @JvmStatic
-  fun resetNetwork(restartMessageObserver: Boolean) {
+  @JvmOverloads
+  fun resetNetwork(restartMessageObserver: Boolean = false) {
     networkModule.closeConnections()
     _libsignalNetwork.reset()
     _networkModule.reset()

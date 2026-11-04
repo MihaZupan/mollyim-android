@@ -433,6 +433,12 @@
             android:theme="@style/Theme.Signal.DayNight.NoActionBar" />
 
         <activity
+            android:name=".preferences.NetworkPreferenceActivity"
+            android:exported="false"
+            android:label="@string/preferences__network"
+            android:theme="@style/Theme.Signal.DayNight.NoActionBar" />
+
+        <activity
             android:name=".conversation.NewConversationActivity"
             android:exported="false"
             android:theme="@style/Signal.DayNight.NoActionBar" />
@@ -527,13 +533,6 @@
                 <category android:name="android.intent.category.NOTIFICATION_PREFERENCES" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".preferences.EditProxyActivity"
-            android:configChanges="touchscreen|keyboard|keyboardHidden|orientation|screenLayout|screenSize"
-            android:exported="false"
-            android:theme="@style/Signal.DayNight.NoActionBar"
-            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".stories.my.MyStoriesActivity"

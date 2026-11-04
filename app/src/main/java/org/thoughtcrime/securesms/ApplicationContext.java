@@ -200,7 +200,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
     org.thoughtcrime.securesms.registration.ui.AppRegistrationActivityLifecycle.install();
 
     SqlCipherLibraryLoader.load();
-    EventBus.builder().logNoSubscriberMessages(false).installDefaultEventBus();
     DynamicTheme.setDefaultDayNightMode(this);
     ScreenLockController.enableAutoLock(TextSecurePreferences.isBiometricScreenLockEnabled(this));
     AppDependencies.installDependencyProviders();
@@ -210,7 +209,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
   }
 
   private void onCreateUnlock() {
-    Tracer.getInstance().start("Application#onCreate()");
     AppStartup.getInstance().onApplicationCreate();
     SignalLocalMetrics.ColdStart.start();
 
@@ -294,7 +292,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
 
     Log.d(TAG, "onCreateUnlock() took " + (System.currentTimeMillis() - startTime) + " ms");
     SignalLocalMetrics.ColdStart.onApplicationCreateFinished();
-    Tracer.getInstance().end("Application#onCreate()");
   }
 
   @Override
@@ -544,7 +541,7 @@ public class ApplicationContext extends Application implements AppForegroundObse
           return Unit.INSTANCE;
         },
         context -> {
-          // context.startActivity(EditProxyActivity.intent(context));  // MOLLY: TODO
+          context.startActivity(org.thoughtcrime.securesms.preferences.NetworkPreferenceActivity.newIntent(context));
           return Unit.INSTANCE;
         },
         new AppContactSupportController()

@@ -7,6 +7,7 @@ package org.signal.network.config
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import okhttp3.Dns
 import org.junit.Test
 import java.io.IOException
 import java.net.InetSocketAddress
@@ -14,7 +15,7 @@ import java.net.Proxy
 import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
-import java.util.Optional
+import javax.net.SocketFactory
 
 class ProxyConfigTest {
 
@@ -71,17 +72,18 @@ class ProxyConfigTest {
   }
 
   @Test
-  fun `resolve prefers an explicit signal proxy over the system proxy`() {
+  fun `resolve uses the configuration proxy selector by default`() {
     val system = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("proxy.example.com", 8080))
-    val config = ProxyConfig.resolve(configuration(censored = false, signalProxy = SignalProxy("signal.tls.proxy", 443)), TARGET_URL, StubProxySelector(system))
-    assertThat(config).isEqualTo(ProxyConfig.ProxyAddress(ProxyConfig.ProxyScheme.TLS, "signal.tls.proxy", 443))
+    val configuration = configuration(censored = false).copy(proxySelector = StubProxySelector(system))
+    val config = ProxyConfig.resolve(configuration, TARGET_URL)
+    assertThat(config).isEqualTo(ProxyConfig.ProxyAddress(ProxyConfig.ProxyScheme.HTTP, "proxy.example.com", 8080))
   }
 
   @Test
-  fun `resolve ignores the system proxy when the configuration is censored`() {
+  fun `resolve does not bypass the configured proxy when censorship circumvention is enabled`() {
     val system = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("proxy.example.com", 8080))
     val config = ProxyConfig.resolve(configuration(censored = true), TARGET_URL, StubProxySelector(system))
-    assertThat(config).isEqualTo(ProxyConfig.Direct)
+    assertThat(config).isEqualTo(ProxyConfig.ProxyAddress(ProxyConfig.ProxyScheme.HTTP, "proxy.example.com", 8080))
   }
 
   @Test
@@ -91,14 +93,7 @@ class ProxyConfigTest {
     assertThat(config).isEqualTo(ProxyConfig.ProxyAddress(ProxyConfig.ProxyScheme.HTTP, "proxy.example.com", 8080))
   }
 
-  @Test
-  fun `resolve prefers an explicit signal proxy over a censored configuration`() {
-    val system = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("proxy.example.com", 8080))
-    val config = ProxyConfig.resolve(configuration(censored = true, signalProxy = SignalProxy("signal.tls.proxy", 443)), TARGET_URL, StubProxySelector(system))
-    assertThat(config).isEqualTo(ProxyConfig.ProxyAddress(ProxyConfig.ProxyScheme.TLS, "signal.tls.proxy", 443))
-  }
-
-  private fun configuration(censored: Boolean, signalProxy: SignalProxy? = null): SignalServiceConfiguration {
+  private fun configuration(censored: Boolean): SignalServiceConfiguration {
     return SignalServiceConfiguration(
       signalServiceUrls = emptyArray(),
       signalCdnUrlMap = emptyMap(),
@@ -106,8 +101,9 @@ class ProxyConfigTest {
       signalCdsiUrls = emptyArray(),
       signalSvr2Urls = emptyArray(),
       networkInterceptors = emptyList(),
-      dns = Optional.empty(),
-      signalProxy = Optional.ofNullable(signalProxy),
+      socketFactory = SocketFactory.getDefault(),
+      proxySelector = StubProxySelector(Proxy.NO_PROXY),
+      dns = Dns.SYSTEM,
       zkGroupServerPublicParams = ByteArray(0),
       genericServerPublicParams = ByteArray(0),
       backupServerPublicParams = ByteArray(0),

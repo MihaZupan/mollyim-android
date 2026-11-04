@@ -125,13 +125,13 @@ class DataAndStorageSettingsScreenTest {
   }
 
   @Test
-  fun `clicking use proxy emits UseProxyClicked`() {
-    setContent(DataAndStorageSettingsState())
+  fun `clicking the Molly network row emits NetworkSettingsClicked`() {
+    setContent(DataAndStorageSettingsState(), networkTitle = "Network")
 
-    scrollTo(DataAndStorageSettingsTestTags.ROW_USE_PROXY)
-    composeTestRule.onNodeWithTag(DataAndStorageSettingsTestTags.ROW_USE_PROXY).performClick()
+    scrollTo(DataAndStorageSettingsTestTags.ROW_NETWORK)
+    composeTestRule.onNodeWithTag(DataAndStorageSettingsTestTags.ROW_NETWORK).performClick()
 
-    assertThat(events).containsExactly(DataAndStorageSettingsEvent.UseProxyClicked)
+    assertThat(events).containsExactly(DataAndStorageSettingsEvent.NetworkSettingsClicked)
   }
 
   @Test
@@ -147,11 +147,12 @@ class DataAndStorageSettingsScreenTest {
     )
   }
 
-  private fun setContent(state: DataAndStorageSettingsState) {
+  private fun setContent(state: DataAndStorageSettingsState, networkTitle: String? = null) {
     composeTestRule.setContent {
       DataAndStorageSettingsScreen(
         state = state,
-        onEvent = { events += it }
+        onEvent = { events += it },
+        networkTitle = networkTitle
       )
     }
   }
