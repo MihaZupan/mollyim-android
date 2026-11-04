@@ -6,7 +6,6 @@
 package org.signal.registration.util
 
 import android.content.Context
-import android.os.Build
 import android.view.autofill.AutofillManager
 import androidx.annotation.UiContext
 import androidx.core.content.getSystemService
@@ -15,7 +14,6 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetPasswordOption
 import androidx.credentials.PasswordCredential
 import androidx.credentials.exceptions.GetCredentialException
-import org.signal.core.util.PlayServicesUtil
 import org.signal.core.util.logging.Log
 
 /**
@@ -32,11 +30,7 @@ object RegistrationCredentialManager {
    * Credential Manager Play Services backend, so they are supported only when Play Services is.
    */
   fun isSupported(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= 26) {
-      context.getSystemService<AutofillManager>()?.isEnabled == true
-    } else {
-      PlayServicesUtil.getPlayServicesStatus(context) == PlayServicesUtil.PlayServicesStatus.SUCCESS
-    }
+    return context.getSystemService<AutofillManager>()?.isEnabled == true
   }
 
   /**
