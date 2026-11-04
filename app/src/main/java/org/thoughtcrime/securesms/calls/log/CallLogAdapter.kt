@@ -5,10 +5,10 @@ import android.text.style.TextAppearanceSpan
 import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.core.content.ContextCompat
 import androidx.core.widget.TextViewCompat
 import com.bumptech.glide.Glide
 import org.signal.core.models.recipients.RecipientId
+import org.signal.core.ui.util.ThemeUtil
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.CallTable
 import org.thoughtcrime.securesms.database.MessageTypes
@@ -27,6 +27,7 @@ import org.thoughtcrime.securesms.util.adapter.mapping.PagingMappingAdapter
 import org.thoughtcrime.securesms.util.setRelativeDrawables
 import org.thoughtcrime.securesms.util.visible
 import java.util.Locale
+import com.google.android.material.R as MaterialR
 import org.signal.core.ui.R as CoreUiR
 
 /**
@@ -268,7 +269,7 @@ class CallLogAdapter(
       TextViewCompat.setCompoundDrawableTintList(
         binding.callInfo,
         ColorStateList.valueOf(
-          ContextCompat.getColor(context, CoreUiR.color.signal_colorOnSurfaceVariant)
+          ThemeUtil.getThemedColor(context, MaterialR.attr.colorOnSurfaceVariant)
         )
       )
 
@@ -376,12 +377,12 @@ class CallLogAdapter(
         start = getCallStateDrawableRes(call.record)
       )
 
-      val color = ContextCompat.getColor(
+      val color = ThemeUtil.getThemedColor(
         context,
         if (call.record.isDisplayedAsMissedCallInUi) {
-          CoreUiR.color.signal_colorError
+          MaterialR.attr.colorError
         } else {
-          CoreUiR.color.signal_colorOnSurfaceVariant
+          MaterialR.attr.colorOnSurfaceVariant
         }
       )
 

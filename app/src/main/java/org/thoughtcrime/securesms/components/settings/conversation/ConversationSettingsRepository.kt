@@ -106,6 +106,12 @@ class ConversationSettingsRepository(
     return Recipient.observable(recipientId).asFlow()
   }
 
+  suspend fun getLinkedDeviceCount(recipient: Recipient): Int? {
+    return withContext(SignalDispatchers.Default) {
+      RecipientUtil.getSubDeviceCount(context, recipient).orElse(null)
+    }
+  }
+
   /**
    * Emits the group's recipient whenever it changes. The initial lookup of the group's [RecipientId] hits the database,
    * so this can't be a plain [observeRecipient] call.

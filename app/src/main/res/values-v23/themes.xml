@@ -26,7 +26,7 @@
 
     <style name="Theme.Signal.BottomSheetDialog.Fixed">
         <item name="android:windowIsFloating">false</item>
-        <item name="android:navigationBarColor">@color/signal_colorSurface1</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>

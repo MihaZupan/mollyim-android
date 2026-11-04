@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import org.signal.core.models.recipients.RecipientId
 import org.signal.core.ui.BottomSheetUtil
 import org.signal.core.ui.permissions.Permissions
+import org.signal.core.ui.util.ThemeUtil
 import org.signal.core.ui.util.ViewUtil
 import org.signal.core.util.Debouncer
 import org.signal.core.util.DimensionUnit
@@ -111,6 +112,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import com.google.android.material.R as MaterialR
 import org.signal.core.ui.R as CoreUiR
 
 class StoryViewerPageFragment :
@@ -1112,7 +1114,7 @@ class StoryViewerPageFragment :
 
     sendingBar.visible = false
     viewsAndReplies.isEnabled = true
-    viewsAndReplies.iconTint = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), CoreUiR.color.signal_colorOnSurface))
+    viewsAndReplies.iconTint = ColorStateList.valueOf(ThemeUtil.getThemedColor(requireContext(), MaterialR.attr.colorOnSurface))
 
     when (replyState) {
       StoryViewerPageState.ReplyState.SENDING -> presentSendingBottomBar()
@@ -1151,14 +1153,14 @@ class StoryViewerPageFragment :
 
   private fun presentPartialSendBottomBar() {
     viewsAndReplies.setIconResource(CoreUiR.drawable.symbol_error_circle_24)
-    viewsAndReplies.iconTint = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), CoreUiR.color.signal_light_colorError))
+    viewsAndReplies.iconTint = ColorStateList.valueOf(ThemeUtil.getThemedColor(requireContext(), MaterialR.attr.colorError))
     viewsAndReplies.iconSize = 20.dp
     viewsAndReplies.setText(R.string.StoryViewerPageFragment__partially_sent)
   }
 
   private fun presentSendFailureBottomBar() {
     viewsAndReplies.setIconResource(CoreUiR.drawable.symbol_error_circle_24)
-    viewsAndReplies.iconTint = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), CoreUiR.color.signal_light_colorError))
+    viewsAndReplies.iconTint = ColorStateList.valueOf(ThemeUtil.getThemedColor(requireContext(), MaterialR.attr.colorError))
     viewsAndReplies.iconSize = 20.dp
     viewsAndReplies.setText(R.string.StoryViewerPageFragment__send_failed)
   }

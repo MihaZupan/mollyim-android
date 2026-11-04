@@ -25,7 +25,7 @@ data class IndividualSettingsState(
   val disappearingMessagesLifespan: Int = 0,
   val canModifyBlockedState: Boolean = false,
   val identityRecord: IdentityRecord? = null,
-  val canDelete: Boolean = false,
+  val linkedDevices: Int? = null,
   val contactLinkState: ContactLinkState = ContactLinkState.NONE,
   val allGroupsInCommon: List<Recipient> = emptyList(),
   val selfHasGroups: Boolean = false,

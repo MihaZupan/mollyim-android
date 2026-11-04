@@ -2,11 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <style name="TextSecure.DarkNoActionBar" parent="@style/TextSecure.BaseDarkNoActionBar">
-        <item name="android:colorControlActivated">@color/core_ultramarine_light</item>
+        <item name="android:colorControlActivated">?attr/colorControlActivated</item>
     </style>
 
     <style name="TextSecure.DarkNoActionBar.StoryViewer">
-        <item name="android:windowBackground">@color/signal_colorSurface</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
         <item name="android:windowContentTransitions">true</item>
         <item name="android:windowSharedElementEnterTransition">@transition/change_transform</item>
         <item name="android:windowSharedElementExitTransition">@transition/change_transform</item>
@@ -21,12 +21,12 @@
     </style>
 
     <style name="Theme.Signal.Light.BottomSheetDialog" parent="Theme.Material3.Light.BottomSheetDialog">
-        <item name="android:navigationBarColor">@color/signal_bottom_sheet_navigation_bar</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="enableEdgeToEdge">true</item>
     </style>
 
     <style name="Theme.Signal.BottomSheetDialog" parent="Theme.Material3.Dark.BottomSheetDialog">
-        <item name="android:navigationBarColor">@color/signal_bottom_sheet_navigation_bar</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="enableEdgeToEdge">true</item>
     </style>
 

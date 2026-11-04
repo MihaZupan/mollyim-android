@@ -9,7 +9,10 @@ import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -52,6 +55,45 @@ class AppearanceSettingsScreenTest {
     composeTestRule.onNodeWithText("English").performClick()
 
     assertThat(events).contains(AppearanceSettingsEvent.LanguageSelected("en"))
+  }
+
+  @Test
+  fun `Molly language values are passed through without normalization`() {
+    setContent(
+      AppearanceSettingsState(language = "zz"),
+      languageLabels = arrayOf("System fixture", "English fixture"),
+      languageValues = arrayOf("zz", "en_US")
+    )
+    composeTestRule.onNodeWithTag(AppearanceSettingsTestTags.ROW_LANGUAGE).performClick()
+    composeTestRule.onNodeWithText("English fixture").performClick()
+    assertThat(events).contains(AppearanceSettingsEvent.LanguageSelected("en_US"))
+  }
+
+  @Test
+  fun `Molly theme labels and persisted values map to the modern theme event`() {
+    setContent(
+      AppearanceSettingsState(theme = AppearanceSettingsState.Theme.LIGHT),
+      themeLabels = arrayOf("Molly dark fixture", "Molly light fixture"),
+      themeValues = arrayOf("dark", "light")
+    )
+    composeTestRule.onNodeWithTag(AppearanceSettingsTestTags.ROW_THEME).performClick()
+    composeTestRule.onNode(isDialog()).assertIsDisplayed()
+    composeTestRule.onNode(hasText("System default") and hasAnyAncestor(isDialog())).assertDoesNotExist()
+    composeTestRule.onNode(hasText("Molly dark fixture") and hasAnyAncestor(isDialog())).performClick()
+    assertThat(events).contains(AppearanceSettingsEvent.ThemeSelected(AppearanceSettingsState.Theme.DARK))
+  }
+
+  @Test
+  fun `dynamic color availability controls visibility without changing the saved value`() {
+    setContent(AppearanceSettingsState(dynamicColors = true, isDynamicColorsAvailable = false))
+    composeTestRule.onNodeWithTag(AppearanceSettingsTestTags.ROW_DYNAMIC_COLORS).assertDoesNotExist()
+  }
+
+  @Test
+  fun `supported dynamic toggle emits the Molly choice`() {
+    setContent(AppearanceSettingsState(dynamicColors = true, isDynamicColorsAvailable = true))
+    composeTestRule.onNodeWithTag(AppearanceSettingsTestTags.ROW_DYNAMIC_COLORS).performClick()
+    assertThat(events).containsExactly(AppearanceSettingsEvent.DynamicColorsToggled(false))
   }
 
   @Test
@@ -176,11 +218,23 @@ class AppearanceSettingsScreenTest {
     assertThat(events).containsExactly(AppearanceSettingsEvent.NavigationBarSizeConfirmed)
   }
 
-  private fun setContent(state: AppearanceSettingsState) {
+  private fun setContent(
+    state: AppearanceSettingsState,
+    languageLabels: Array<String>? = null,
+    languageValues: Array<String>? = null,
+    themeLabels: Array<String>? = null,
+    themeValues: Array<String>? = null
+  ) {
     composeTestRule.setContent {
       AppearanceSettingsScreen(
         state = state,
-        onEvent = { events += it }
+        onEvent = { events += it },
+        languageLabels = languageLabels,
+        languageValues = languageValues,
+        themeLabels = themeLabels,
+        themeValues = themeValues,
+        dynamicColorsTitle = "Dynamic colors",
+        dynamicColorsDescription = "Use system colors"
       )
     }
   }

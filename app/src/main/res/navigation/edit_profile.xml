@@ -55,14 +55,6 @@
         </action>
 
         <action
-            android:id="@+id/action_manageProfileFragment_to_badgeManageFragment"
-            app:destination="@id/manage_badges"
-            app:enterAnim="@anim/fragment_open_enter"
-            app:exitAnim="@anim/fragment_open_exit"
-            app:popEnterAnim="@anim/fragment_close_enter"
-            app:popExitAnim="@anim/fragment_close_exit" />
-
-        <action
             android:id="@+id/action_manageProfileFragment_to_usernameLinkFragment"
             app:destination="@id/username_link_settings"
             app:enterAnim="@anim/fragment_open_enter"
@@ -86,8 +78,6 @@
         android:id="@+id/aboutManageFragment"
         android:name="org.thoughtcrime.securesms.profiles.manage.about.EditAboutFragment"
         android:label="fragment_manage_about" />
-
-    <include app:graph="@navigation/manage_badges" />
 
     <include app:graph="@navigation/avatar_picker" />
 

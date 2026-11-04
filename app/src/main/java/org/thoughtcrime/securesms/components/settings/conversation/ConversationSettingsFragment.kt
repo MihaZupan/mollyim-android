@@ -38,7 +38,6 @@ import org.thoughtcrime.securesms.BlockUnblockDialog
 import org.thoughtcrime.securesms.MainActivity
 import org.thoughtcrime.securesms.PushContactSelectionActivity
 import org.thoughtcrime.securesms.R
-import org.thoughtcrime.securesms.badges.view.ViewBadgeBottomSheetDialogFragment
 import org.thoughtcrime.securesms.calls.YouAreAlreadyInACallSnackbar
 import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
 import org.thoughtcrime.securesms.components.settings.app.subscription.donate.CheckoutFlowActivity
@@ -331,9 +330,7 @@ class ConversationSettingsFragment : ComposeFragment() {
           onViewAvatar = { startActivity(viewAvatarIntent, transitionBundle) }
         )
       }
-      is ConversationSettingsAction.ShowBadgeSheet -> {
-        ViewBadgeBottomSheetDialogFragment.show(parentFragmentManager, action.recipientId, action.badge)
-      }
+      is ConversationSettingsAction.ShowBadgeSheet -> Unit
       is ConversationSettingsAction.ShowAboutSheet -> {
         AboutSheet.create(action.recipient).show(parentFragmentManager, null)
       }

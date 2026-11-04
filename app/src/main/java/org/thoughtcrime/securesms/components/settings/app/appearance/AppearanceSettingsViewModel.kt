@@ -41,6 +41,7 @@ class AppearanceSettingsViewModel(
 
   override suspend fun processEvent(event: AppearanceSettingsEvent) {
     when (event) {
+      AppearanceSettingsEvent.ScreenResumed -> _state.update { readState().copy(dialog = it.dialog) }
       AppearanceSettingsEvent.NavigateBackClicked -> parentEventEmitter.navigateBack()
 
       is AppearanceSettingsEvent.LanguageSelected -> {
@@ -54,9 +55,19 @@ class AppearanceSettingsViewModel(
       }
 
       is AppearanceSettingsEvent.ThemeSelected -> {
-        AppearanceSettingsRepository.setTheme(event.theme)
+        val dynamicColors = _state.value.dynamicColors
+        AppearanceSettingsRepository.setTheme(event.theme, dynamicColors)
         _state.update { it.copy(theme = event.theme) }
-        _actions.send(AppearanceSettingsAction.ApplySplashScreenTheme(event.theme))
+        _actions.send(AppearanceSettingsAction.ApplySplashScreenTheme(event.theme, dynamicColors))
+      }
+
+      is AppearanceSettingsEvent.DynamicColorsToggled -> {
+        if (AppearanceSettingsRepository.isDynamicColorsAvailable()) {
+          val theme = _state.value.theme
+          AppearanceSettingsRepository.setTheme(theme, event.enabled)
+          _state.update { it.copy(dynamicColors = event.enabled) }
+          _actions.send(AppearanceSettingsAction.ApplySplashScreenTheme(theme, event.enabled))
+        }
       }
 
       AppearanceSettingsEvent.ChatColorAndWallpaperClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AppearanceRoute.Wallpaper)
@@ -91,6 +102,8 @@ class AppearanceSettingsViewModel(
     return AppearanceSettingsState(
       language = AppearanceSettingsRepository.getLanguage(),
       theme = AppearanceSettingsRepository.getTheme(),
+      dynamicColors = AppearanceSettingsRepository.isDynamicColorsEnabled(),
+      isDynamicColorsAvailable = AppearanceSettingsRepository.isDynamicColorsAvailable(),
       messageFontSize = AppearanceSettingsRepository.getMessageFontSize(),
       isCompactNavigationBar = AppearanceSettingsRepository.isCompactNavigationBar(),
       isSystemThemeAvailable = AppearanceSettingsRepository.isSystemThemeAvailable(),

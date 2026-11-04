@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import org.signal.core.ui.compose.theme.SignalTheme
 import org.thoughtcrime.securesms.PassphraseRequiredActivity
 import org.thoughtcrime.securesms.scribbles.StickerSelectResult
+import org.thoughtcrime.securesms.util.DynamicMediaPreviewTheme
 
 /**
  * Lets the user pick a sticker for the image editor, returning it as described by [StickerSearchContract]. Always dark, to
@@ -25,7 +26,10 @@ class StickerSearchActivity : PassphraseRequiredActivity() {
     internal const val EXTRA_FEATURE_STICKER = "stickerSearch.featureSticker"
   }
 
+  private val theme = DynamicMediaPreviewTheme()
+
   override fun onCreate(savedInstanceState: Bundle?, ready: Boolean) {
+    theme.onCreate(this)
     super.onCreate(savedInstanceState, ready)
     enableEdgeToEdge(
       statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -37,6 +41,11 @@ class StickerSearchActivity : PassphraseRequiredActivity() {
         ImageEditorStickerSearch(onResult = ::finishWithResult)
       }
     }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    theme.onResume(this)
   }
 
   private fun finishWithResult(result: StickerSelectResult?) {

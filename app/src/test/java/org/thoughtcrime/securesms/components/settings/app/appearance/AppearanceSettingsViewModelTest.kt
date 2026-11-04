@@ -49,6 +49,8 @@ class AppearanceSettingsViewModelTest {
   val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
 
   private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
+  private var dynamicColors = false
+  private var dynamicColorsAvailable = true
 
   @Before
   fun setUp() {
@@ -57,12 +59,14 @@ class AppearanceSettingsViewModelTest {
 
     every { AppearanceSettingsRepository.getLanguage() } returns "zz"
     every { AppearanceSettingsRepository.getTheme() } returns Theme.SYSTEM
+    every { AppearanceSettingsRepository.isDynamicColorsEnabled() } answers { dynamicColors }
+    every { AppearanceSettingsRepository.isDynamicColorsAvailable() } answers { dynamicColorsAvailable }
     every { AppearanceSettingsRepository.getMessageFontSize() } returns 16
     every { AppearanceSettingsRepository.isCompactNavigationBar() } returns false
     every { AppearanceSettingsRepository.isSystemThemeAvailable() } returns true
     every { AppearanceSettingsRepository.isAppIconSupported() } returns true
     every { AppearanceSettingsRepository.applyLanguage(any()) } just Runs
-    every { AppearanceSettingsRepository.setTheme(any()) } just Runs
+    every { AppearanceSettingsRepository.setTheme(any(), any()) } answers { dynamicColors = secondArg() }
     every { AppearanceSettingsRepository.setMessageFontSize(any()) } just Runs
     every { AppearanceSettingsRepository.setCompactNavigationBar(any()) } just Runs
   }
@@ -91,7 +95,8 @@ class AppearanceSettingsViewModelTest {
         messageFontSize = 22,
         isCompactNavigationBar = true,
         isSystemThemeAvailable = false,
-        isAppIconSupported = false
+        isAppIconSupported = false,
+        isDynamicColorsAvailable = true
       )
     )
   }
@@ -155,9 +160,63 @@ class AppearanceSettingsViewModelTest {
 
     viewModel.onEvent(AppearanceSettingsEvent.ThemeSelected(Theme.DARK))
 
-    verify { AppearanceSettingsRepository.setTheme(Theme.DARK) }
+    verify { AppearanceSettingsRepository.setTheme(Theme.DARK, false) }
     assertThat(viewModel.state.value.theme).isEqualTo(Theme.DARK)
     assertThat(actions).isEqualTo(listOf(AppearanceSettingsAction.ApplySplashScreenTheme(Theme.DARK)))
+  }
+
+  @Test
+  fun `theme selection preserves the saved dynamic choice even on an unsupported platform`() = runTest(testDispatcher) {
+    dynamicColors = true
+    dynamicColorsAvailable = false
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AppearanceSettingsEvent.ThemeSelected(Theme.LIGHT))
+
+    verify { AppearanceSettingsRepository.setTheme(Theme.LIGHT, true) }
+    assertThat(viewModel.state.value.dynamicColors).isTrue()
+    assertThat(actions).containsExactly(AppearanceSettingsAction.ApplySplashScreenTheme(Theme.LIGHT, true))
+  }
+
+  @Test
+  fun `dynamic colors use the same theme setter and splash action`() = runTest(testDispatcher) {
+    dynamicColors = true
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AppearanceSettingsEvent.DynamicColorsToggled(false))
+
+    verify { AppearanceSettingsRepository.setTheme(Theme.SYSTEM, false) }
+    assertThat(viewModel.state.value.dynamicColors).isFalse()
+    assertThat(actions).containsExactly(AppearanceSettingsAction.ApplySplashScreenTheme(Theme.SYSTEM, false))
+  }
+
+  @Test
+  fun `unsupported stale dynamic toggle cannot overwrite a stored choice`() = runTest(testDispatcher) {
+    dynamicColors = true
+    dynamicColorsAvailable = false
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(AppearanceSettingsEvent.DynamicColorsToggled(false))
+
+    verify(exactly = 0) { AppearanceSettingsRepository.setTheme(any(), any()) }
+    assertThat(viewModel.state.value.dynamicColors).isTrue()
+    assertThat(actions).isEmpty()
+  }
+
+  @Test
+  fun `resuming reads appearance choices without discarding a pending language confirmation`() = runTest(testDispatcher) {
+    val viewModel = createViewModel()
+    viewModel.onEvent(AppearanceSettingsEvent.LanguageSelected("de"))
+    dynamicColors = true
+
+    viewModel.onEvent(AppearanceSettingsEvent.ScreenResumed)
+
+    assertThat(viewModel.state.value.dynamicColors).isTrue()
+    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.ConfirmLanguageChange("de"))
+    verify(exactly = 0) { AppearanceSettingsRepository.applyLanguage(any()) }
   }
 
   @Test

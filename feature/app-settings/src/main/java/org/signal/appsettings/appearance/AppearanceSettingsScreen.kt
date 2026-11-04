@@ -45,12 +45,14 @@ import org.signal.core.ui.compose.SignalIcons
 import org.signal.core.ui.compose.SignalPreviewWrapper
 import org.signal.core.ui.compose.horizontalGutters
 import org.signal.core.ui.compose.theme.SignalTheme
+import java.util.Locale
 
 @VisibleForTesting
 object AppearanceSettingsTestTags {
   const val SCROLLER = "scroller"
   const val ROW_LANGUAGE = "row-language"
   const val ROW_THEME = "row-theme"
+  const val ROW_DYNAMIC_COLORS = "row-dynamic-colors"
   const val ROW_CHAT_COLOR_AND_WALLPAPER = "row-chat-color-and-wallpaper"
   const val ROW_APP_ICON = "row-app-icon"
   const val ROW_MESSAGE_FONT_SIZE = "row-message-font-size"
@@ -67,7 +69,13 @@ object AppearanceSettingsTestTags {
 fun AppearanceSettingsScreen(
   state: AppearanceSettingsState,
   onEvent: (AppearanceSettingsEvent) -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  languageLabels: Array<String>? = null,
+  languageValues: Array<String>? = null,
+  themeLabels: Array<String>? = null,
+  themeValues: Array<String>? = null,
+  dynamicColorsTitle: String? = null,
+  dynamicColorsDescription: String? = null
 ) {
   Scaffolds.Settings(
     title = stringResource(R.string.preferences__appearance),
@@ -83,8 +91,8 @@ fun AppearanceSettingsScreen(
       item {
         Rows.RadioListRow(
           text = stringResource(R.string.preferences__language),
-          labels = stringArrayResource(R.array.language_entries),
-          values = stringArrayResource(R.array.language_values),
+          labels = languageLabels ?: stringArrayResource(R.array.language_entries),
+          values = languageValues ?: stringArrayResource(R.array.language_values),
           selectedValue = state.language,
           onSelected = { onEvent(AppearanceSettingsEvent.LanguageSelected(it)) },
           modifier = Modifier.testTag(AppearanceSettingsTestTags.ROW_LANGUAGE)
@@ -92,16 +100,35 @@ fun AppearanceSettingsScreen(
       }
 
       item {
-        val themes = state.availableThemes
+        val themes = if (themeLabels != null && themeValues != null) {
+          require(themeLabels.size == themeValues.size)
+          themeValues.mapIndexed { index, value ->
+            AppearanceSettingsState.Theme.valueOf(value.uppercase(Locale.ROOT)) to themeLabels[index]
+          }.filter { it.first in state.availableThemes }
+        } else {
+          state.availableThemes.map { it to stringResource(it.labelRes) }
+        }
 
         Rows.RadioListRow(
           text = stringResource(R.string.preferences__theme),
-          labels = themes.map { stringResource(it.labelRes) }.toTypedArray(),
-          values = themes.map { it.name }.toTypedArray(),
+          labels = themes.map { it.second }.toTypedArray(),
+          values = themes.map { it.first.name }.toTypedArray(),
           selectedValue = state.theme.name,
           onSelected = { onEvent(AppearanceSettingsEvent.ThemeSelected(AppearanceSettingsState.Theme.valueOf(it))) },
           modifier = Modifier.testTag(AppearanceSettingsTestTags.ROW_THEME)
         )
+      }
+
+      if (state.isDynamicColorsAvailable && dynamicColorsTitle != null) {
+        item {
+          Rows.ToggleRow(
+            checked = state.dynamicColors,
+            text = dynamicColorsTitle,
+            label = dynamicColorsDescription,
+            onCheckChanged = { onEvent(AppearanceSettingsEvent.DynamicColorsToggled(it)) },
+            modifier = Modifier.testTag(AppearanceSettingsTestTags.ROW_DYNAMIC_COLORS)
+          )
+        }
       }
 
       item {

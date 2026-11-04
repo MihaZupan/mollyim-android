@@ -9,7 +9,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.PluralsRes;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
-import androidx.core.content.ContextCompat;
 
 import org.signal.archive.proto.GenericGroupUpdate;
 import org.signal.archive.proto.GroupAdminStatusUpdate;
@@ -52,6 +51,7 @@ import org.signal.archive.proto.SelfInvitedToGroupUpdate;
 import org.signal.core.models.ServiceId;
 import org.signal.core.models.recipients.RecipientId;
 import org.signal.core.ui.fonts.SignalSymbols.Glyph;
+import org.signal.core.ui.util.ThemeUtil;
 import org.signal.core.util.BidiUtil;
 import org.signal.core.util.UuidUtil;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
@@ -1685,7 +1685,7 @@ final class GroupsV2UpdateMessageProducer {
         String beforeChunk = template.substring(startIndex, nearestPosition);
 
         builder.append(beforeChunk);
-        builder.append(SpanUtil.clickable(Recipient.resolved(recipientId).getDisplayName(context), ContextCompat.getColor(context, R.color.conversation_item_update_text_color), v -> {
+        builder.append(SpanUtil.clickable(Recipient.resolved(recipientId).getDisplayName(context), ThemeUtil.getThemedColor(context, R.attr.conversation_item_update_text_color), v -> {
           if (!recipientId.isUnknown() && clickHandler != null) {
             clickHandler.accept(recipientId);
           }

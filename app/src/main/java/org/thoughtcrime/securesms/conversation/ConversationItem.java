@@ -1316,7 +1316,7 @@ public final class ConversationItem extends RelativeLayout implements BindableCo
     }
 
     return new SpannableStringBuilder()
-              .append(SpanUtil.color(textColor, SignalSymbols.getSpannedString(getContext(), SignalSymbols.Weight.REGULAR, SignalSymbols.Glyph.X_CIRCLE, -1)))
+              .append(SpanUtil.color(textColor, SignalSymbols.getSpannedString(getContext(), SignalSymbols.Weight.REGULAR, SignalSymbols.Glyph.X_CIRCLE, null)))
               .append(" ")
               .append(body);
   }

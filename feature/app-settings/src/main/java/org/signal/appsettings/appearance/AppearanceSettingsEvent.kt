@@ -9,6 +9,8 @@ package org.signal.appsettings.appearance
  * Reminder that these events are logged, so don't include anything sensitive in the toString.
  */
 sealed interface AppearanceSettingsEvent {
+  data object ScreenResumed : AppearanceSettingsEvent
+  data class DynamicColorsToggled(val enabled: Boolean) : AppearanceSettingsEvent
 
   /** The user tapped the navigation (back) icon. */
   data object NavigateBackClicked : AppearanceSettingsEvent

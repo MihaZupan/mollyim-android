@@ -13,10 +13,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.signal.core.ui.util.SpanUtil
+import org.signal.core.ui.util.ThemeUtil
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.keyvalue.SignalStore
@@ -24,7 +24,6 @@ import org.thoughtcrime.securesms.messagerequests.MessageRequestState
 import org.thoughtcrime.securesms.messagerequests.MessageRequestsBottomView
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.util.visible
-import org.signal.core.ui.R as CoreUiR
 
 /**
  * A one-stop-view for all your conversation input disabled needs.
@@ -224,7 +223,7 @@ class DisabledInputView @JvmOverloads constructor(
   }
 
   fun setWallpaperEnabled(wallpaperEnabled: Boolean) {
-    color = ContextCompat.getColor(context, if (wallpaperEnabled) R.color.wallpaper_bubble_color else CoreUiR.color.signal_colorBackground)
+    color = ThemeUtil.getThemedColor(context, if (wallpaperEnabled) R.color.wallpaper_bubble_color else com.google.android.material.R.attr.colorSurface)
     setBackgroundColor(color)
   }
 

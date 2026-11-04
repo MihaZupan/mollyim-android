@@ -9,7 +9,7 @@ object ChatColorsPalette {
     // region Default
 
     @JvmField
-    val ULTRAMARINE = ChatColors.forColor(
+    val INDIGO = ChatColors.forColor(
       ChatColors.Id.BuiltIn,
       0xFF315FF4.toInt()
     )
@@ -40,7 +40,7 @@ object ChatColorsPalette {
     val BLUE = ChatColors.forColor(ChatColors.Id.BuiltIn, 0xFF336BA3.toInt())
 
     @JvmField
-    val INDIGO = ChatColors.forColor(ChatColors.Id.BuiltIn, 0xFF6058CA.toInt())
+    val ULTRAMARINE = ChatColors.forColor(ChatColors.Id.BuiltIn, 0xFF6448E5.toInt())
 
     @JvmField
     val VIOLET = ChatColors.forColor(ChatColors.Id.BuiltIn, 0xFF9932CB.toInt())
@@ -65,14 +65,7 @@ object ChatColorsPalette {
     // region Gradients
 
     @JvmField
-    val EMBER = ChatColors.forGradient(
-      ChatColors.Id.BuiltIn,
-      ChatColors.LinearGradient(
-        168f,
-        intArrayOf(0xFFE57C00.toInt(), 0xFF5E0000.toInt()),
-        floatArrayOf(0f, 1f)
-      )
-    )
+    val EMBER = ULTRAMARINE
 
     @JvmField
     val MIDNIGHT = ChatColors.forGradient(

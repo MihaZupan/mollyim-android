@@ -13,8 +13,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -24,6 +26,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -82,6 +85,7 @@ class IndividualSettingsViewModelTest {
     coEvery { repository.getIdentity(RECIPIENT_ID) } returns null
     coEvery { repository.getSharedMedia(any(), any()) } returns emptyList()
     coEvery { repository.getGroupMembership(RECIPIENT_ID) } returns emptyList()
+    coEvery { repository.getLinkedDeviceCount(any()) } returns null
   }
 
   @After
@@ -198,6 +202,65 @@ class IndividualSettingsViewModelTest {
   }
 
   @Test
+  fun `linked device count distinguishes unknown from a known zero`() = runTest(testDispatcher) {
+    val viewModel = createViewModel()
+    assertEquals(null, viewModel.state.value.linkedDevices)
+
+    coEvery { repository.getLinkedDeviceCount(any()) } returns 0
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual()))
+
+    assertEquals(0, viewModel.state.value.linkedDevices)
+
+    coEvery { repository.getLinkedDeviceCount(any()) } returns null
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual()))
+
+    assertEquals(null, viewModel.state.value.linkedDevices)
+  }
+
+  @Test
+  fun `recipient changes clear the linked device count while a new count loads`() = runTest(testDispatcher) {
+    coEvery { repository.getLinkedDeviceCount(any()) } returns 2
+    val viewModel = createViewModel()
+    assertEquals(2, viewModel.state.value.linkedDevices)
+
+    val count = CompletableDeferred<Int?>()
+    coEvery { repository.getLinkedDeviceCount(any()) } coAnswers { count.await() }
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual()))
+    assertEquals(null, viewModel.state.value.linkedDevices)
+
+    count.complete(3)
+    assertEquals(3, viewModel.state.value.linkedDevices)
+  }
+
+  @Test
+  fun `a stale local session lookup cannot restore a count after a role change`() = runTest(testDispatcher) {
+    val count = CompletableDeferred<Int?>()
+    coEvery { repository.getLinkedDeviceCount(any()) } coAnswers {
+      withContext(NonCancellable) { count.await() }
+    }
+    val viewModel = createViewModel()
+
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual(isSelf = true)))
+    count.complete(4)
+
+    assertEquals(null, viewModel.state.value.linkedDevices)
+    coVerify(exactly = 1) { repository.getLinkedDeviceCount(any()) }
+  }
+
+  @Test
+  fun `unregistered and group recipients clear the linked device count without a lookup`() = runTest(testDispatcher) {
+    coEvery { repository.getLinkedDeviceCount(any()) } returns 2
+    val viewModel = createViewModel()
+
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual(isRegistered = false)))
+    assertEquals(null, viewModel.state.value.linkedDevices)
+    viewModel.onEvent(IndividualSettingsEvent.RecipientChanged(individual(isGroup = true)))
+    assertEquals(null, viewModel.state.value.linkedDevices)
+
+    coVerify(exactly = 1) { repository.getLinkedDeviceCount(any()) }
+  }
+
+  @Test
   fun `groups in common are shown in full when there are six or fewer`() = runTest(testDispatcher) {
     every { repository.observeGroupsInCommon(RECIPIENT_ID) } returns flowOf(groups(6))
 
@@ -265,14 +328,14 @@ class IndividualSettingsViewModelTest {
   }
 
   @Test
-  fun `badge click opens the badge sheet`() = runTest(testDispatcher) {
+  fun `retired badge click does not open a promotion sheet`() = runTest(testDispatcher) {
     val badge = mockk<Badge>()
     val viewModel = createViewModel()
     val actions = collectActions(viewModel)
 
     viewModel.onEvent(IndividualSettingsEvent.BadgeClicked(badge))
 
-    assertEquals(ConversationSettingsAction.ShowBadgeSheet(RECIPIENT_ID, badge), actions.single())
+    assertTrue(actions.isEmpty())
   }
 
   @Test
@@ -765,7 +828,9 @@ class IndividualSettingsViewModelTest {
       hasE164: Boolean = false,
       shouldShowE164: Boolean = false,
       expiresInSeconds: Int = 0,
-      isMuted: Boolean = false
+      isMuted: Boolean = false,
+      isRegistered: Boolean = true,
+      isGroup: Boolean = false
     ): Recipient {
       return mockk<Recipient>(relaxed = true) {
         every { id } returns RECIPIENT_ID
@@ -777,10 +842,10 @@ class IndividualSettingsViewModelTest {
         every { this@mockk.shouldShowE164 } returns shouldShowE164
         every { this@mockk.expiresInSeconds } returns expiresInSeconds
         every { this@mockk.isMuted } returns isMuted
-        every { isIndividual } returns (!isSelf && !isReleaseNotes)
-        every { isGroup } returns false
-        every { isRegistered } returns true
-        every { registered } returns RecipientTable.RegisteredState.REGISTERED
+        every { isIndividual } returns (!isSelf && !isReleaseNotes && !isGroup)
+        every { this@mockk.isGroup } returns isGroup
+        every { this@mockk.isRegistered } returns isRegistered
+        every { registered } returns if (isRegistered) RecipientTable.RegisteredState.REGISTERED else RecipientTable.RegisteredState.NOT_REGISTERED
       }
     }
 

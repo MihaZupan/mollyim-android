@@ -10,7 +10,6 @@ import org.signal.appsettings.appearance.AppearanceSettingsState
 import org.signal.core.util.AppUtil
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.EmojiSearchIndexDownloadJob
-import org.thoughtcrime.securesms.keyvalue.PlainTextKeyValueStore
 import org.thoughtcrime.securesms.keyvalue.SettingsValues
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.util.DynamicTheme
@@ -20,20 +19,24 @@ import org.thoughtcrime.securesms.util.DynamicTheme
  */
 object AppearanceSettingsRepository {
 
-  fun getLanguage(): String = PlainTextKeyValueStore.language
+  fun getLanguage(): String = SignalStore.settings.language
 
   /** Stores the new language and restarts the app so it takes effect. */
   fun applyLanguage(language: String) {
-    PlainTextKeyValueStore.language = language
+    SignalStore.settings.language = language
     EmojiSearchIndexDownloadJob.scheduleImmediately()
     AppUtil.restart(AppDependencies.application)
   }
 
   fun getTheme(): AppearanceSettingsState.Theme = SignalStore.settings.theme.toAppearanceTheme()
 
-  fun setTheme(theme: AppearanceSettingsState.Theme) {
-    SignalStore.settings.theme = theme.toSettingsTheme()
+  fun setTheme(theme: AppearanceSettingsState.Theme, useDynamicColors: Boolean) {
+    SignalStore.settings.setTheme(theme.toSettingsTheme(), useDynamicColors)
   }
+
+  fun isDynamicColorsEnabled(): Boolean = SignalStore.settings.isDynamicColorsEnabled
+
+  fun isDynamicColorsAvailable(): Boolean = DynamicTheme.isDynamicColorsAvailable()
 
   fun getMessageFontSize(): Int = SignalStore.settings.messageFontSize
 

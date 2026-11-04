@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.signal.core.models.badges.Badge
@@ -90,10 +91,28 @@ fun IndividualSettingsScreen(
         showSystemContactBadge = state.recipient.isSystemContact,
         badges = state.recipient.badges,
         onAvatarClick = { onEvent(IndividualSettingsEvent.AvatarClicked) },
-        onBadgeClick = { onEvent(IndividualSettingsEvent.BadgeClicked(it)) },
         onNameClick = { onEvent(IndividualSettingsEvent.HeadlineClicked) },
         onAvatarViewCreated = onAvatarViewCreated
       )
+    }
+
+    state.linkedDevices?.let { count ->
+      item {
+        Text(
+          text = if (count > 0) {
+            pluralStringResource(R.plurals.BioTextPreference_n_linked_devices, count, count)
+          } else {
+            stringResource(R.string.BioTextPreference_no_linked_devices)
+          },
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = TextAlign.Center,
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp)
+            .padding(top = 8.dp)
+        )
+      }
     }
 
     if (state.displayInternalRecipientDetails) {
@@ -169,7 +188,7 @@ fun IndividualSettingsScreen(
 
       ContactLinkState.ADD -> item {
         Rows.TextRow(
-          text = stringResource(R.string.ConversationSettingsFragment__add_as_a_contact),
+          text = stringResource(R.string.ConversationSettingsFragment__add_to_your_phones_contacts),
           icon = painterResource(R.drawable.ic_plus_24),
           onClick = { onEvent(IndividualSettingsEvent.AddAsContactClicked) }
         )
@@ -192,7 +211,7 @@ fun IndividualSettingsScreen(
       onEvent = { onEvent(IndividualSettingsEvent.MediaRailEvent(it)) }
     )
 
-    badgeSection(state, onEvent)
+    badgeSection(state)
     groupsInCommonSection(state, onEvent)
 
     if (state.canModifyBlockedState) {
@@ -221,11 +240,8 @@ fun IndividualSettingsScreen(
   )
 }
 
-/** The recipient's badges, and a nudge toward getting your own. */
-private fun LazyListScope.badgeSection(
-  state: IndividualSettingsState,
-  onEvent: (IndividualSettingsEvent) -> Unit
-) {
+/** The recipient's badges, without donation promotion or click actions. */
+private fun LazyListScope.badgeSection(state: IndividualSettingsState) {
   if (state.recipient.badges.isEmpty()) {
     return
   }
@@ -235,19 +251,7 @@ private fun LazyListScope.badgeSection(
   item { Texts.SectionHeader(text = stringResource(R.string.ManageProfileFragment_badges)) }
 
   item {
-    BadgeRow(
-      badges = state.recipient.badges,
-      onBadgeClick = { onEvent(IndividualSettingsEvent.BadgeClicked(it)) }
-    )
-  }
-
-  item {
-    Text(
-      text = stringResource(R.string.ConversationSettingsFragment__get_badges),
-      style = MaterialTheme.typography.bodyMedium,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-      modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-    )
+    BadgeRow(badges = state.recipient.badges)
   }
 }
 
@@ -309,7 +313,6 @@ private fun LazyListScope.groupsInCommonSection(
 @Composable
 private fun BadgeRow(
   badges: List<Badge>,
-  onBadgeClick: (Badge) -> Unit,
   modifier: Modifier = Modifier
 ) {
   FlowRow(
@@ -325,7 +328,9 @@ private fun BadgeRow(
         modifier = Modifier.size(BADGE_SIZE)
       ) { badgeView ->
         badgeView.setBadge(badge)
-        badgeView.setOnClickListener { onBadgeClick(badge) }
+        badgeView.setOnClickListener(null)
+        badgeView.isClickable = false
+        badgeView.isFocusable = false
       }
     }
   }

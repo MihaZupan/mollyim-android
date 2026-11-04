@@ -73,7 +73,7 @@ fun ConversationHeader(
   showSystemContactBadge: Boolean = false,
   badges: List<Badge> = emptyList(),
   onAvatarClick: () -> Unit = {},
-  onBadgeClick: (Badge) -> Unit = {},
+  onBadgeClick: ((Badge) -> Unit)? = null,
   onNameClick: (() -> Unit)? = null,
   onAvatarViewCreated: (View) -> Unit = {},
   underName: @Composable ColumnScope.() -> Unit = {}
@@ -123,7 +123,7 @@ private fun AvatarHeader(
   storyViewState: StoryViewState,
   badges: List<Badge>,
   onAvatarClick: () -> Unit,
-  onBadgeClick: (Badge) -> Unit,
+  onBadgeClick: ((Badge) -> Unit)?,
   onAvatarViewCreated: (View) -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -167,7 +167,9 @@ private fun AvatarHeader(
             .size(BADGE_SIZE)
         ) { badgeView ->
           badgeView.setBadgeFromRecipient(recipient)
-          badgeView.setOnClickListener { onBadgeClick(badges.first()) }
+          badgeView.setOnClickListener(onBadgeClick?.let { onClick -> View.OnClickListener { onClick(badges.first()) } })
+          badgeView.isClickable = onBadgeClick != null
+          badgeView.isFocusable = onBadgeClick != null
         }
       }
     }

@@ -122,7 +122,7 @@
     <color name="conversation_mention_background_color">@color/core_grey_20</color>
     <color name="story_bullet_color">@color/core_grey_20</color>
 
-    <color name="login_top_background">@color/core_ultramarine</color>
+    <color name="login_top_background">@color/white</color>
 
     <color name="low_priority_button_text_color">@color/core_grey_70</color>
 
@@ -135,7 +135,7 @@
 
     <color name="reactions_pill_text_color">@color/signal_colorOnSurfaceVariant</color>
     <color name="reactions_pill_selected_text_color">@color/core_grey_75</color>
-    <color name="reactions_screen_dark_shade_color">#6670747D</color>
+    <color name="reactions_screen_dark_shade_color">#6676727F</color>
     <color name="reactions_screen_light_shade_color">@color/transparent_white_20</color>
     <color name="reactions_overlay_any_emoji_background">@color/signal_colorSurfaceVariant_16_no_alpha</color>
     <color name="reactions_overlay_any_emoji_foreground">@color/signal_colorOnSurfaceVariant</color>
@@ -184,7 +184,7 @@
 
     <color name="voice_note_player_view_background">@color/signal_colorSurface1</color>
 
-    <color name="num_pad_key_background">#dce5f9</color>
+    <color name="num_pad_key_background">#E3DBF9</color>
 
     <color name="top_toast_background_color">@color/core_white</color>
 
@@ -214,4 +214,6 @@
     <color name="release_notes_header_background">#FFF6F7FF</color>
     <color name="release_notes_toolbar_scrolled">#FFEAEDF8</color>
     <color name="release_notes_toolbar_transparent">#00EAEDF8</color>
+    <color name="settings_chat_wallpaper_preview_background">@color/core_white</color>
+
 </resources>

@@ -62,19 +62,14 @@ public final class LiveUpdateMessage {
   }
 
   private static @NonNull SpannableString toSpannable(@NonNull Context context, @NonNull UpdateDescription updateDescription, @NonNull Spannable string, @ColorInt int defaultTint, boolean adjustPosition) {
-    boolean             isDarkTheme = ThemeUtil.isDarkTheme(context);
-    SignalSymbols.Glyph glyph       = updateDescription.getGlyph();
-    int                 tint        = isDarkTheme ? updateDescription.getDarkTint() : updateDescription.getLightTint();
-
-    if (tint == 0) {
-      tint = defaultTint;
-    }
+    SignalSymbols.Glyph glyph = updateDescription.getGlyph();
+    int                 tint  = getMessageThemedColor(context, updateDescription, defaultTint);
 
     if (glyph == null) {
       return new SpannableString(string);
     } else {
       SpannableStringBuilder builder   = new SpannableStringBuilder();
-      CharSequence           glyphChar = SignalSymbols.getSpannedString(context, SignalSymbols.Weight.REGULAR, glyph, -1);
+      CharSequence           glyphChar = SignalSymbols.getSpannedString(context, SignalSymbols.Weight.REGULAR, glyph, null);
 
       builder.append(BidiUtil.BidiCodepoint.LRI);
       builder.append(glyphChar);
@@ -84,5 +79,12 @@ public final class LiveUpdateMessage {
 
       return new SpannableString(SpanUtil.color(tint, builder));
     }
+  }
+
+  public static int getMessageThemedColor(@NonNull Context context, @NonNull UpdateDescription updateDescription, @ColorInt int defaultTint) {
+    boolean isDarkTheme = ThemeUtil.isDarkTheme(context);
+    int     tint        = isDarkTheme ? updateDescription.getDarkTint() : updateDescription.getLightTint();
+
+    return tint == 0 ? defaultTint : tint;
   }
 }

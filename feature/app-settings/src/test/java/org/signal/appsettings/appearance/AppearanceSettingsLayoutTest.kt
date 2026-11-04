@@ -28,6 +28,16 @@ class AppearanceSettingsLayoutTest : SignalLayoutStressTest() {
   }
 
   @Test
+  fun `Molly dynamic color choice`() = assertPassesLayoutChecks {
+    AppearanceSettingsScreen(
+      state = populated.copy(dynamicColors = true, isDynamicColorsAvailable = true),
+      onEvent = {},
+      dynamicColorsTitle = "Dynamic colors",
+      dynamicColorsDescription = "Use system colors"
+    )
+  }
+
+  @Test
   fun `without system theme or app icon`() = assertPassesLayoutChecks {
     AppearanceSettingsScreen(state = populated.copy(isSystemThemeAvailable = false, isAppIconSupported = false), onEvent = {})
   }
