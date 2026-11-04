@@ -40,10 +40,8 @@ import org.signal.appsettings.privacy.PrivacySettingsState.Snackbar
 import org.signal.appsettings.routes.AppSettingsNavigationEvent
 import org.signal.appsettings.routes.AppSettingsRoute
 import org.thoughtcrime.securesms.testing.CoroutineDispatcherRule
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PrivacySettingsViewModelTest {
@@ -57,12 +55,12 @@ class PrivacySettingsViewModelTest {
   private var typingIndicators = false
   private var screenSecurity = false
   private var incognitoKeyboard = false
-  private var paymentLock = false
   private var deviceSecure = true
   private var passphraseEnabled = false
-  private var passphraseInitialized = true
-  private var passphraseTimeoutEnabled = false
-  private var passphraseTimeout: Duration = 5.minutes
+  private var passphraseTriggers = setOf("timeout")
+  private var passphraseTimeout = 300L
+  private var screenSecurityForced = false
+  private var canChangeMessagingSettings = true
   private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
 
   @Before
@@ -79,20 +77,20 @@ class PrivacySettingsViewModelTest {
     coEvery { PrivacySettingsRepository.setTypingIndicatorsEnabled(any()) } answers { typingIndicators = firstArg() }
     every { PrivacySettingsRepository.getUniversalExpireTimer() } returns 1.days
     every { PrivacySettingsRepository.isScreenLockEnabled() } returns false
-    every { PrivacySettingsRepository.getScreenLockTimeout() } returns Duration.ZERO
     every { PrivacySettingsRepository.isScreenSecurityEnabled() } answers { screenSecurity }
     every { PrivacySettingsRepository.setScreenSecurityEnabled(any()) } answers { screenSecurity = firstArg() }
     every { PrivacySettingsRepository.isIncognitoKeyboardEnabled() } answers { incognitoKeyboard }
     every { PrivacySettingsRepository.setIncognitoKeyboardEnabled(any()) } answers { incognitoKeyboard = firstArg() }
-    every { PrivacySettingsRepository.isPaymentLockEnabled() } answers { paymentLock }
-    every { PrivacySettingsRepository.setPaymentLockEnabled(any()) } answers { paymentLock = firstArg() }
-    every { PrivacySettingsRepository.isObsoletePassphraseEnabled() } answers { passphraseEnabled }
-    every { PrivacySettingsRepository.isObsoletePassphraseInitialized() } answers { passphraseInitialized }
-    coEvery { PrivacySettingsRepository.disableObsoletePassphrase() } answers { passphraseEnabled = false }
-    every { PrivacySettingsRepository.isObsoletePassphraseTimeoutEnabled() } answers { passphraseTimeoutEnabled }
-    every { PrivacySettingsRepository.setObsoletePassphraseTimeoutEnabled(any()) } answers { passphraseTimeoutEnabled = firstArg() }
-    every { PrivacySettingsRepository.getObsoletePassphraseTimeout() } answers { passphraseTimeout }
-    every { PrivacySettingsRepository.setObsoletePassphraseTimeout(any()) } just Runs
+    every { PrivacySettingsRepository.isPassphraseLockEnabled() } answers { passphraseEnabled }
+    every { PrivacySettingsRepository.setPassphraseLockEnabled(any()) } answers { passphraseEnabled = firstArg() }
+    every { PrivacySettingsRepository.getPassphraseLockTriggers() } answers { passphraseTriggers }
+    every { PrivacySettingsRepository.setPassphraseLockTriggers(any()) } answers { passphraseTriggers = firstArg() }
+    every { PrivacySettingsRepository.getPassphraseLockTimeout() } answers { passphraseTimeout }
+    every { PrivacySettingsRepository.setPassphraseLockTimeout(any()) } answers { passphraseTimeout = firstArg() }
+    every { PrivacySettingsRepository.isBlockUnknownEnabled() } returns false
+    every { PrivacySettingsRepository.setBlockUnknownEnabled(any()) } just Runs
+    every { PrivacySettingsRepository.isScreenSecurityForced() } answers { screenSecurityForced }
+    every { PrivacySettingsRepository.canChangeMessagingSettings() } answers { canChangeMessagingSettings }
   }
 
   @After
@@ -104,12 +102,10 @@ class PrivacySettingsViewModelTest {
   @Test
   fun `initial state is read out of the repository`() = runTest(testDispatcher) {
     readReceipts = true
-    paymentLock = true
 
     val state = createViewModel().state.value
 
     assertThat(state.readReceipts).isTrue()
-    assertThat(state.paymentLock).isTrue()
     assertThat(state.universalExpireTimer).isEqualTo(1.days)
     assertThat(state.scrollToPaymentLock).isFalse()
     assertThat(state.isDeviceSecure).isTrue()
@@ -129,13 +125,10 @@ class PrivacySettingsViewModelTest {
   fun `ScreenResumed picks up settings changed while away`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
     deviceSecure = false
-    paymentLock = true
 
     viewModel.onEvent(PrivacySettingsEvent.ScreenResumed)
 
     assertThat(viewModel.state.value.isDeviceSecure).isFalse()
-    assertThat(viewModel.state.value.paymentLock).isTrue()
-    assertThat(viewModel.state.value.isPaymentLockOn).isFalse()
   }
 
   @Test
@@ -149,13 +142,17 @@ class PrivacySettingsViewModelTest {
   }
 
   @Test
-  fun `ScrolledToPaymentLock clears the scroll request`() = runTest(testDispatcher) {
+  fun `legacy wallet scroll requests remain inert`() = runTest(testDispatcher) {
     val viewModel = createViewModel(scrollToPaymentLock = true)
-    assertThat(viewModel.state.value.scrollToPaymentLock).isTrue()
+    val initialState = viewModel.state.value
+    val actions = collectActions(viewModel.actions)
+    assertThat(initialState.scrollToPaymentLock).isFalse()
 
     viewModel.onEvent(PrivacySettingsEvent.ScrolledToPaymentLock)
 
-    assertThat(viewModel.state.value.scrollToPaymentLock).isFalse()
+    assertThat(viewModel.state.value).isEqualTo(initialState)
+    assertThat(actions).isEmpty()
+    assertThat(navigationEvents).isEmpty()
   }
 
   @Test
@@ -199,47 +196,31 @@ class PrivacySettingsViewModelTest {
   }
 
   @Test
-  fun `EnablePaymentLockClicked turns payment lock on when the device is secure`() = runTest(testDispatcher) {
-    val viewModel = createViewModel()
+  fun `retired wallet events do not access storage navigate or emit actions`() = runTest(testDispatcher) {
+    val retiredEvents = listOf(
+      PrivacySettingsEvent.EnablePaymentLockClicked,
+      PrivacySettingsEvent.PaymentLockDisableAuthenticated,
+      PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked
+    )
 
-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
+    for (secure in listOf(true, false)) {
+      deviceSecure = secure
+      val viewModel = createViewModel()
+      val actions = collectActions(viewModel.actions)
+      viewModel.onEvent(PrivacySettingsEvent.ScreenResumed)
+      val initialState = viewModel.state.value
 
-    assertThat(viewModel.state.value.paymentLock).isTrue()
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
-  }
+      for (event in retiredEvents) {
+        viewModel.onEvent(event)
+        assertThat(viewModel.state.value).isEqualTo(initialState)
+      }
 
-  @Test
-  fun `EnablePaymentLockClicked explains the device needs a screen lock when it has none`() = runTest(testDispatcher) {
-    deviceSecure = false
-    val viewModel = createViewModel()
+      assertThat(actions).isEmpty()
+      assertThat(navigationEvents).isEmpty()
+    }
 
-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
-
+    verify(exactly = 0) { PrivacySettingsRepository.isPaymentLockEnabled() }
     verify(exactly = 0) { PrivacySettingsRepository.setPaymentLockEnabled(any()) }
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.PaymentLockNeedsDeviceSecurity)
-  }
-
-  @Test
-  fun `OpenDeviceSecuritySettingsClicked closes the dialog and opens system settings`() = runTest(testDispatcher) {
-    deviceSecure = false
-    val viewModel = createViewModel()
-    val actions = collectActions(viewModel.actions)
-
-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
-    viewModel.onEvent(PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked)
-
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
-    assertThat(actions).containsExactly(PrivacySettingsAction.OpenDeviceSecuritySettings)
-  }
-
-  @Test
-  fun `PaymentLockDisableAuthenticated turns payment lock off`() = runTest(testDispatcher) {
-    paymentLock = true
-    val viewModel = createViewModel()
-
-    viewModel.onEvent(PrivacySettingsEvent.PaymentLockDisableAuthenticated)
-
-    assertThat(viewModel.state.value.paymentLock).isFalse()
   }
 
   @Test
@@ -254,41 +235,45 @@ class PrivacySettingsViewModelTest {
   }
 
   @Test
-  fun `DisablePassphraseClicked asks for confirmation before disabling`() = runTest(testDispatcher) {
+  fun `passphrase toggles request the cryptographic dialog without changing lock policy`() = runTest(testDispatcher) {
     passphraseEnabled = true
     val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
 
-    viewModel.onEvent(PrivacySettingsEvent.DisablePassphraseClicked)
+    viewModel.onEvent(PrivacySettingsEvent.PassphraseLockToggled(false))
 
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.ConfirmDisablePassphrase)
-    coVerify(exactly = 0) { PrivacySettingsRepository.disableObsoletePassphrase() }
+    assertThat(actions).containsExactly(PrivacySettingsAction.ChangePassphraseProtection(false))
+    assertThat(viewModel.state.value.passphraseLock).isTrue()
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockEnabled(any()) }
   }
 
   @Test
-  fun `DisablePassphraseConfirmed disables the passphrase`() = runTest(testDispatcher) {
+  fun `obsolete Signal disable event cannot bypass Molly cryptographic dialog`() = runTest(testDispatcher) {
     passphraseEnabled = true
     val viewModel = createViewModel()
 
-    viewModel.onEvent(PrivacySettingsEvent.DisablePassphraseClicked)
     viewModel.onEvent(PrivacySettingsEvent.DisablePassphraseConfirmed)
 
-    coVerify { PrivacySettingsRepository.disableObsoletePassphrase() }
-    assertThat(viewModel.state.value.isObsoletePassphraseEnabled).isFalse()
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockEnabled(any()) }
+    assertThat(viewModel.state.value.passphraseLock).isTrue()
     assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
   }
 
   @Test
-  fun `DisablePassphraseConfirmed is ignored without the confirmation dialog`() = runTest(testDispatcher) {
+  fun `legacy disable click still requires the Molly cryptographic dialog`() = runTest(testDispatcher) {
     passphraseEnabled = true
     val viewModel = createViewModel()
 
-    viewModel.onEvent(PrivacySettingsEvent.DisablePassphraseConfirmed)
+    val actions = collectActions(viewModel.actions)
+    viewModel.onEvent(PrivacySettingsEvent.DisablePassphraseClicked)
 
-    coVerify(exactly = 0) { PrivacySettingsRepository.disableObsoletePassphrase() }
+    assertThat(actions).containsExactly(PrivacySettingsAction.ChangePassphraseProtection(false))
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockEnabled(any()) }
   }
 
   @Test
   fun `ChangePassphraseClicked launches the change flow when a passphrase is set`() = runTest(testDispatcher) {
+    passphraseEnabled = true
     val viewModel = createViewModel()
     val actions = collectActions(viewModel.actions)
 
@@ -299,14 +284,13 @@ class PrivacySettingsViewModelTest {
 
   @Test
   fun `ChangePassphraseClicked tells the user when no passphrase is set`() = runTest(testDispatcher) {
-    passphraseInitialized = false
+    passphraseEnabled = false
     val viewModel = createViewModel()
     val actions = collectActions(viewModel.actions)
 
     viewModel.onEvent(PrivacySettingsEvent.ChangePassphraseClicked)
 
     assertThat(actions).isEmpty()
-    assertThat(viewModel.state.value.snackbar).isEqualTo(Snackbar.PassphraseNotSet)
   }
 
   @Test
@@ -319,34 +303,45 @@ class PrivacySettingsViewModelTest {
   }
 
   @Test
-  fun `PassphraseTimeoutToggled stores the setting`() = runTest(testDispatcher) {
+  fun `trigger selection preserves Molly automatic lockdown modes`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
 
-    viewModel.onEvent(PrivacySettingsEvent.PassphraseTimeoutToggled(true))
+    viewModel.onEvent(PrivacySettingsEvent.PassphraseTriggersSelected(setOf("timeout", "screen_off")))
 
-    assertThat(viewModel.state.value.isObsoletePassphraseTimeoutEnabled).isTrue()
+    assertThat(viewModel.state.value.passphraseLockTriggers).isEqualTo(setOf("timeout", "screen_off"))
   }
 
   @Test
-  fun `PassphraseTimeoutSelected stores the timeout picked in the dialog`() = runTest(testDispatcher) {
+  fun `Molly timeout selection preserves seconds without stock minute interpretation`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
 
-    viewModel.onEvent(PrivacySettingsEvent.PassphraseTimeoutIntervalClicked)
-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.PassphraseTimeout)
+    viewModel.onEvent(PrivacySettingsEvent.PassphraseLockTimeoutSelected(7200L))
 
-    viewModel.onEvent(PrivacySettingsEvent.PassphraseTimeoutSelected(2.hours))
-
-    verify { PrivacySettingsRepository.setObsoletePassphraseTimeout(2.hours) }
+    verify { PrivacySettingsRepository.setPassphraseLockTimeout(7200L) }
+    assertThat(viewModel.state.value.passphraseLockTimeoutSeconds).isEqualTo(7200L)
     assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
   }
 
   @Test
-  fun `PassphraseTimeoutSelected is ignored without the picker dialog`() = runTest(testDispatcher) {
+  fun `requesting a Molly timeout picker does not change the stored timeout`() = runTest(testDispatcher) {
     val viewModel = createViewModel()
 
+    val actions = collectActions(viewModel.actions)
+    viewModel.onEvent(PrivacySettingsEvent.PassphraseLockTimeoutClicked)
+
+    assertThat(actions).containsExactly(PrivacySettingsAction.ChoosePassphraseLockTimeout)
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockTimeout(any()) }
+  }
+
+  @Test
+  fun `obsolete Signal timeout events cannot reinterpret Molly timeout policy`() = runTest(testDispatcher) {
+    val viewModel = createViewModel()
+
+    viewModel.onEvent(PrivacySettingsEvent.PassphraseTimeoutToggled(true))
     viewModel.onEvent(PrivacySettingsEvent.PassphraseTimeoutSelected(2.hours))
 
-    verify(exactly = 0) { PrivacySettingsRepository.setObsoletePassphraseTimeout(any()) }
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockTimeout(any()) }
+    verify(exactly = 0) { PrivacySettingsRepository.setPassphraseLockTriggers(any()) }
   }
 
   @Test
@@ -397,6 +392,31 @@ class PrivacySettingsViewModelTest {
     viewModel.onEvent(PrivacySettingsEvent.IncognitoKeyboardLearnMoreClicked)
 
     assertThat(actions).containsExactly(PrivacySettingsAction.OpenIncognitoKeyboardLearnMore)
+  }
+
+  @Test
+  fun `forced screenshot security cannot be disabled from settings`() = runTest(testDispatcher) {
+    screenSecurityForced = true
+    val viewModel = createViewModel()
+    val actions = collectActions(viewModel.actions)
+
+    viewModel.onEvent(PrivacySettingsEvent.ScreenSecurityToggled(false))
+
+    verify(exactly = 0) { PrivacySettingsRepository.setScreenSecurityEnabled(any()) }
+    assertThat(viewModel.state.value.screenSecurity).isTrue()
+    assertThat(actions).containsExactly(PrivacySettingsAction.ApplyScreenSecurity(true))
+  }
+
+  @Test
+  fun `linked device cannot change primary-only messaging settings`() = runTest(testDispatcher) {
+    canChangeMessagingSettings = false
+    val viewModel = createViewModel()
+
+    viewModel.onEvent(PrivacySettingsEvent.ReadReceiptsToggled(true))
+    viewModel.onEvent(PrivacySettingsEvent.TypingIndicatorsToggled(true))
+
+    coVerify(exactly = 0) { PrivacySettingsRepository.setReadReceiptsEnabled(any()) }
+    coVerify(exactly = 0) { PrivacySettingsRepository.setTypingIndicatorsEnabled(any()) }
   }
 
   private fun createViewModel(scrollToPaymentLock: Boolean = false): PrivacySettingsViewModel {

@@ -36,7 +36,7 @@ import org.thoughtcrime.securesms.notifications.NotificationIds;
 import org.thoughtcrime.securesms.preferences.widgets.NotificationPrivacyPreference;
 import org.thoughtcrime.securesms.preferences.widgets.PassphraseLockTriggerPreference;
 import org.thoughtcrime.securesms.recipients.Recipient;
-import org.thoughtcrime.securesms.registration.ui.RegistrationActivity;
+import org.thoughtcrime.securesms.registration.ui.RegistrationIntents;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -323,12 +323,27 @@ public class TextSecurePreferences {
         backupProtos.add(new SharedPreference.Builder()
                                              .file_(SecurePreferenceManager.getSecurePreferencesName())
                                              .key(integerPreference)
-                                             .integerValue(preferences.getInt(integerPreference, 0))
+                                             .integerValue(getPassphraseLockTimeoutForBackup(context))
                                              .build());
       }
     }
 
     return backupProtos;
+  }
+
+  private static int getPassphraseLockTimeoutForBackup(@NonNull Context context) {
+    try {
+      return Math.toIntExact(getPassphraseLockTimeout(context));
+    } catch (ArithmeticException e) {
+      throw new InvalidPassphraseLockTimeoutException(e);
+    }
+  }
+
+  public static final class InvalidPassphraseLockTimeoutException extends ArithmeticException {
+    private InvalidPassphraseLockTimeoutException(ArithmeticException cause) {
+      super("Passphrase lock timeout cannot be represented in a backup");
+      initCause(cause);
+    }
   }
 
   public static void onPostBackupRestore(@NonNull Context context) {
@@ -361,7 +376,9 @@ public class TextSecurePreferences {
   }
 
   public static long getPassphraseLockTimeout(@NonNull Context context) {
-    return getLongPreference(context, PASSPHRASE_LOCK_TIMEOUT, 0);
+    SharedPreferences preferences = getSharedPreferences(context);
+    // Backup imports store an Int; the UI stores a Long. Keep other preference types strict.
+    return preferences.getLong(PASSPHRASE_LOCK_TIMEOUT, preferences.getInt(PASSPHRASE_LOCK_TIMEOUT, 0));
   }
 
   public static boolean isPassphraseLockNotificationsEnabled(@NonNull Context context) {
@@ -1056,8 +1073,8 @@ public class TextSecurePreferences {
       return;
     }
 
-    Intent registrationIntent = SignalStore.account().isLinkedDevice() ? RegistrationActivity.newIntentForReLinkDevice(context)
-                                                                       : RegistrationActivity.newIntentForReRegistration(context);
+    Intent registrationIntent = SignalStore.account().isLinkedDevice() ? RegistrationIntents.newIntentForReLinkDevice(context)
+                                                                       : RegistrationIntents.newIntentForReRegistration(context);
 
     PendingIntent reRegistrationIntent = PendingIntent.getActivity(context,
                                                                    0,

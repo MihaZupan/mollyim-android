@@ -1,19 +1,18 @@
 package org.thoughtcrime.securesms.components.settings.app.privacy
 
-import android.content.Intent
 import kotlinx.coroutines.withContext
 import org.signal.core.util.ServiceUtil
 import org.signal.core.util.concurrent.SignalDispatchers
-import org.thoughtcrime.securesms.crypto.MasterSecretUtil
+import org.thoughtcrime.securesms.ScreenLockController
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.MultiDeviceConfigurationUpdateJob
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.service.KeyCachingService
 import org.thoughtcrime.securesms.storage.StorageSyncHelper
+import org.thoughtcrime.securesms.util.SecurePreferenceManager
+import org.thoughtcrime.securesms.util.TextSecurePreferences
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -51,11 +50,13 @@ object PrivacySettingsRepository {
 
   fun getUniversalExpireTimer(): Duration = SignalStore.settings.universalExpireTimer.seconds
 
-  fun isScreenLockEnabled(): Boolean = SignalStore.settings.screenLockEnabled
-
-  fun getScreenLockTimeout(): Duration = SignalStore.settings.screenLockTimeout.seconds
+  fun isScreenLockEnabled(): Boolean = TextSecurePreferences.isBiometricScreenLockEnabled(AppDependencies.application)
 
   fun isScreenSecurityEnabled(): Boolean = SignalStore.settings.isScreenSecurityEnabled
+
+  fun isScreenSecurityForced(): Boolean = ScreenLockController.alwaysSetSecureFlagOnResume
+
+  fun canChangeMessagingSettings(): Boolean = SignalStore.account.isPrimaryDevice
 
   fun setScreenSecurityEnabled(enabled: Boolean) {
     SignalStore.settings.isScreenSecurityEnabled = enabled
@@ -67,40 +68,33 @@ object PrivacySettingsRepository {
     SignalStore.settings.isIncognitoKeyboardEnabled = enabled
   }
 
-  fun isPaymentLockEnabled(): Boolean = SignalStore.payments.paymentLock
+  /** The retired wallet lock is unavailable; preserve its stored keys without reading or rewriting them. */
+  fun isPaymentLockEnabled(): Boolean = false
 
-  fun setPaymentLockEnabled(enabled: Boolean) {
-    SignalStore.payments.paymentLock = enabled
+  @Suppress("UNUSED_PARAMETER")
+  fun setPaymentLockEnabled(enabled: Boolean) = Unit
+
+  fun isPassphraseLockEnabled(): Boolean = TextSecurePreferences.isPassphraseLockEnabled(AppDependencies.application)
+
+  fun setPassphraseLockEnabled(enabled: Boolean) = TextSecurePreferences.setPassphraseLockEnabled(AppDependencies.application, enabled)
+
+  fun getPassphraseLockTriggers(): Set<String> = TextSecurePreferences.getPassphraseLockTrigger(AppDependencies.application).triggers
+
+  fun setPassphraseLockTriggers(triggers: Set<String>) {
+    SecurePreferenceManager.getSecurePreferences(AppDependencies.application).edit()
+      .putStringSet(TextSecurePreferences.PASSPHRASE_LOCK_TRIGGER, triggers).apply()
   }
 
-  fun isObsoletePassphraseEnabled(): Boolean = !SignalStore.settings.passphraseDisabled
+  fun getPassphraseLockTimeout(): Long = TextSecurePreferences.getPassphraseLockTimeout(AppDependencies.application)
 
-  fun isObsoletePassphraseInitialized(): Boolean = MasterSecretUtil.isPassphraseInitialized(AppDependencies.application)
-
-  /** Permanently replaces the legacy passphrase with the unencrypted one and tells [KeyCachingService] to stop locking. */
-  suspend fun disableObsoletePassphrase() {
-    withContext(SignalDispatchers.Default) {
-      val application = AppDependencies.application
-      MasterSecretUtil.changeMasterSecretPassphrase(application, KeyCachingService.getMasterSecret(application), MasterSecretUtil.UNENCRYPTED_PASSPHRASE)
-      SignalStore.settings.passphraseDisabled = true
-
-      val intent = Intent(application, KeyCachingService::class.java)
-      intent.action = KeyCachingService.DISABLE_ACTION
-      application.startService(intent)
-    }
+  fun setPassphraseLockTimeout(seconds: Long) {
+    SecurePreferenceManager.getSecurePreferences(AppDependencies.application).edit()
+      .putLong(TextSecurePreferences.PASSPHRASE_LOCK_TIMEOUT, seconds).apply()
   }
 
-  fun isObsoletePassphraseTimeoutEnabled(): Boolean = SignalStore.settings.passphraseTimeoutEnabled
+  fun isBlockUnknownEnabled(): Boolean = TextSecurePreferences.isBlockUnknownEnabled(AppDependencies.application)
 
-  fun setObsoletePassphraseTimeoutEnabled(enabled: Boolean) {
-    SignalStore.settings.passphraseTimeoutEnabled = enabled
-  }
-
-  fun getObsoletePassphraseTimeout(): Duration = SignalStore.settings.passphraseTimeout.minutes
-
-  fun setObsoletePassphraseTimeout(timeout: Duration) {
-    SignalStore.settings.passphraseTimeout = timeout.inWholeMinutes.toInt().coerceAtLeast(1)
-  }
+  fun setBlockUnknownEnabled(enabled: Boolean) = TextSecurePreferences.setBlockUnknownEnabled(AppDependencies.application, enabled)
 
   private suspend fun syncConfiguration() {
     withContext(SignalDispatchers.Default) {

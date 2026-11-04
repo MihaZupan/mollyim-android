@@ -1,12 +1,16 @@
 package org.signal.registration
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Surface
@@ -24,7 +28,22 @@ import org.signal.core.ui.compose.theme.SignalTheme
  */
 class RegistrationActivity : ComponentActivity() {
 
+  private var activityLifecycle: RegistrationActivityLifecycle? = null
+  private var authenticationInProgress = false
+  private var contentCreated = false
+  private var pendingPermissionsProceed: (() -> Unit)? = null
+
+  private val authenticationLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    authenticationInProgress = false
+    if (result.resultCode == Activity.RESULT_OK) {
+      admitRegistration()
+    } else {
+      finishAndRemoveTask()
+    }
+  }
+
   companion object {
+    private const val AUTHENTICATION_IN_PROGRESS = "registration_authentication_in_progress"
     private const val NEXT_INTENT_EXTRA = "next_intent"
     private const val START_DESTINATION_EXTRA = "start_destination"
     private const val START_FRESH_EXTRA = "start_fresh"
@@ -53,11 +72,88 @@ class RegistrationActivity : ComponentActivity() {
     }
   }
 
-  @OptIn(ExperimentalPermissionsApi::class)
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
+    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    window.decorView.visibility = View.INVISIBLE
+    activityLifecycle = RegistrationActivityLifecycle.create(this)
     super.onCreate(savedInstanceState)
+    authenticationInProgress = savedInstanceState?.getBoolean(AUTHENTICATION_IN_PROGRESS) ?: false
+    admitRegistration()
+  }
 
+  override fun onStart() {
+    super.onStart()
+    admitRegistration()
+  }
+
+  override fun onResume() {
+    super.onResume()
+    activityLifecycle?.onResume()
+    admitRegistration()
+  }
+
+  override fun onPause() {
+    window.decorView.visibility = View.INVISIBLE
+    super.onPause()
+  }
+
+  override fun onSaveInstanceState(outState: Bundle) {
+    outState.putBoolean(AUTHENTICATION_IN_PROGRESS, authenticationInProgress)
+    super.onSaveInstanceState(outState)
+  }
+
+  override fun onDestroy() {
+    activityLifecycle?.onDestroy()
+    activityLifecycle = null
+    pendingPermissionsProceed = null
+    super.onDestroy()
+  }
+
+  private fun admitRegistration() {
+    if (isFinishing || isDestroyed) {
+      return
+    }
+
+    val host = activityLifecycle
+    if (host == null) {
+      finishAndRemoveTask()
+      return
+    }
+
+    if (!host.isAdmitted()) {
+      window.decorView.visibility = View.INVISIBLE
+      window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+      if (!authenticationInProgress) {
+        authenticationInProgress = true
+        authenticationLauncher.launch(host.authenticationIntent())
+      }
+      return
+    }
+
+    if (authenticationInProgress) {
+      return
+    }
+
+    if (!contentCreated) {
+      contentCreated = true
+      createRegistrationContent()
+    }
+    window.decorView.visibility = View.VISIBLE
+    pendingPermissionsProceed?.also {
+      pendingPermissionsProceed = null
+      host.onPermissionsChanged()
+      it()
+    }
+  }
+
+  private fun onPermissionsChanged(proceed: () -> Unit) {
+    pendingPermissionsProceed = proceed
+    admitRegistration()
+  }
+
+  @OptIn(ExperimentalPermissionsApi::class)
+  private fun createRegistrationContent() {
     val startDestination = IntentCompat.getParcelableExtra(intent, START_DESTINATION_EXTRA, RegistrationRoute::class.java)
     val startFresh = intent.getBooleanExtra(START_FRESH_EXTRA, false)
 
@@ -70,6 +166,7 @@ class RegistrationActivity : ComponentActivity() {
             modifier = Modifier
               .fillMaxSize()
               .navigationBarsPadding(),
+            onPermissionsChanged = ::onPermissionsChanged,
             onRegistrationComplete = {
               setResult(RESULT_OK)
               IntentCompat.getParcelableExtra(intent, NEXT_INTENT_EXTRA, Intent::class.java)?.let { startActivity(it) }

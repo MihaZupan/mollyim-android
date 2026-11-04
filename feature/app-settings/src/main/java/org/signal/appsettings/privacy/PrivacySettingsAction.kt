@@ -12,6 +12,10 @@ package org.signal.appsettings.privacy
  * Actions are logged, so be sure `toString()` contains nothing sensitive.
  */
 sealed interface PrivacySettingsAction {
+  /** The host must complete the cryptographic dialog before reporting a setting change. */
+  data class ChangePassphraseProtection(val enabled: Boolean) : PrivacySettingsAction
+  data object ChoosePassphraseTriggers : PrivacySettingsAction
+  data object ChoosePassphraseLockTimeout : PrivacySettingsAction
 
   /** Open the flow to change the legacy passphrase. */
   data object LaunchChangePassphrase : PrivacySettingsAction

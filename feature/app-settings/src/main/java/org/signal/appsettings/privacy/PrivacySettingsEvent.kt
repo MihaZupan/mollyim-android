@@ -11,6 +11,13 @@ import kotlin.time.Duration
  * Reminder that these events are logged, so don't include anything sensitive in the toString.
  */
 sealed interface PrivacySettingsEvent {
+  data class PassphraseLockToggled(val enabled: Boolean) : PrivacySettingsEvent
+  data object PassphraseTriggersClicked : PrivacySettingsEvent
+  data class PassphraseTriggersSelected(val triggers: Set<String>) : PrivacySettingsEvent
+  data object PassphraseLockTimeoutClicked : PrivacySettingsEvent
+  data class PassphraseLockTimeoutSelected(val seconds: Long) : PrivacySettingsEvent
+  data class BlockUnknownToggled(val enabled: Boolean) : PrivacySettingsEvent
+  data object SettingsChanged : PrivacySettingsEvent
 
   /** The screen came back to the foreground, so the blocked count and device security may have changed. */
   data object ScreenResumed : PrivacySettingsEvent

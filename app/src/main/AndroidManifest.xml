@@ -427,6 +427,12 @@
             android:theme="@style/Theme.Signal.DayNight.NoActionBar" />
 
         <activity
+            android:name=".registration.ui.RegistrationLockActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Signal.DayNight.NoActionBar" />
+
+        <activity
             android:name=".conversation.NewConversationActivity"
             android:exported="false"
             android:theme="@style/Signal.DayNight.NoActionBar" />

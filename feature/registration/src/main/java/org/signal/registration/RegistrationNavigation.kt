@@ -442,6 +442,7 @@ fun RegistrationNavHost(
   permissionsState: MultiplePermissionsState? = null,
   startDestination: RegistrationRoute? = null,
   modifier: Modifier = Modifier,
+  onPermissionsChanged: (() -> Unit) -> Unit = { it() },
   onRegistrationComplete: () -> Unit = {}
 ) {
   val context = LocalContext.current
@@ -470,6 +471,7 @@ fun RegistrationNavHost(
       registrationRepository = viewModel.repository,
       registrationViewModel = viewModel,
       permissionsState = permissionsState,
+      onPermissionsChanged = onPermissionsChanged,
       onRegistrationComplete = onRegistrationComplete
     )
   }
@@ -513,6 +515,7 @@ private fun EntryProviderScope<NavKey>.navigationEntries(
   registrationRepository: RegistrationRepository,
   registrationViewModel: RegistrationViewModel,
   permissionsState: MultiplePermissionsState?,
+  onPermissionsChanged: (() -> Unit) -> Unit,
   onRegistrationComplete: () -> Unit
 ) {
   val parentEventEmitter: (RegistrationFlowEvent) -> Unit = registrationViewModel::onEvent
@@ -546,7 +549,7 @@ private fun EntryProviderScope<NavKey>.navigationEntries(
   // --- Permissions Screen
   entry<RegistrationRoute.Permissions> { key ->
     val context = LocalContext.current
-    val onProceed = { parentEventEmitter.navigateTo(key.nextRoute) }
+    val onProceed = { onPermissionsChanged { parentEventEmitter.navigateTo(key.nextRoute) } }
     val localPermissionsState = permissionsState ?: rememberMultiplePermissionsState(
       permissions = RegistrationPermissions.getRequiredPermissions(context),
       onPermissionsResult = { onProceed() }
@@ -559,7 +562,7 @@ private fun EntryProviderScope<NavKey>.navigationEntries(
 
   // --- Allow Notifications Screen
   entry<RegistrationRoute.AllowNotifications> { key ->
-    val onProceed = { parentEventEmitter.navigateTo(key.nextRoute) }
+    val onProceed = { onPermissionsChanged { parentEventEmitter.navigateTo(key.nextRoute) } }
     val localPermissionState = rememberPermissionState(
       permission = registrationViewModel.getRequiredLinkedDevicePermission()!!,
       onPermissionResult = { onProceed() }

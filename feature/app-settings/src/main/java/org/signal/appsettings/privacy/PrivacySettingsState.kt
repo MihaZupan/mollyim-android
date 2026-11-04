@@ -27,6 +27,12 @@ data class PrivacySettingsState(
   val incognitoKeyboard: Boolean = false,
   val paymentLock: Boolean = false,
   val scrollToPaymentLock: Boolean = false,
+  val passphraseLock: Boolean = false,
+  val passphraseLockTriggers: Set<String> = emptySet(),
+  val passphraseLockTimeoutSeconds: Long = 0,
+  val blockUnknown: Boolean = false,
+  val canChangeMessagingSettings: Boolean = true,
+  val screenSecurityForced: Boolean = false,
   val dialog: Dialog = Dialog.None,
   val snackbar: Snackbar = Snackbar.None
 ) {

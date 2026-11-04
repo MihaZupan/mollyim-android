@@ -18,6 +18,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -178,6 +179,44 @@ class RegistrationNavigationTest {
 
     // Then - verify PhoneNumber screen is displayed
     composeTestRule.onNodeWithTag(TestTags.PHONE_NUMBER_SCREEN).assertIsDisplayed()
+  }
+
+  @Test
+  fun `denied permissions wait for host admission before refresh and navigation`() {
+    val host = mockk<RegistrationActivityLifecycle>(relaxed = true)
+    val permissionsState = createMockPermissionsState()
+    every { host.isAdmitted() } returns false
+    var pendingProceed: (() -> Unit)? = null
+
+    composeTestRule.setContent {
+      SignalTheme {
+        RegistrationNavHost(
+          registrationViewModel = viewModel,
+          permissionsState = permissionsState,
+          onPermissionsChanged = { proceed ->
+            pendingProceed = {
+              check(host.isAdmitted())
+              host.onPermissionsChanged()
+              proceed()
+            }
+          }
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(TestTags.PERMISSIONS_NOT_NOW_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(TestTags.PERMISSIONS_SCREEN).assertIsDisplayed()
+    verify(exactly = 0) { host.onPermissionsChanged() }
+
+    composeTestRule.runOnIdle {
+      every { host.isAdmitted() } returns true
+      requireNotNull(pendingProceed).invoke()
+    }
+
+    composeTestRule.onNodeWithTag(TestTags.PHONE_NUMBER_SCREEN).assertIsDisplayed()
+    verify(exactly = 1) { host.onPermissionsChanged() }
   }
 
   // Note: Back navigation testing in Navigation 3 requires testing through

@@ -5,13 +5,8 @@
 
 package org.signal.appsettings.screenlock
 
-/**
- * One-shot side effects that have to be carried out by the host rather than the screen itself.
- *
- * Actions are logged, so be sure `toString()` contains nothing sensitive.
- */
 sealed interface ScreenLockSettingsAction {
-
-  /** Leave the screen. */
   data object NavigateBack : ScreenLockSettingsAction
+  data object EnableBiometricScreenLock : ScreenLockSettingsAction
+  data object ApplyScreenSecurity : ScreenLockSettingsAction
 }
