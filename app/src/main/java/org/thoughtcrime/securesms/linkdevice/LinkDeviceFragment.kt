@@ -101,7 +101,7 @@ class LinkDeviceFragment : ComposeFragment() {
 
     biometricDeviceLockLauncher = registerForActivityResult(BiometricDeviceLockContract()) { result: Int ->
       if (result == BiometricDeviceAuthentication.AUTHENTICATED) {
-        findNavController().safeNavigate(R.id.action_linkDeviceFragment_to_addLinkDeviceFragment)
+        findNavController().safeNavigate(R.id.action_linkDeviceFragment_to_linkDeviceIntroBottomSheet)
       }
     }
 
@@ -233,11 +233,11 @@ class LinkDeviceFragment : ComposeFragment() {
       DevicePinAuthEducationSheet.show(getString(R.string.LinkDeviceFragment__before_linking), parentFragmentManager)
       parentFragmentManager.setFragmentResultListener(DevicePinAuthEducationSheet.REQUEST_KEY, viewLifecycleOwner) { _, _ ->
         if (!biometricAuth.authenticate(requireContext(), true) { biometricDeviceLockLauncher.launch(getString(R.string.LinkDeviceFragment__unlock_to_link)) }) {
-          this.safeNavigate(R.id.action_linkDeviceFragment_to_addLinkDeviceFragment)
+          this.safeNavigate(R.id.action_linkDeviceFragment_to_linkDeviceIntroBottomSheet)
         }
       }
     } else if (!biometricAuth.authenticate(requireContext(), true) { biometricDeviceLockLauncher.launch(getString(R.string.LinkDeviceFragment__unlock_to_link)) }) {
-      this.safeNavigate(R.id.action_linkDeviceFragment_to_addLinkDeviceFragment)
+      this.safeNavigate(R.id.action_linkDeviceFragment_to_linkDeviceIntroBottomSheet)
     }
   }
 
@@ -259,7 +259,7 @@ class LinkDeviceFragment : ComposeFragment() {
 
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
       Log.i(TAG, "Authentication succeeded")
-      findNavController().safeNavigate(R.id.action_linkDeviceFragment_to_addLinkDeviceFragment)
+      findNavController().safeNavigate(R.id.action_linkDeviceFragment_to_linkDeviceIntroBottomSheet)
     }
 
     override fun onAuthenticationFailed() {
@@ -398,7 +398,7 @@ fun DeviceListScreen(
       tint = Color.Unspecified
     )
     Text(
-      text = stringResource(id = R.string.LinkDeviceFragment__use_signal_on_desktop_ipad),
+      text = stringResource(id = R.string.LinkDeviceFragment__use_molly_on_another_devices),
       textAlign = TextAlign.Center,
       modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
     )
@@ -413,6 +413,7 @@ fun DeviceListScreen(
 
     Buttons.LargeTonal(
       onClick = onLinkNewDeviceClicked,
+      enabled = state.canLinkDevices,
       modifier = Modifier
         .defaultMinSize(300.dp)
         .padding(bottom = 8.dp)
@@ -450,7 +451,7 @@ fun DeviceListScreen(
         )
       } else {
         state.devices.forEach { device ->
-          DeviceRow(device, state.isInternalUser, onDeviceSelectedForRemoval, onEditDevice)
+          DeviceRow(device, state.isInternalUser, onDeviceSelectedForRemoval, onEditDevice, canLinkDevices = state.canLinkDevices)
         }
       }
     }
@@ -494,7 +495,7 @@ fun DeviceListScreen(
 }
 
 @Composable
-fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Device) -> Unit, onEditDevice: (Device) -> Unit) {
+fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Device) -> Unit, onEditDevice: (Device) -> Unit, canLinkDevices: Boolean) {
   val titleString = if (device.name.isNullOrEmpty()) stringResource(R.string.DeviceListItem_unnamed_device) else device.name
   val linkedDate = device.createdMillis?.let { DateUtils.getDayPrecisionTimeSpanString(LocalContext.current, LocalLocale.current.platformLocale, device.createdMillis) }
   val lastActive = DateUtils.getDayPrecisionTimeSpanString(LocalContext.current, LocalLocale.current.platformLocale, device.lastSeenMillis)
@@ -562,6 +563,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
               )
             }
           },
+          enabled = canLinkDevices,
           onClick = {
             setDeviceToRemove(device)
             controller.hide()
@@ -586,6 +588,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
               )
             }
           },
+          enabled = device.canRename && canLinkDevices,
           onClick = {
             onEditDevice(device)
             controller.hide()

@@ -3,6 +3,7 @@ package org.thoughtcrime.securesms.components.settings.app.account
 import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
 
 data class AccountSettingsState(
+  val isLinkedDevice: Boolean = false,
   val hasPin: Boolean,
   val pinKeyboardType: PinKeyboardType,
   val hasRestoredAep: Boolean,
