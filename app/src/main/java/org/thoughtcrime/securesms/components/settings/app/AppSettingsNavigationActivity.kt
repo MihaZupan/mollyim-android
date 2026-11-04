@@ -12,8 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.lifecycleScope
-import io.reactivex.rxjava3.subjects.PublishSubject
-import io.reactivex.rxjava3.subjects.Subject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,8 +27,6 @@ import org.thoughtcrime.securesms.components.enableSettingsEdgeToEdge
 import org.thoughtcrime.securesms.components.settings.app.appearance.registerAppearanceRoutes
 import org.thoughtcrime.securesms.components.settings.app.chats.registerChatsRoutes
 import org.thoughtcrime.securesms.components.settings.app.privacy.registerPrivacyRoutes
-import org.thoughtcrime.securesms.components.settings.app.subscription.GooglePayComponent
-import org.thoughtcrime.securesms.components.settings.app.subscription.GooglePayRepository
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.main.EmptyDetailScreen
 import org.thoughtcrime.securesms.util.DynamicNoActionBarTheme
@@ -41,7 +37,7 @@ import org.thoughtcrime.securesms.util.RemoteConfig
  * Hosts app settings in [AppSettingsNavigation] rather than the fragment nav graph, gated by
  * [RemoteConfig.useAppSettingsNavigation].
  */
-class AppSettingsNavigationActivity : PassphraseRequiredActivity(), GooglePayComponent {
+class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
 
   companion object {
     private const val START_ROUTE = "app.settings.navigation.args.START_ROUTE"
@@ -51,9 +47,6 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity(), GooglePayCom
         .putExtra(START_ROUTE, startRoute)
     }
   }
-
-  override val googlePayRepository: GooglePayRepository by lazy { GooglePayRepository(this) }
-  override val googlePayResultPublisher: Subject<GooglePayComponent.GooglePayResult> = PublishSubject.create()
 
   private val dynamicTheme: DynamicTheme = DynamicNoActionBarTheme()
   private val router: AppSettingsRouter by viewModels()

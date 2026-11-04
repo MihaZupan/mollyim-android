@@ -5,12 +5,15 @@
 
 package org.thoughtcrime.securesms.components.settings.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.keyvalue.SettingsValues
 import org.thoughtcrime.securesms.keyvalue.SignalStore
+import org.thoughtcrime.securesms.service.KeyCachingService
+import org.thoughtcrime.securesms.util.CachedInflater
 import org.thoughtcrime.securesms.util.DynamicTheme
 import org.thoughtcrime.securesms.util.SignalE164Util
 
@@ -22,6 +25,10 @@ fun AppCompatActivity.recreateOnThemeChange() {
     if (key == SettingsValues.THEME) {
       DynamicTheme.setDefaultDayNightMode(this)
       recreate()
+    } else if (key == SettingsValues.LANGUAGE) {
+      CachedInflater.from(this).clear()
+      recreate()
+      startService(Intent(this, KeyCachingService::class.java).setAction(KeyCachingService.LOCALE_CHANGE_EVENT))
     }
   }
 }

@@ -25,7 +25,6 @@ import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCreden
 import androidx.credentials.exceptions.publickeycredential.GetPublicKeyCredentialDomException
 import kotlinx.serialization.SerializationException
 import org.signal.core.util.Base64
-import org.signal.core.util.PlayServicesUtil
 import org.signal.core.util.logging.Log
 import org.signal.core.util.serialization.SignalJson
 import java.io.IOException
@@ -74,20 +73,11 @@ object SignalPasskeyManager {
   /**
    * Whether this device can run a passkey ceremony at all.
    *
-   * From API 34 the platform has its own credential provider. Below that the ceremony runs through Play services, which
-   * only speaks passkeys from API 28. There's no API for telling whether the user has actually set a provider up, so a
-   * capable device is assumed willing and only finds out otherwise once a ceremony comes back empty.
+   * From API 34 the platform has its own credential provider. Molly does not bundle
+   * the Google-only backend for older versions. Provider availability is confirmed by the ceremony.
    */
   fun isSupported(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT >= 34) {
-      return true
-    }
-
-    if (Build.VERSION.SDK_INT < 28) {
-      return false
-    }
-
-    return PlayServicesUtil.getPlayServicesStatus(context) == PlayServicesUtil.PlayServicesStatus.SUCCESS
+    return Build.VERSION.SDK_INT >= 34
   }
 
   /**
@@ -110,6 +100,10 @@ object SignalPasskeyManager {
     allowedAlgorithms: List<Int>,
     excludeCredentialIds: List<ByteArray>
   ): PasskeyCreationResult {
+    if (Build.VERSION.SDK_INT < 34) {
+      return PasskeyCreationResult.NoProviderAvailable
+    }
+
     val options = PublicKeyCredentialCreationOptions(
       rp = RelyingParty(id = rpId, name = rpName),
       user = User(
@@ -171,6 +165,10 @@ object SignalPasskeyManager {
     timeoutSeconds: Long,
     allowedCredentialIds: List<ByteArray>
   ): PasskeyAssertionResult {
+    if (Build.VERSION.SDK_INT < 34) {
+      return PasskeyAssertionResult.NoCredentialAvailable
+    }
+
     val options = PublicKeyCredentialRequestOptions(
       challenge = Base64.encodeUrlSafeWithoutPadding(challenge),
       rpId = rpId,

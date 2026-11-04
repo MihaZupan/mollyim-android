@@ -6,8 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import androidx.navigation.NavDirections
-import io.reactivex.rxjava3.subjects.PublishSubject
-import io.reactivex.rxjava3.subjects.Subject
 import org.signal.appsettings.routes.AppSettingsRoute
 import org.signal.appsettings.routes.UsernameEditMode
 import org.signal.core.util.getParcelableExtraCompat
@@ -15,8 +13,6 @@ import org.signal.core.util.logging.Log
 import org.signal.donations.InAppPaymentType
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.components.NavGraphHostActivity
-import org.thoughtcrime.securesms.components.settings.app.subscription.GooglePayComponent
-import org.thoughtcrime.securesms.components.settings.app.subscription.GooglePayRepository
 import org.thoughtcrime.securesms.help.HelpFragment
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.util.Environment
@@ -27,12 +23,10 @@ private const val START_ROUTE = "app.settings.args.START_ROUTE"
 private const val NOTIFICATION_CATEGORY = "android.intent.category.NOTIFICATION_PREFERENCES"
 internal const val EXTRA_PERFORM_ACTION_ON_CREATE = "extra_perform_action_on_create"
 
-class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
+class AppSettingsActivity : NavGraphHostActivity() {
 
   private val TAG = Log.tag(AppSettingsActivity::class)
 
-  override val googlePayRepository: GooglePayRepository by lazy { GooglePayRepository(this) }
-  override val googlePayResultPublisher: Subject<GooglePayComponent.GooglePayResult> = PublishSubject.create()
 
   override fun onCreate(savedInstanceState: Bundle?, ready: Boolean) {
     super.onCreate(savedInstanceState, ready)
@@ -57,6 +51,8 @@ class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
           .setStartCategoryIndex(appSettingsRoute.startCategoryIndex)
         AppSettingsRoute.DataAndStorageRoute.Proxy -> AppSettingsFragmentDirections.actionDirectToNetworkPreferenceFragment()
         AppSettingsRoute.NotificationsRoute.Notifications -> AppSettingsFragmentDirections.actionDirectToNotificationsSettingsFragment()
+        is AppSettingsRoute.NotificationsRoute.PlayServicesProblem -> AppSettingsFragmentDirections.actionDirectToNotificationsSettingsFragment()
+          .setPlayServicesErrorCode(appSettingsRoute.errorCode)
         AppSettingsRoute.ChangeNumberRoute.Start -> AppSettingsFragmentDirections.actionDirectToChangeNumberFragment()
         is AppSettingsRoute.DonationsRoute.Donations -> AppSettingsFragmentDirections.actionDirectToManageDonations().setDirectToCheckoutType(appSettingsRoute.directToCheckoutType)
         AppSettingsRoute.NotificationsRoute.MutedNotifications -> AppSettingsFragmentDirections.actionDirectToChatsSettingsFragment()
@@ -110,12 +106,6 @@ class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
 
   override fun resolveStartBundle(): Bundle? = null
 
-  @Suppress("DEPRECATION")
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    googlePayResultPublisher.onNext(GooglePayComponent.GooglePayResult(requestCode, resultCode, data))
-  }
-
   companion object {
     const val ACTION_CHANGE_NUMBER_SUCCESS = "action_change_number_success"
 
@@ -144,6 +134,11 @@ class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
     fun notifications(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.NotificationsRoute.Notifications)
 
     @JvmStatic
+    fun playServicesProblem(context: Context, errorCode: Int): Intent {
+      return getIntentForStartLocation(context, AppSettingsRoute.NotificationsRoute.PlayServicesProblem(errorCode = errorCode))
+    }
+
+    @JvmStatic
     fun changeNumber(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.ChangeNumberRoute.Start)
 
     @JvmStatic
@@ -151,9 +146,6 @@ class AppSettingsActivity : NavGraphHostActivity(), GooglePayComponent {
 
     @JvmStatic
     fun subscriptions(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.RECURRING_DONATION))
-
-    @JvmStatic
-    fun boost(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.ONE_TIME_DONATION))
 
     @JvmStatic
     fun manageSubscriptions(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.DonationsRoute.Donations())
