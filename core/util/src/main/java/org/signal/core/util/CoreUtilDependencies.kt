@@ -38,9 +38,10 @@ object CoreUtilDependencies {
   }
 
   data class BuildInfo(
-    val canonicalVersionCode: Int,
-    val buildTimestamp: Long
-  )
+    private val buildTimestamp: Long?
+  ) {
+    fun buildTimestampOrDefault(defaultValue: Long): Long = buildTimestamp ?: defaultValue
+  }
 
   interface Provider {
     fun provideIsClientDeprecated(): Boolean
