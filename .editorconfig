@@ -2,8 +2,8 @@ root = true
 
 [*.{kt,kts}]
 indent_size = 2
-ktlint_standard_trailing-comma-on-call-site = disable
-ktlint_standard_trailing-comma-on-declaration-site = disable
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
 ktlint_standard_spacing-between-declarations-with-annotations = disable
 ktlint_code_style = intellij_idea
 ktlint_standard_class-naming = disabled
