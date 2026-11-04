@@ -32,7 +32,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.preference.PreferenceManager
 import kotlinx.coroutines.launch
 import org.signal.core.ui.compose.ComposeFragment
 import org.signal.core.ui.compose.DayNightPreviews
@@ -45,6 +44,7 @@ import org.signal.core.ui.compose.Texts
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.compose.rememberStatusBarColorNestedScrollModifier
 import org.thoughtcrime.securesms.util.CommunicationActions
+import org.thoughtcrime.securesms.util.SecurePreferenceManager
 import org.thoughtcrime.securesms.util.viewModel
 
 /**
@@ -55,7 +55,7 @@ class AdvancedPrivacySettingsFragment : ComposeFragment() {
 
   private val viewModel: AdvancedPrivacySettingsViewModel by viewModel {
     val repository = AdvancedPrivacySettingsRepository(requireContext())
-    val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+    val preferences = SecurePreferenceManager.getSecurePreferences(requireContext())
 
     AdvancedPrivacySettingsViewModel(
       preferences,
@@ -197,7 +197,8 @@ private fun AdvancedPrivacySettingsScreen(
     ) {
       item {
         Rows.ToggleRow(
-          checked = state.alwaysRelayCalls,
+          checked = state.alwaysRelayCalls || state.proxyEnabled,
+          enabled = !state.proxyEnabled,
           text = stringResource(R.string.preferences_advanced__always_relay_calls),
           label = stringResource(R.string.preferences_advanced__relay_all_calls_through_the_signal_server_to_avoid_revealing_your_ip_address),
           onCheckChanged = callbacks::onAlwaysRelayCallsChanged
@@ -336,6 +337,7 @@ private fun AdvancedPrivacySettingsScreenPreview() {
       state = AdvancedPrivacySettingsState(
         isPushEnabled = true,
         alwaysRelayCalls = false,
+        proxyEnabled = false,
         censorshipCircumventionState = CensorshipCircumventionState.UNAVAILABLE_CONNECTED,
         censorshipCircumventionEnabled = false,
         showSealedSenderStatusIcon = false,

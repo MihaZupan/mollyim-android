@@ -3,7 +3,6 @@ package org.thoughtcrime.securesms.components.emoji;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.preference.PreferenceManager;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
@@ -13,10 +12,11 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
+import org.signal.core.util.JsonUtils;
 import org.signal.core.util.concurrent.SignalExecutors;
 import org.signal.core.util.logging.Log;
 import org.thoughtcrime.securesms.R;
-import org.signal.core.util.JsonUtils;
+import org.thoughtcrime.securesms.util.SecurePreferenceManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,11 +35,11 @@ public class RecentEmojiPageModel implements EmojiPageModel {
   private final LinkedHashSet<String> recentlyUsed;
 
   public static boolean hasRecents(Context context, @NonNull String preferenceName) {
-    return PreferenceManager.getDefaultSharedPreferences(context).contains(preferenceName);
+    return SecurePreferenceManager.getSecurePreferences(context).contains(preferenceName);
   }
 
   public RecentEmojiPageModel(Context context, @NonNull String preferenceName) {
-    this.prefs          = PreferenceManager.getDefaultSharedPreferences(context);
+    this.prefs          = SecurePreferenceManager.getSecurePreferences(context);
     this.preferenceName = preferenceName;
     this.recentlyUsed   = getPersistedCache();
   }
