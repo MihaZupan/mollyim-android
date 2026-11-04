@@ -108,6 +108,11 @@ public class OptimizedMessageNotifier implements MessageNotifier {
   }
 
   @Override
+  public boolean clearNotifications(@NonNull Context context) {
+    return getNotifier().clearNotifications(context);
+  }
+
+  @Override
   public void forceBubbleNotification(@NonNull Context context, @NonNull ConversationId conversationId) {
     SignalDatabase.runPostSuccessfulTransaction(() -> {
       runOnLimiter(() -> getNotifier().forceBubbleNotification(context, conversationId));

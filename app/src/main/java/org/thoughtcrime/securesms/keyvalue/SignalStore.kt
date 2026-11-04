@@ -37,7 +37,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
   val storyValues = StoryValues(store)
   val apkUpdateValues = ApkUpdateValues(store)
   val backupValues = BackupValues(store)
-  val callQualityValues = CallQualityValues(store)
+  val unifiedPushValues = UnifiedPushValues(store)
   val labsValues = LabsValues(store)
 
   val plainTextValues = PlainTextSharedPrefsDataStore(context)
@@ -86,7 +86,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
       story.onFirstEverAppLaunch()
       apkUpdate.onFirstEverAppLaunch()
       backup.onFirstEverAppLaunch()
-      callQuality.onFirstEverAppLaunch()
+      unifiedpush.onFirstEverAppLaunch()
       labs.onFirstEverAppLaunch()
     }
 
@@ -120,7 +120,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
           story.keysToIncludeInBackup +
           apkUpdate.keysToIncludeInBackup +
           backup.keysToIncludeInBackup +
-          callQuality.keysToIncludeInBackup +
+          unifiedpush.keysToIncludeInBackup +
           labs.keysToIncludeInBackup
       }
 
@@ -273,9 +273,9 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
       get() = instance!!.backupValues
 
     @JvmStatic
-    @get:JvmName("callQuality")
-    val callQuality: CallQualityValues
-      get() = instance!!.callQualityValues
+    @get:JvmName("unifiedpush")
+    val unifiedpush: UnifiedPushValues
+      get() = instance!!.unifiedPushValues
 
     @JvmStatic
     @get:JvmName("labs")
