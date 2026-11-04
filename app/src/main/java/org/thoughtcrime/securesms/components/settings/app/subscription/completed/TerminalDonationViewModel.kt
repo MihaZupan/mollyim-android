@@ -16,7 +16,6 @@ import io.reactivex.rxjava3.kotlin.plusAssign
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
-import org.thoughtcrime.securesms.badges.BadgeRepository
 import org.thoughtcrime.securesms.badges.models.Badge
 import org.thoughtcrime.securesms.database.model.databaseprotos.TerminalDonationQueue
 import org.thoughtcrime.securesms.keyvalue.SignalStore
@@ -25,7 +24,6 @@ import org.thoughtcrime.securesms.recipients.Recipient
 class TerminalDonationViewModel(
   donationCompleted: TerminalDonationQueue.TerminalDonation,
   repository: TerminalDonationRepository = TerminalDonationRepository(),
-  private val badgeRepository: BadgeRepository
 ) : ViewModel() {
 
   companion object {
@@ -76,11 +74,12 @@ class TerminalDonationViewModel(
     when (toggleType.value) {
       ToggleType.NONE -> Unit
       ToggleType.MAKE_FEATURED_BADGE -> {
-        badgeRepository.setVisibilityForAllBadges(isToggleChecked.value).subscribeBy(
-          onError = {
-            Log.w(TAG, "Failure while updating badge visibility", it)
-          }
-        )
+        // MOLLY: TODO
+        // badgeRepository.setVisibilityForAllBadges(isToggleChecked.value).subscribeBy(
+        //   onError = {
+        //     Log.w(TAG, "Failure while updating badge visibility", it)
+        //   }
+        // )
       }
 
       ToggleType.DISPLAY_ON_PROFILE -> {
@@ -90,11 +89,12 @@ class TerminalDonationViewModel(
           return
         }
 
-        badgeRepository.setFeaturedBadge(badge).subscribeBy(
-          onError = {
-            Log.w(TAG, "Failure while updating featured badge", it)
-          }
-        )
+        // MOLLY: TODO
+        // badgeRepository.setFeaturedBadge(badge).subscribeBy(
+        //   onError = {
+        //     Log.w(TAG, "Failure while updating featured badge", it)
+        //   }
+        // )
       }
     }
   }

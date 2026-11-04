@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.core.text.method.LinkMovementMethodCompat
 import com.airbnb.lottie.LottieAnimationView
 import com.airbnb.lottie.LottieDrawable
@@ -16,11 +15,11 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import org.signal.core.ui.FixedRoundedCornerBottomSheetDialogFragment
+import org.signal.core.ui.util.ThemeUtil
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.animation.AnimationCompleteListener
 import org.thoughtcrime.securesms.badges.BadgeImageView
-import org.thoughtcrime.securesms.badges.BadgeRepository
 import org.thoughtcrime.securesms.badges.models.Badge
 import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
 import org.thoughtcrime.securesms.keyvalue.SignalStore
@@ -49,7 +48,6 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
   private lateinit var switch: MaterialSwitch
   private lateinit var heading: TextView
 
-  private lateinit var badgeRepository: BadgeRepository
   private lateinit var controlState: ControlState
 
   private enum class ControlState {
@@ -62,8 +60,6 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    badgeRepository = BadgeRepository(requireContext())
-
     val badgeView: BadgeImageView = view.findViewById(R.id.thanks_bottom_sheet_badge)
     val lottie: LottieAnimationView = view.findViewById(R.id.thanks_bottom_sheet_lottie)
     val done: MaterialButton = view.findViewById(R.id.thanks_bottom_sheet_done)
@@ -90,7 +86,7 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
           .append(
             SpanUtil.clickable(
               getString(R.string.SubscribeThanksForYourSupportBottomSheetDialogFragment__become_a_montly_sustainer),
-              ContextCompat.getColor(requireContext(), R.color.signal_accent_primary)
+              ThemeUtil.getThemedColor(requireContext(), R.attr.signal_accent_primary)
             ) {
               requireActivity().finish()
               requireActivity().startActivity(AppSettingsActivity.subscriptions(requireContext()))
@@ -148,19 +144,20 @@ class ThanksForYourSupportBottomSheetDialogFragment : FixedRoundedCornerBottomSh
     val controlChecked = switch.isChecked
     val args = ThanksForYourSupportBottomSheetDialogFragmentArgs.fromBundle(requireArguments())
 
-    if (controlState == ControlState.DISPLAY) {
-      badgeRepository.setVisibilityForAllBadges(controlChecked).subscribeBy(
-        onError = {
-          Log.w(TAG, "Failure while updating badge visibility", it)
-        }
-      )
-    } else if (controlChecked) {
-      badgeRepository.setFeaturedBadge(args.badge).subscribeBy(
-        onError = {
-          Log.w(TAG, "Failure while updating featured badge", it)
-        }
-      )
-    }
+    // MOLLY: TODO
+    // if (controlState == ControlState.DISPLAY) {
+    //   badgeRepository.setVisibilityForAllBadges(controlChecked).subscribeBy(
+    //     onError = {
+    //       Log.w(TAG, "Failure while updating badge visibility", it)
+    //     }
+    //   )
+    // } else if (controlChecked) {
+    //   badgeRepository.setFeaturedBadge(args.badge).subscribeBy(
+    //     onError = {
+    //       Log.w(TAG, "Failure while updating featured badge", it)
+    //     }
+    //   )
+    // }
 
     if (args.badge.isSubscription()) {
       requireActivity().finish()

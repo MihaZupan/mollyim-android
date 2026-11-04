@@ -40,7 +40,6 @@ import org.signal.core.ui.compose.DayNightPreviews
 import org.signal.core.ui.compose.Previews
 import org.signal.core.ui.compose.SignalIcons
 import org.thoughtcrime.securesms.R
-import org.thoughtcrime.securesms.badges.BadgeRepository
 import org.thoughtcrime.securesms.badges.models.Badge
 import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
 import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImage112
@@ -76,7 +75,7 @@ class TerminalDonationBottomSheet : ComposeBottomSheetDialogFragment() {
   }
 
   private val viewModel: TerminalDonationViewModel by viewModel {
-    TerminalDonationViewModel(terminalDonation, badgeRepository = BadgeRepository(requireContext()))
+    TerminalDonationViewModel(terminalDonation)
   }
 
   @Composable
