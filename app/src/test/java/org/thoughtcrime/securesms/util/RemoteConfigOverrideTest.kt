@@ -11,6 +11,9 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
@@ -40,7 +43,9 @@ class RemoteConfigOverrideTest {
   @Before
   fun setup() {
     Log.initialize(LogRecorder())
-    RemoteConfig.underTest = true
+    mockkObject(Environment)
+    every { Environment.isInternal() } returns true
+    RemoteConfig.underTest = false
     reset()
   }
 
@@ -48,11 +53,12 @@ class RemoteConfigOverrideTest {
   fun tearDown() {
     reset()
     RemoteConfig.underTest = false
+    unmockkObject(Environment)
   }
 
   @Test
   fun `override wins over the value from the service`() {
-    setServiceValues(INTERNAL_USER to true, BOOLEAN_FLAG to false)
+    setServiceValues(INTERNAL_USER to false, BOOLEAN_FLAG to false)
     SignalStore.internal.remoteConfigOverrides = mapOf(BOOLEAN_FLAG to "true")
 
     RemoteConfig.init()
@@ -62,7 +68,7 @@ class RemoteConfigOverrideTest {
 
   @Test
   fun `override string is coerced by the config transformer`() {
-    setServiceValues(INTERNAL_USER to true, INT_FLAG to 4)
+    setServiceValues(INTERNAL_USER to false, INT_FLAG to 4)
     SignalStore.internal.remoteConfigOverrides = mapOf(INT_FLAG to "9")
 
     RemoteConfig.init()
@@ -72,7 +78,8 @@ class RemoteConfigOverrideTest {
 
   @Test
   fun `overrides are ignored for non-internal users`() {
-    setServiceValues(INTERNAL_USER to false, BOOLEAN_FLAG to false)
+    every { Environment.isInternal() } returns false
+    setServiceValues(INTERNAL_USER to true, BOOLEAN_FLAG to false)
     SignalStore.internal.remoteConfigOverrides = mapOf(BOOLEAN_FLAG to "true")
 
     RemoteConfig.init()
@@ -82,8 +89,34 @@ class RemoteConfigOverrideTest {
   }
 
   @Test
+  fun `disabling internal status prevents persisted overrides`() {
+    RemoteConfig.internalUserDisabled = true
+    setServiceValues(INTERNAL_USER to true, BOOLEAN_FLAG to false)
+    SignalStore.internal.remoteConfigOverrides = mapOf(BOOLEAN_FLAG to "true")
+
+    RemoteConfig.init()
+
+    assertThat(RemoteConfig.overrides).isEmpty()
+    assertThat(RemoteConfig.internalUser).isFalse()
+    assertThat(RemoteConfig.contactSharingV2).isFalse()
+  }
+
+  @Test
+  fun `test isolation keeps persisted overrides disabled`() {
+    RemoteConfig.underTest = true
+    setServiceValues(INTERNAL_USER to true, BOOLEAN_FLAG to false)
+    SignalStore.internal.remoteConfigOverrides = mapOf(BOOLEAN_FLAG to "true")
+
+    RemoteConfig.init()
+
+    assertThat(RemoteConfig.overrides).isEmpty()
+    assertThat(RemoteConfig.internalUser).isFalse()
+    assertThat(RemoteConfig.contactSharingV2).isFalse()
+  }
+
+  @Test
   fun `internalUser cannot be overridden`() {
-    setServiceValues(INTERNAL_USER to true)
+    setServiceValues(INTERNAL_USER to false)
     SignalStore.internal.remoteConfigOverrides = mapOf(INTERNAL_USER to "false")
 
     RemoteConfig.init()
@@ -136,6 +169,7 @@ class RemoteConfigOverrideTest {
   }
 
   private fun reset() {
+    RemoteConfig.internalUserDisabled = false
     RemoteConfig.overrides = emptyMap()
     RemoteConfig.REMOTE_VALUES.clear()
     RemoteConfig.initialized = false
