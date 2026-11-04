@@ -5,6 +5,7 @@
 
 package org.thoughtcrime.securesms.registration.ui.restore
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -93,6 +94,7 @@ import kotlin.time.Duration
 /**
  * Restore backup from remote source.
  */
+@SuppressLint("BaseActivitySubclass")
 class RemoteRestoreActivity : BaseActivity() {
   companion object {
 
