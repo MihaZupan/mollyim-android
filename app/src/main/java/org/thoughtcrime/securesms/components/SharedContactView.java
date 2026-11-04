@@ -314,7 +314,7 @@ public class SharedContactView extends LinearLayout implements RecipientForeverO
     addToGroupButtonView.setOnClickListener(null);
 
     if (presentation.isOnSignal()) {
-      actionButtonView.setText(R.string.SharedContactView_message_button);
+      actionButtonView.setText(R.string.NewConversationActivity__message);
       actionButtonView.setOnClickListener(v -> {
         if (eventListener != null) {
           eventListener.onMessageClicked(contact, registered);

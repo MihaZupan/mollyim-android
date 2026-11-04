@@ -6,6 +6,7 @@
 package org.signal.appsettings.appicon
 
 import androidx.annotation.VisibleForTesting
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -33,11 +34,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import org.signal.appsettings.R
 import org.signal.appsettings.appSettingsScreen
 import org.signal.core.ui.compose.DayNightPreviews
@@ -261,18 +264,24 @@ private fun AppIcon(preset: AppIconPreset, isSelected: Boolean, onClick: () -> U
     animationSpec = tween(durationMillis = 150, easing = CubicBezierEasing(0.17f, 0.17f, 0f, 1f))
   )
 
-  Image(
-    painter = painterResource(preset.iconPreviewResId),
-    contentDescription = presetLabel(preset),
-    modifier = modifier
-      .size(bitmapSize.dp)
-      .graphicsLayer(
-        shape = CircleShape,
-        shadowElevation = if (isSelected) 4f else 8f,
-        clip = true
-      )
-      .clickable(onClick = onClick)
-  )
+  val context = LocalContext.current
+  val icon = remember(context, preset.iconPreviewResId) {
+    AppCompatResources.getDrawable(context, preset.iconPreviewResId)?.toBitmap()?.asImageBitmap()
+  }
+  if (icon != null) {
+    Image(
+      painter = BitmapPainter(icon),
+      contentDescription = presetLabel(preset),
+      modifier = modifier
+        .size(bitmapSize.dp)
+        .graphicsLayer(
+          shape = CircleShape,
+          shadowElevation = if (isSelected) 4f else 8f,
+          clip = true
+        )
+        .clickable(onClick = onClick)
+    )
+  }
 }
 
 /**
