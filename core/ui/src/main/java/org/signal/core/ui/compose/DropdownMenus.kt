@@ -79,6 +79,7 @@ object DropdownMenus {
   @Composable
   fun Item(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
     text: @Composable () -> Unit,
     onClick: () -> Unit
@@ -91,6 +92,7 @@ object DropdownMenus {
         }
       },
       onClick = onClick,
+      enabled = enabled,
       modifier = modifier
     )
   }

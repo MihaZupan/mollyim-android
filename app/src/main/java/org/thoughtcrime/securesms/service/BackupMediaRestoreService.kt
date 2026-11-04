@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.annotation.CheckResult
 import androidx.core.app.NotificationCompat
 import org.signal.core.util.ByteSize
 import org.signal.core.util.PendingIntentFlags
@@ -19,7 +20,6 @@ import org.thoughtcrime.securesms.notifications.NotificationIds
 import org.thoughtcrime.securesms.service.BackupMediaRestoreService.Companion.hasTimedOut
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.locks.ReentrantLock
-import javax.annotation.CheckReturnValue
 import kotlin.concurrent.withLock
 
 /**
@@ -49,7 +49,7 @@ class BackupMediaRestoreService : SafeForegroundService() {
     private val controllerLock = ReentrantLock()
 
     @JvmStatic
-    @CheckReturnValue
+    @CheckResult
     fun start(context: Context, startingTitle: String): Controller? {
       controllerLock.withLock {
         val started = if (hasTimedOut) {
