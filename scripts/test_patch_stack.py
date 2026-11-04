@@ -300,6 +300,41 @@ class PatchStackTests(unittest.TestCase):
         self.assertEqual(manifest["patches"], self.manifest["patches"])
         self.assertEqual(manifest["tree"], recreated["tree"])
 
+    def test_export_ported_source_after_updating_only_manifest_baseline(self):
+        old_commits = patch_stack.linear_commits(self.repo, self.baseline, self.source)
+        self.run_git("checkout", "--quiet", "-b", "next-upstream", self.baseline)
+        (self.repo / "upstream.txt").write_bytes(b"next upstream baseline\n")
+        self.commit("Next upstream baseline")
+        new_baseline = self.run_git("rev-parse", "HEAD")
+        self.run_git("cherry-pick", "--no-gpg-sign", *old_commits)
+        new_source = self.run_git("rev-parse", "HEAD")
+        new_tree = self.run_git("rev-parse", "HEAD^{tree}")
+        self.run_git("checkout", "--quiet", "management")
+        self.manifest["baseline"] = new_baseline
+        self.write_manifest()
+        self.commit("Update manifest baseline")
+        before = self.snapshot()
+        manifest_before = (self.repo / "patch-stack.json").read_bytes()
+        self.assertEqual(self.manifest["source"], self.source)
+        self.assertEqual(self.manifest["tree"], self.tree)
+        with self.assertRaises(patch_stack.StackError):
+            patch_stack.inspect(self.repo)
+        invalid = self.owned / "unported-export"
+        with self.assertRaises(patch_stack.StackError):
+            patch_stack.export_stack(self.repo, self.source, invalid)
+        self.assertFalse(invalid.exists())
+        destination = self.owned / "ported-export"
+        result = patch_stack.export_stack(self.repo, new_source, destination)
+        exported = json.loads((destination / "patch-stack.json").read_text())
+        self.assertEqual(exported["baseline"], new_baseline)
+        self.assertEqual(exported["source"], new_source)
+        self.assertEqual(exported["tree"], new_tree)
+        self.assertEqual(exported["patches"], self.manifest["patches"])
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(result["tree"], new_tree)
+        self.assertEqual((self.repo / "patch-stack.json").read_bytes(), manifest_before)
+        self.assertEqual(before, self.snapshot())
+
     def test_missing_patch_and_relative_destination_rejected(self):
         for operation in (lambda: patch_stack.import_stack(self.repo, "relative"),
                           lambda: patch_stack.export_stack(self.repo, self.source, "relative")):

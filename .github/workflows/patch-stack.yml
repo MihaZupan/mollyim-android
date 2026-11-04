@@ -55,6 +55,8 @@ jobs:
           def git(*args):
               return subprocess.check_output(["git", *args], text=True).strip()
           actual = git("rev-parse", "--verify", "--end-of-options", ref + "^{commit}")
+          if actual != manifest["source"]:
+              raise SystemExit("Source branch head differs from the recorded snapshot; prepare a synchronization proposal")
           if git("rev-parse", actual + "^{tree}") != manifest["tree"]:
               raise SystemExit("Source branch and patch snapshot differ; prepare a synchronization proposal")
           subprocess.run(["git", "merge-base", "--is-ancestor", manifest["baseline"], actual], check=True)
@@ -87,9 +89,10 @@ jobs:
               ;;
           esac
       - name: Upload validation or proposal artifacts
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: molly-patch-stack-${{ github.run_id }}
           path: ${{ runner.temp }}/molly-sync
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14

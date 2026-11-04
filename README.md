@@ -102,6 +102,9 @@ patch. The tools do not push, merge, rewrite canonical refs or install anything.
 `.github/workflows/patch-stack.yml` validates patch-branch pushes/PRs and offers
 manual source-to-patches or patches-to-source **proposal artifacts**. It does not
 silently publish either counterpart or start application/device tests.
+The `check` operation validates an already synchronized pair, including the exact
+source-branch head recorded in the manifest. An intentional pending edit can fail
+that steady-state gate until its counterpart proposal is reviewed and promoted.
 
 Nothing is active until branches are published. GitHub manual dispatch also
 requires the workflow to be registered on the repository's default branch;

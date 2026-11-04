@@ -224,7 +224,7 @@ def resolve_source(repo, source_ref):
 
 
 def export_stack(repo, source_ref, destination):
-    manifest = inspect(repo)
+    manifest = inspect(repo, align_source=False)
     destination = new_destination(destination)
     if git(repo, "status", "--porcelain", "--untracked-files=all"):
         raise StackError("Export requires a clean repository; commit source changes first")
