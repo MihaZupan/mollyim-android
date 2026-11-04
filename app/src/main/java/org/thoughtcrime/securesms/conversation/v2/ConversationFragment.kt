@@ -2799,18 +2799,9 @@ class ConversationFragment :
   }
 
   private fun initializeMediaKeyboard() {
-    val stickerIntro: Boolean = !SignalStore.tooltips.hasSeenStickerIntroTooltip()
-
     inputPanel.showMediaKeyboardToggle(true)
     inputPanel.setMediaKeyboardToggleMode(preferredKeyboardPage())
 
-    if (stickerIntro) {
-      SignalStore.settings.mediaKeyboardMode = MediaKeyboardMode.STICKER
-      inputPanel.setMediaKeyboardToggleMode(KeyboardPage.STICKER)
-      conversationTooltips.displayStickerIntroductionTooltip(inputPanel.mediaKeyboardToggleAnchorView) {
-        EventBus.default.removeStickyEvent<StickerPackInstallEvent>()
-      }
-    }
   }
 
   private fun initializeStickerSuggestions() {
@@ -4383,9 +4374,7 @@ class ConversationFragment :
     override fun onScheduledIndicatorClicked(view: View, conversationMessage: ConversationMessage) = Unit
 
     override fun onUrlClicked(url: String): Boolean {
-      if (CommunicationActions.handlePotentialGroupLinkUrl(requireActivity(), url) ||
-        CommunicationActions.handlePotentialProxyLinkUrl(requireActivity(), url)
-      ) {
+      if (CommunicationActions.handlePotentialGroupLinkUrl(requireActivity(), url)) {
         return true
       }
 
