@@ -108,7 +108,7 @@ class BackupsSettingsFragment : ComposeFragment() {
         when (state.backupState) {
           is BackupState.Error -> Unit
 
-          BackupState.None -> {
+          is BackupState.None -> {
             if (!state.isLinkedDevice) {
               checkoutLauncher.launch(null)
             }
@@ -209,16 +209,18 @@ private fun BackupsSettingsContent(
             OtherWaysToBackUpHeading()
           }
 
-          BackupState.None -> {
+          is BackupState.None -> {
             if (backupsSettingsState.isLinkedDevice) {
               BackupsOffLinkedDeviceRow(onLearnMoreClick = onLearnMoreClick)
-            } else {
+            } else if (backupsSettingsState.backupState.featureSupported) {
               NeverEnabledBackupsRow(
                 onBackupsRowClick = onBackupsRowClick
               )
             }
 
-            OtherWaysToBackUpHeading()
+            if (backupsSettingsState.isLinkedDevice || backupsSettingsState.backupState.featureSupported) {
+              OtherWaysToBackUpHeading()
+            }
           }
 
           is BackupState.Error -> {
