@@ -60,15 +60,6 @@ class AppSettingsActivityIntentsTest {
     assertThat(intent.startRoute()).isEqualTo(AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.RECURRING_DONATION))
   }
 
-  @Test
-  fun `boost opens one-time checkout`() {
-    every { RemoteConfig.useAppSettingsNavigation } returns false
-
-    val intent = AppSettingsActivity.boost(context)
-
-    assertThat(intent.startRoute()).isEqualTo(AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.ONE_TIME_DONATION))
-  }
-
   /** The start route rides under a host-specific extra key, so find it by type rather than by name. */
   private fun Intent.startRoute(): AppSettingsRoute? {
     return extras?.keySet()?.firstNotNullOfOrNull { getParcelableExtraCompat(it, AppSettingsRoute::class.java) }

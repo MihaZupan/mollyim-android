@@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.registration.v2
 
 import android.app.Application
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import androidx.test.core.app.ApplicationProvider
 import assertk.assertThat
 import assertk.assertions.isEqualTo
@@ -20,11 +21,14 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import okio.ByteString
+import kotlinx.coroutines.withTimeout
 import okio.ByteString.Companion.toByteString
 import org.junit.After
 import org.junit.Before
@@ -33,6 +37,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.signal.archive.LocalBackupRestoreProgress
 import org.signal.core.models.AccountEntropyPool
 import org.signal.core.models.MasterKey
 import org.signal.core.models.ServiceId.ACI
@@ -43,11 +48,15 @@ import org.signal.registration.RestoreDecision
 import org.signal.registration.proto.AccountData
 import org.signal.registration.proto.LinkedDeviceData
 import org.signal.registration.proto.RegistrationData
+import org.thoughtcrime.securesms.backup.FullBackupImporter
+import org.thoughtcrime.securesms.crypto.EncryptedPreferences
+import org.thoughtcrime.securesms.crypto.MasterSecret
 import org.thoughtcrime.securesms.crypto.PreKeyUtil
 import org.thoughtcrime.securesms.database.RecipientTable
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.model.databaseprotos.RestoreDecisionState
 import org.thoughtcrime.securesms.dependencies.AppDependencies
+import org.thoughtcrime.securesms.jobmanager.impl.DataRestoreConstraint
 import org.thoughtcrime.securesms.jobmanager.runJobBlocking
 import org.thoughtcrime.securesms.jobs.DirectoryRefreshJob
 import org.thoughtcrime.securesms.jobs.PreKeysSyncJob
@@ -59,9 +68,13 @@ import org.thoughtcrime.securesms.keyvalue.NewAccount
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.keyvalue.Skipped
 import org.thoughtcrime.securesms.registration.util.RegistrationUtil
+import org.thoughtcrime.securesms.service.BackupProgressService
+import org.thoughtcrime.securesms.service.KeyCachingService
 import org.thoughtcrime.securesms.testutil.MockAppDependenciesRule
 import org.thoughtcrime.securesms.testutil.SignalDatabaseRule
 import org.thoughtcrime.securesms.testutil.SignalStoreRule
+import org.thoughtcrime.securesms.util.SecurePreferenceManager
+import org.thoughtcrime.securesms.util.TextSecurePreferences
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
@@ -107,6 +120,12 @@ class AppRegistrationStorageControllerTest {
 
   @Before
   fun setUp() {
+    // Storage is called after unlock; isolate real encrypted preferences without running the app lifecycle.
+    KeyCachingService.setMasterSecret(MasterSecret(Random.nextBytes(32), Random.nextBytes(32)))
+    val preferences = EncryptedPreferences.create(context, "registration-storage-${UUID.randomUUID()}")
+    mockkStatic(SecurePreferenceManager::class)
+    every { SecurePreferenceManager.getSecurePreferences(any()) } returns preferences
+
     mockkStatic(RegistrationUtil::class)
     justRun { RegistrationUtil.maybeMarkRegistrationComplete() }
 
@@ -124,7 +143,52 @@ class AppRegistrationStorageControllerTest {
 
   @After
   fun tearDown() {
+    DataRestoreConstraint.isRestoringData = false
+    KeyCachingService.clearMasterSecret()
     unmockkAll()
+  }
+
+  @Test
+  fun `v1 restore - wrong passphrase - gates jobs then reopens and closes service`() = runBlocking<Unit> {
+    val uri = Uri.fromFile(File(context.cacheDir, "synthetic-restore-gate.backup").apply { writeBytes(byteArrayOf()) })
+    val progressService = mockk<BackupProgressService.Controller>(relaxed = true)
+    mockkObject(BackupProgressService.Companion)
+    every { BackupProgressService.start(any(), any()) } returns progressService
+    mockkStatic(FullBackupImporter::class)
+    every { FullBackupImporter.validatePassphrase(context, uri, any()) } answers {
+      assertThat(DataRestoreConstraint.isMet()).isFalse()
+      false
+    }
+
+    val progress = withTimeout(5_000) {
+      controller.restoreLocalBackupV1(uri, uri, "wrong passphrase").toList()
+    }
+
+    assertThat(progress.last()).isEqualTo(LocalBackupRestoreProgress.IncorrectCredential)
+    assertThat(DataRestoreConstraint.isMet()).isTrue()
+    verify(exactly = 1) { progressService.close() }
+  }
+
+  @Test
+  fun `v2 restore - directory error - gates jobs then reopens and closes service`() = runBlocking<Unit> {
+    val uri = Uri.parse("content://backup/tree/test")
+    val failure = IOException("Synthetic directory failure")
+    val progressService = mockk<BackupProgressService.Controller>(relaxed = true)
+    mockkObject(BackupProgressService.Companion)
+    every { BackupProgressService.start(any(), any()) } returns progressService
+    mockkStatic(DocumentFile::class)
+    every { DocumentFile.fromTreeUri(context, uri) } answers {
+      assertThat(DataRestoreConstraint.isMet()).isFalse()
+      throw failure
+    }
+
+    val progress = withTimeout(5_000) {
+      controller.restoreLocalBackupV2(uri, uri, aep).toList()
+    }
+
+    assertThat(progress.last()).isEqualTo(LocalBackupRestoreProgress.Error(failure))
+    assertThat(DataRestoreConstraint.isMet()).isTrue()
+    verify(exactly = 1) { progressService.close() }
   }
 
   @Test
@@ -745,8 +809,6 @@ class AppRegistrationStorageControllerTest {
 
   /** Puts onboarding into the state a fresh install leaves it in, where the get-started megaphone would show. */
   private fun seedOnboardingState() {
-    SignalStore.onboarding.setShowNewGroup(true)
-    SignalStore.onboarding.setShowInviteFriends(true)
     SignalStore.onboarding.setShowAppearance(true)
     SignalStore.onboarding.setShowAddPhoto(true)
   }

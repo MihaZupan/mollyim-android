@@ -8,12 +8,13 @@ package org.signal.mediaviewer
 import android.app.Application
 import android.net.Uri
 import android.os.Looper
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -48,18 +49,21 @@ import org.signal.video.VideoPlayer
 import org.signal.video.exo.ExoPlayerPool
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import com.google.android.material.R as MaterialR
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class MediaViewerScreenTest {
 
   @get:Rule
-  val composeTestRule = createComposeRule()
+  val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
   private val events = mutableListOf<MediaViewerEvent>()
 
   @Before
   fun setUp() {
+    composeTestRule.activity.setTheme(MaterialR.style.Theme_Material3_DayNight_NoActionBar)
+
     // Signal's emoji path blocks on EmojiSource.refresh(), which never runs under Robolectric.
     EmojiDependencies.init(
       ApplicationProvider.getApplicationContext(),

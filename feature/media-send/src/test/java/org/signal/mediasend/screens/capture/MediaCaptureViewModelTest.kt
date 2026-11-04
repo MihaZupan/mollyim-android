@@ -20,7 +20,10 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -40,6 +43,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.signal.core.models.media.Media
 import org.signal.core.util.SeekableFileDescriptor
+import org.signal.mediasend.MediaConstraints
 import org.signal.mediasend.MediaRecipientId
 import org.signal.mediasend.MediaSendDependenciesRule
 import org.signal.mediasend.MediaSendFlowActivityContract
@@ -163,12 +167,17 @@ class MediaCaptureViewModelTest {
   }
 
   @Test
-  @Config(sdk = [25])
   fun `Given a device that cannot record, when created, then video is withheld`() = runTest {
-    val viewModel = createViewModel(cameraFirstStoryCapableState())
+    mockkStatic(MediaConstraints::class)
+    try {
+      every { MediaConstraints.isVideoTranscodeAvailable() } returns false
+      val viewModel = createViewModel(cameraFirstStoryCapableState())
 
-    assertThat(viewModel.state.value.availableCaptureModes)
-      .containsExactly(MediaCaptureMode.PHOTO, MediaCaptureMode.TEXT_STORY)
+      assertThat(viewModel.state.value.availableCaptureModes)
+        .containsExactly(MediaCaptureMode.PHOTO, MediaCaptureMode.TEXT_STORY)
+    } finally {
+      unmockkStatic(MediaConstraints::class)
+    }
   }
 
   @Test
