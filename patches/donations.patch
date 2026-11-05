@@ -4654,8 +4654,38 @@ index fa115c919ba5ba4091c620d5508c80946c72fd9c..52570b4256cf84b9278ba58b618b0a8a
    implementation(project(":lib:device-transfer"))
    implementation(project(":lib:password-manager"))
    implementation(project(":lib:signal-login"))
+diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationNavigation.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationNavigation.kt
+index ef36b4fd31c96aafd99b73562df4e86e00bd65b4..69292a0d18c7f44eba6c55c130b3d1c0f138b2ad 100644
+--- a/feature/registration/src/main/java/org/signal/registration/RegistrationNavigation.kt
++++ b/feature/registration/src/main/java/org/signal/registration/RegistrationNavigation.kt
+@@ -8,6 +8,7 @@
+ package org.signal.registration
+ 
+ import android.app.Activity
++import android.app.PendingIntent
+ import android.content.ActivityNotFoundException
+ import android.content.Context
+ import android.content.Intent
+@@ -750,9 +751,14 @@ private fun EntryProviderScope<NavKey>.navigationEntries(
+ 
+         SignalLoginPaymentScreenActions.MakeGooglePlayServicesAvailable -> {
+           if (activity != null) {
+-            GoogleApiAvailability.getInstance()
+-              .makeGooglePlayServicesAvailable(activity)
+-              .addOnCompleteListener { viewModel.onEvent(SignalLoginPaymentScreenEvents.Foregrounded) }
++            val availability = GoogleApiAvailability.getInstance()
++            val resolution = availability.getErrorResolutionPendingIntent(activity, availability.isGooglePlayServicesAvailable(activity), 0)
++            try {
++              resolution?.send()
++            } catch (e: PendingIntent.CanceledException) {
++              Log.w(TAG, "[SignalLoginPayment] Google Play services resolution was canceled.", e)
++            }
++            viewModel.onEvent(SignalLoginPaymentScreenEvents.Foregrounded)
+           }
+         }
+ 
 diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
-index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..3ce048cb33785bd0c61176bd61cc1cddd4edff35 100644
+index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..1190216c5a23aaad992f08bddfabafb04a4bb973 100644
 --- a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
 @@ -32,7 +32,6 @@ import kotlinx.serialization.json.Json
@@ -4678,6 +4708,77 @@ index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..3ce048cb33785bd0c61176bd61cc1cdd
        )
      }
  
+@@ -461,17 +457,17 @@ class RegistrationRepository(
+    */
+   /** Whether Google Play can take a payment for a Signal Login right now, and if not, what is wrong with it. */
+   suspend fun getPaymentAvailability(): PaymentAvailability = withContext(Dispatchers.IO) {
++    if (!isGooglePlayBillingAvailable) {
++      Log.w(TAG, "[getPaymentAvailability] This build has no Google Play billing, so nothing can be bought here.")
++      return@withContext PaymentAvailability.PurchasesUnavailable
++    }
++
+     val services = googlePlayServicesStatus()
+     if (!services.isAvailable) {
+       Log.w(TAG, "[getPaymentAvailability] Google Play services cannot be used: $services")
+       return@withContext services
+     }
+ 
+-    if (!isGooglePlayBillingAvailable) {
+-      Log.w(TAG, "[getPaymentAvailability] This build has no Google Play billing, so nothing can be bought here.")
+-      return@withContext PaymentAvailability.PurchasesUnavailable
+-    }
+-
+     when (val billing = signalLoginPurchaseApi.getApiAvailability()) {
+       BillingResponseCode.OK -> PaymentAvailability.Available
+       BillingResponseCode.BILLING_UNAVAILABLE -> {
+diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
+index 8882ff7d389900659a227baa691fdc83e5364800..55f33ad3894256af3c909f041c041d4f00c2a57f 100644
+--- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
+@@ -38,6 +38,7 @@ import org.signal.registration.fakes.FakeNetworkController
+ import org.signal.registration.fakes.FakeStorageController
+ import org.signal.registration.fakes.SystemOutLogger
+ import org.signal.registration.proto.AccountData
++import org.signal.registration.screens.signalloginpayment.PaymentAvailability
+ import java.io.IOException
+ import java.util.UUID
+ import kotlin.time.Duration.Companion.seconds
+@@ -80,6 +81,35 @@ class RegistrationRepositoryTest {
+     )
+   }
+ 
++  @Test
++  fun `a build without billing does not query Google services or offer their repair`() = runTest {
++    val unsupported = RegistrationRepository(
++      context = mockk<Context>(relaxed = true),
++      networkController = networkController,
++      storageController = storageController,
++      isLinkAndSyncAvailable = false,
++      signalLoginPurchaseApi = mockk(),
++      googlePlayServicesStatus = { throw AssertionError("Unsupported billing must not query Google services") }
++    )
++
++    assertThat(unsupported.getPaymentAvailability()).isEqualTo(PaymentAvailability.PurchasesUnavailable)
++  }
++
++  @Test
++  fun `a configured billing backend retains actual services unavailability`() = runTest {
++    val supported = RegistrationRepository(
++      context = mockk<Context>(relaxed = true),
++      networkController = networkController,
++      storageController = storageController,
++      isLinkAndSyncAvailable = false,
++      isGooglePlayBillingAvailable = true,
++      signalLoginPurchaseApi = mockk(),
++      googlePlayServicesStatus = { PaymentAvailability.ServiceMissing }
++    )
++
++    assertThat(supported.getPaymentAvailability()).isEqualTo(PaymentAvailability.ServiceMissing)
++  }
++
+   // ==================== getAndMaybeHealRemoteBackupInfo ====================
+ 
+   @Test
 diff --git a/lib/billing/src/main/AndroidManifest.xml b/lib/billing/src/main/AndroidManifest.xml
 deleted file mode 100644
 index 7277dc362ab3ecf567018237f72978ac2d92d2fb..0000000000000000000000000000000000000000

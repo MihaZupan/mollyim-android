@@ -8612,7 +8612,7 @@ index 5b8eb2dda218a1a8baaa955b7e0c80f66d04e9f3..a02cc24db65fa1a65763db6d00601f0e
    // Project dependencies
    implementation(project(":core:ui"))
 diff --git a/feature/registration/build.gradle.kts b/feature/registration/build.gradle.kts
-index 52570b4256cf84b9278ba58b618b0a8a02c93f53..9ba1ad17a3a759d3659136b26afaf256689671fb 100644
+index 52570b4256cf84b9278ba58b618b0a8a02c93f53..3f8fb8d8a3199411de24df39816960725b3117b2 100644
 --- a/feature/registration/build.gradle.kts
 +++ b/feature/registration/build.gradle.kts
 @@ -25,19 +25,6 @@ android {
@@ -8635,7 +8635,7 @@ index 52570b4256cf84b9278ba58b618b0a8a02c93f53..9ba1ad17a3a759d3659136b26afaf256
  wire {
    kotlin {
      javaInterop = true
-@@ -94,8 +81,15 @@ dependencies {
+@@ -94,8 +81,16 @@ dependencies {
    implementation(libs.google.libphonenumber)
  
    // Phone number hint + SMS verification code retriever
@@ -8647,6 +8647,7 @@ index 52570b4256cf84b9278ba58b618b0a8a02c93f53..9ba1ad17a3a759d3659136b26afaf256
 +    exclude(group = "com.google.android.gms", module = "play-services-tasks")
 +  }
 +  implementation(project(":core-gms:tasks"))
++  implementation(project(":core-gms:base"))
 +
 +  // Credential Manager (password manager retrieval)
 +  implementation(libs.androidx.credentials)
