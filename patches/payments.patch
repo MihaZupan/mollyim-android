@@ -17901,10 +17901,10 @@ index 94d49991c3e7342d62153a41a41871f68a8e38c5..00000000000000000000000000000000
 -}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/conversation/MenuStateTest.kt b/app/src/test/java/org/thoughtcrime/securesms/conversation/MenuStateTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..6b4c5ecbec81939f652de4dba9fdf2e1eaed2d0a
+index 0000000000000000000000000000000000000000..4fc80b298c1eba40129d6530dd169c1994be01fc
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/conversation/MenuStateTest.kt
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,49 @@
 +package org.thoughtcrime.securesms.conversation
 +
 +import io.mockk.every
@@ -17915,6 +17915,8 @@ index 0000000000000000000000000000000000000000..6b4c5ecbec81939f652de4dba9fdf2e1
 +import org.junit.Test
 +import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 +import org.thoughtcrime.securesms.database.model.MessageRecord
++import org.thoughtcrime.securesms.keyvalue.LabsValues
++import org.thoughtcrime.securesms.keyvalue.SignalStore
 +import org.thoughtcrime.securesms.recipients.Recipient
 +import org.thoughtcrime.securesms.testutil.MockSignalStoreRule
 +
@@ -17924,6 +17926,10 @@ index 0000000000000000000000000000000000000000..6b4c5ecbec81939f652de4dba9fdf2e1
 +
 +  @Test
 +  fun `failed historical payments cannot be retried while ordinary failed messages still can`() {
++    val labs = mockk<LabsValues>()
++    every { SignalStore.labs } returns labs
++    every { labs.starredMessages } returns false
++
 +    val recipient = mockk<Recipient>(relaxed = true)
 +    for ((notification, tombstone) in listOf(true to false, false to true, false to false)) {
 +      val record = mockk<MessageRecord>(relaxed = true)

@@ -1400,7 +1400,7 @@ index 0ea4a2dcf520332130fd90cb8845a019b479920b..64a7af9cd76d684070424fc81035019e
          <item>@string/ExpireTimerSettingsFragment__off</item>
          <item>@string/ExpireTimerSettingsFragment__4_weeks</item>
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupExporterTest.kt b/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupExporterTest.kt
-index b482bb9132692a758b59848e45bb9268f80503ac..794ff521b73fadca06fea4c99104d3778a0d293f 100644
+index b482bb9132692a758b59848e45bb9268f80503ac..395dcac710def3f6a5686bac02926b9ef730fd70 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupExporterTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupExporterTest.kt
 @@ -1,10 +1,51 @@
@@ -1409,11 +1409,11 @@ index b482bb9132692a758b59848e45bb9268f80503ac..794ff521b73fadca06fea4c99104d377
 +import android.database.Cursor
 +import io.mockk.every
 +import io.mockk.mockk
++import net.zetetic.database.sqlcipher.SQLiteDatabase
  import org.junit.Assert.assertEquals
 +import org.junit.Assert.assertFalse
  import org.junit.Test
 +import org.thoughtcrime.securesms.database.MessageTable
-+import org.thoughtcrime.securesms.database.SQLiteDatabase
  
  class FullBackupExporterTest {
  
@@ -1456,10 +1456,10 @@ index b482bb9132692a758b59848e45bb9268f80503ac..794ff521b73fadca06fea4c99104d377
    fun `computeTableOrder - empty`() {
      val order = FullBackupExporter.computeTableOrder(mapOf())
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupImporterTest.kt b/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupImporterTest.kt
-index 208942414c2194387e90d2f27738dd8729ac8eaa..d76522aaf66e7c393b157282c0f78f83b421a550 100644
+index 208942414c2194387e90d2f27738dd8729ac8eaa..029698ab78eaaa7cb86df9ec7f6c2ac12461bc7d 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupImporterTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/backup/FullBackupImporterTest.kt
-@@ -1,10 +1,80 @@
+@@ -1,10 +1,85 @@
  package org.thoughtcrime.securesms.backup
  
 +import android.content.Context
@@ -1492,6 +1492,7 @@ index 208942414c2194387e90d2f27738dd8729ac8eaa..d76522aaf66e7c393b157282c0f78f83
 +    val preferences = mockk<SharedPreferences>()
 +    val foreign = mockk<EncryptedPreferences>()
 +    val editor = mockk<SharedPreferences.Editor>()
++    val foreignEditor = mockk<EncryptedPreferences.Editor>()
 +    mockkStatic(SecurePreferenceManager::class)
 +    mockkStatic(EncryptedPreferences::class)
 +    every { SecurePreferenceManager.getSecurePreferences(context) } returns preferences
@@ -1499,6 +1500,9 @@ index 208942414c2194387e90d2f27738dd8729ac8eaa..d76522aaf66e7c393b157282c0f78f83
 +    every { preferences.edit() } returns editor
 +    every { editor.putBoolean("pref_read_receipts", false) } returns editor
 +    every { editor.commit() } returns true
++    every { foreign.edit() } returns foreignEditor
++    every { foreignEditor.putBoolean("pref_read_receipts", false) } returns foreignEditor
++    every { foreignEditor.commit() } returns true
 +    val frame = SharedPreference.Builder()
 +      .file_(SecurePreferenceManager.getSecurePreferencesName())
 +      .key("pref_read_receipts")
@@ -1508,7 +1512,8 @@ index 208942414c2194387e90d2f27738dd8729ac8eaa..d76522aaf66e7c393b157282c0f78f83
 +    assertTrue(importPreference(context, frame))
 +    assertFalse(importPreference(context, frame.newBuilder().file_("unrelated-file").build()))
 +    assertFalse(importPreference(context, SharedPreference.Builder().file_(frame.file_).key(frame.key).build()))
-+    verify(exactly = 0) { foreign.edit() }
++    verify(exactly = 1) { editor.commit() }
++    verify(exactly = 1) { foreignEditor.commit() }
 +  }
 +
 +  @Test
