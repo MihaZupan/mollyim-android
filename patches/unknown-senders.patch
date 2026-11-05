@@ -12,10 +12,10 @@ Prior-version-input: 3cbc91d5a2fb963fee59b69d1a75ab001cfbd268
 Semantic-boundary: 14/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
-index a85a2691b8c6513798bb2635437eb7cffa199c34..82b25dcc09766435c621dc7cfa61247c0a82fe4f 100644
+index a85a2691b8c6513798bb2635437eb7cffa199c34..f3206996ac35b3b2c7c900d7fea379de3d9b89df 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
-@@ -44,6 +44,7 @@ import org.thoughtcrime.securesms.messages.SignalServiceProtoUtil.toDecryptionEr
+@@ -44,10 +44,12 @@ import org.thoughtcrime.securesms.messages.SignalServiceProtoUtil.toDecryptionEr
  import org.thoughtcrime.securesms.mms.IncomingMessage
  import org.thoughtcrime.securesms.notifications.v2.ConversationId
  import org.thoughtcrime.securesms.recipients.Recipient
@@ -23,7 +23,12 @@ index a85a2691b8c6513798bb2635437eb7cffa199c34..82b25dcc09766435c621dc7cfa61247c
  import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
  import org.thoughtcrime.securesms.util.RemoteConfig
  import org.thoughtcrime.securesms.util.SignalLocalMetrics
-@@ -147,22 +148,23 @@ open class MessageContentProcessor(private val context: Context) {
+ import org.thoughtcrime.securesms.util.SignalTrace
++import org.thoughtcrime.securesms.util.TextSecurePreferences
+ import org.whispersystems.signalservice.api.crypto.EnvelopeMetadata
+ import org.whispersystems.signalservice.api.push.DistributionId
+ import org.whispersystems.signalservice.api.push.SignalServiceAddress
+@@ -147,22 +149,23 @@ open class MessageContentProcessor(private val context: Context) {
      }
  
      @Throws(BadGroupIdException::class)
@@ -54,7 +59,7 @@ index a85a2691b8c6513798bb2635437eb7cffa199c34..82b25dcc09766435c621dc7cfa61247c
            return true
          }
  
-@@ -173,25 +175,25 @@ open class MessageContentProcessor(private val context: Context) {
+@@ -173,25 +176,25 @@ open class MessageContentProcessor(private val context: Context) {
              true
            } else {
              val groupRecord = SignalDatabase.groups.getGroup(groupId)
@@ -84,7 +89,7 @@ index a85a2691b8c6513798bb2635437eb7cffa199c34..82b25dcc09766435c621dc7cfa61247c
          }
  
          val isTextMessage = message.body != null
-@@ -201,12 +203,21 @@ open class MessageContentProcessor(private val context: Context) {
+@@ -201,12 +204,21 @@ open class MessageContentProcessor(private val context: Context) {
          val isContentMessage = !isGv2Update && !isExpireMessage && (isTextMessage || isMediaMessage)
          val isGroupActive = threadRecipient.isActiveGroup
  

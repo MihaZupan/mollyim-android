@@ -1845,7 +1845,7 @@ index 6661acff8541b0ea2aed09efc6714c148ff6db64..49411e15cc6a6e05e631e02949673831
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/ScreenLockController.kt b/app/src/main/java/org/thoughtcrime/securesms/ScreenLockController.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..22708f831920264ee2c3765cbafb5635d1fc0ec5
+index 0000000000000000000000000000000000000000..1ecf4f3bb0bc2235f02d45db4c85f4bff6edb0e9
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/ScreenLockController.kt
 @@ -0,0 +1,179 @@
@@ -1944,7 +1944,7 @@ index 0000000000000000000000000000000000000000..22708f831920264ee2c3765cbafb5635
 +
 +  private fun activitiesRunningOnTopOfTasks(context: Context): List<ComponentName> =
 +    ServiceUtil.getActivityManager(context).appTasks
-+      .map { it.taskInfo }
++      .mapNotNull { it.taskInfo }
 +      .filter {
 +        if (Build.VERSION.SDK_INT >= 29) it.isRunning else true
 +      }
@@ -2554,10 +2554,10 @@ index 3aeae751b2fea4500067fa47c23ceaab840ba5ff..8e49c4b033273c4b294dab3248076e94
    )
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsEntry.kt
-index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..daaa518c3b39dc845b23a2d07f74226a1d552a83 100644
+index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..d075bef73698869c3005fb4e64f54dd8b979c7a9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsEntry.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsEntry.kt
-@@ -11,22 +11,36 @@ import android.content.Context
+@@ -11,22 +11,35 @@ import android.content.Context
  import android.content.Intent
  import android.os.Build
  import android.provider.Settings
@@ -2589,14 +2589,13 @@ index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..daaa518c3b39dc845b23a2d07f74226a
 +import org.thoughtcrime.securesms.preferences.widgets.PassphraseLockTriggerPreference
  import org.thoughtcrime.securesms.util.CommunicationActions
 +import org.thoughtcrime.securesms.util.ConversationUtil
-+import org.thoughtcrime.securesms.util.ExpirationUtil
++import org.signal.core.ui.util.ExpirationUtil
 +import org.thoughtcrime.securesms.util.WindowUtil
-+import kotlin.time.Duration.Companion.milliseconds
 +import kotlin.time.Duration.Companion.seconds
  import org.signal.appsettings.R as AppSettingsR
  
  private val TAG = Log.tag(PrivacySettingsViewModel::class)
-@@ -49,24 +63,101 @@ fun PrivacySettingsEntry(
+@@ -49,24 +62,101 @@ fun PrivacySettingsEntry(
    val state by viewModel.state.collectAsStateWithLifecycle()
    val context = LocalContext.current
    val activity = LocalActivity.current
@@ -2626,7 +2625,7 @@ index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..daaa518c3b39dc845b23a2d07f74226a
 +        val manager = host.supportFragmentManager
 +        manager.clearFragmentResult(TimeDurationPickerDialog.RESULT_DURATION)
 +        manager.setFragmentResultListener(TimeDurationPickerDialog.RESULT_DURATION, lifecycleOwner) { _, bundle ->
-+          val seconds = bundle.getLong(TimeDurationPickerDialog.RESULT_KEY_DURATION_MILLISECONDS).milliseconds.inWholeSeconds
++          val seconds = bundle.getLong(TimeDurationPickerDialog.RESULT_KEY_DURATION_SECONDS)
 +          viewModel.onEvent(PrivacySettingsEvent.PassphraseLockTimeoutSelected(seconds))
 +          manager.clearFragmentResultListener(TimeDurationPickerDialog.RESULT_DURATION)
 +        }
@@ -2673,7 +2672,7 @@ index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..daaa518c3b39dc845b23a2d07f74226a
 +      }
 +      item {
 +        Rows.TextRow(
-+          text = stringResource(R.string.preferences__change_passphrase),
++          text = stringResource(AppSettingsR.string.preferences__change_passphrase),
 +          enabled = state.passphraseLock,
 +          onClick = { viewModel.onEvent(PrivacySettingsEvent.ChangePassphraseClicked) }
 +        )
@@ -2701,7 +2700,7 @@ index 5dcfbade0820ae4e0a10eb7de45f4987b38ade5e..daaa518c3b39dc845b23a2d07f74226a
    )
  }
  
-@@ -86,12 +177,25 @@ private fun openDeviceSecuritySettings(context: Context): Boolean {
+@@ -86,12 +176,25 @@ private fun openDeviceSecuritySettings(context: Context): Boolean {
    }
  }
  
@@ -2757,7 +2756,7 @@ index 44a9b13e2d8eb4c5e839ce27d3976b8cbdb8b876..b0e63fd06ad6d49c1121a34ac0ece4f1
        when (event) {
          AppSettingsNavigationEvent.NavigateBack -> requireActivity().onBackPressedDispatcher.onBackPressed()
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsRepository.kt
-index df191cdc727eeca1ea1f3972064ba5f72d94945a..c99df7d39c8272c751a105af7b43f2fa61fc744b 100644
+index df191cdc727eeca1ea1f3972064ba5f72d94945a..5f59bc84763be33b4fb3f0534d13769a96195c72 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsRepository.kt
 @@ -1,19 +1,18 @@
@@ -2801,9 +2800,19 @@ index df191cdc727eeca1ea1f3972064ba5f72d94945a..c99df7d39c8272c751a105af7b43f2fa
    fun setScreenSecurityEnabled(enabled: Boolean) {
      SignalStore.settings.isScreenSecurityEnabled = enabled
    }
-@@ -73,34 +74,27 @@ object PrivacySettingsRepository {
-     SignalStore.payments.paymentLock = enabled
+@@ -67,40 +68,33 @@ object PrivacySettingsRepository {
+     SignalStore.settings.isIncognitoKeyboardEnabled = enabled
    }
+ 
+-  fun isPaymentLockEnabled(): Boolean = SignalStore.payments.paymentLock
++  /** The retired wallet lock is unavailable; preserve its stored keys without reading or rewriting them. */
++  fun isPaymentLockEnabled(): Boolean = false
+ 
+-  fun setPaymentLockEnabled(enabled: Boolean) {
+-    SignalStore.payments.paymentLock = enabled
+-  }
++  @Suppress("UNUSED_PARAMETER")
++  fun setPaymentLockEnabled(enabled: Boolean) = Unit
  
 -  fun isObsoletePassphraseEnabled(): Boolean = !SignalStore.settings.passphraseDisabled
 +  fun isPassphraseLockEnabled(): Boolean = TextSecurePreferences.isPassphraseLockEnabled(AppDependencies.application)
@@ -2849,10 +2858,10 @@ index df191cdc727eeca1ea1f3972064ba5f72d94945a..c99df7d39c8272c751a105af7b43f2fa
    private suspend fun syncConfiguration() {
      withContext(SignalDispatchers.Default) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModel.kt
-index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be03319c901 100644
+index c575eda3fc221aac629582de3a7297038dd7848b..656f100f52c6faf2a6d63b9032c0aff2c0eb607a 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModel.kt
-@@ -19,21 +19,16 @@ import org.signal.appsettings.routes.navigateTo
+@@ -19,21 +19,17 @@ import org.signal.appsettings.routes.navigateTo
  import org.signal.core.ui.compose.EventDrivenViewModel
  import org.signal.core.util.logging.Log
  
@@ -2861,6 +2870,7 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
 - */
  class PrivacySettingsViewModel(
    private val parentEventEmitter: (AppSettingsNavigationEvent) -> Unit,
++  @Suppress("UNUSED_PARAMETER")
    scrollToPaymentLock: Boolean = false
  ) : EventDrivenViewModel<PrivacySettingsEvent>(TAG) {
 -
@@ -2868,13 +2878,14 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
      private val TAG = Log.tag(PrivacySettingsViewModel::class)
    }
  
-   private val _state = MutableStateFlow(PrivacySettingsState(scrollToPaymentLock = scrollToPaymentLock))
+-  private val _state = MutableStateFlow(PrivacySettingsState(scrollToPaymentLock = scrollToPaymentLock))
++  private val _state = MutableStateFlow(PrivacySettingsState())
    private val _actions = Channel<PrivacySettingsAction>(Channel.BUFFERED)
 -
    val state: StateFlow<PrivacySettingsState> = _state.asStateFlow()
    val actions: Flow<PrivacySettingsAction> = _actions.receiveAsFlow()
  
-@@ -47,75 +42,64 @@ class PrivacySettingsViewModel(
+@@ -47,100 +43,70 @@ class PrivacySettingsViewModel(
          refresh()
          _state.update { it.copy(blockedCount = PrivacySettingsRepository.getBlockedCount()) }
        }
@@ -2882,8 +2893,9 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
 +      PrivacySettingsEvent.SettingsChanged -> refresh()
        PrivacySettingsEvent.NavigateBackClicked -> parentEventEmitter.navigateBack()
 -
-       PrivacySettingsEvent.ScrolledToPaymentLock -> _state.update { it.copy(scrollToPaymentLock = false) }
+-      PrivacySettingsEvent.ScrolledToPaymentLock -> _state.update { it.copy(scrollToPaymentLock = false) }
 -
++      PrivacySettingsEvent.ScrolledToPaymentLock -> Unit
        PrivacySettingsEvent.PhoneNumberClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.PrivacyRoute.PhoneNumberPrivacy)
 -
        PrivacySettingsEvent.BlockedClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.PrivacyRoute.BlockedUsers)
@@ -2978,24 +2990,28 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
 -
        PrivacySettingsEvent.IncognitoKeyboardLearnMoreClicked -> _actions.send(PrivacySettingsAction.OpenIncognitoKeyboardLearnMore)
 -
-       PrivacySettingsEvent.EnablePaymentLockClicked -> {
-         if (PrivacySettingsRepository.isDeviceSecure()) {
-           PrivacySettingsRepository.setPaymentLockEnabled(true)
-@@ -124,23 +108,17 @@ class PrivacySettingsViewModel(
-           _state.update { it.copy(dialog = Dialog.PaymentLockNeedsDeviceSecurity) }
-         }
-       }
+-      PrivacySettingsEvent.EnablePaymentLockClicked -> {
+-        if (PrivacySettingsRepository.isDeviceSecure()) {
+-          PrivacySettingsRepository.setPaymentLockEnabled(true)
+-          refresh()
+-        } else {
+-          _state.update { it.copy(dialog = Dialog.PaymentLockNeedsDeviceSecurity) }
+-        }
+-      }
 -
-       PrivacySettingsEvent.PaymentLockDisableAuthenticated -> {
-         PrivacySettingsRepository.setPaymentLockEnabled(false)
-         refresh()
-       }
+-      PrivacySettingsEvent.PaymentLockDisableAuthenticated -> {
+-        PrivacySettingsRepository.setPaymentLockEnabled(false)
+-        refresh()
+-      }
 -
-       PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked -> {
-         _state.update { it.copy(dialog = Dialog.None) }
-         _actions.send(PrivacySettingsAction.OpenDeviceSecuritySettings)
-       }
+-      PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked -> {
+-        _state.update { it.copy(dialog = Dialog.None) }
+-        _actions.send(PrivacySettingsAction.OpenDeviceSecuritySettings)
+-      }
 -
++      PrivacySettingsEvent.EnablePaymentLockClicked,
++      PrivacySettingsEvent.PaymentLockDisableAuthenticated,
++      PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked -> Unit
        PrivacySettingsEvent.DeviceSecuritySettingsUnavailable -> _state.update { it.copy(snackbar = Snackbar.DeviceSecuritySettingsUnavailable) }
 -
        PrivacySettingsEvent.AdvancedClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.PrivacyRoute.Advanced)
@@ -3005,7 +3021,7 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
        PrivacySettingsEvent.SnackbarDismissed -> _state.update { it.copy(snackbar = Snackbar.None) }
      }
    }
-@@ -152,15 +130,18 @@ class PrivacySettingsViewModel(
+@@ -152,15 +118,17 @@ class PrivacySettingsViewModel(
          readReceipts = PrivacySettingsRepository.isReadReceiptsEnabled(),
          typingIndicators = PrivacySettingsRepository.isTypingIndicatorsEnabled(),
          universalExpireTimer = PrivacySettingsRepository.getUniversalExpireTimer(),
@@ -3021,7 +3037,6 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
 +        screenSecurityForced = PrivacySettingsRepository.isScreenSecurityForced(),
          incognitoKeyboard = PrivacySettingsRepository.isIncognitoKeyboardEnabled(),
 -        paymentLock = PrivacySettingsRepository.isPaymentLockEnabled()
-+        paymentLock = PrivacySettingsRepository.isPaymentLockEnabled(),
 +        passphraseLock = PrivacySettingsRepository.isPassphraseLockEnabled(),
 +        passphraseLockTriggers = PrivacySettingsRepository.getPassphraseLockTriggers(),
 +        passphraseLockTimeoutSeconds = PrivacySettingsRepository.getPassphraseLockTimeout(),
@@ -3031,7 +3046,7 @@ index c575eda3fc221aac629582de3a7297038dd7848b..8ab1badd1ef66d7dce87824829c00be0
      }
    }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/screenlock/ScreenLockSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/screenlock/ScreenLockSettingsFragment.kt
-index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de51f7d161 100644
+index 65c0b23c0342eb97c3a280350dae5a3707005435..e5f96306fd64b425849995e4549e877cb2bf2779 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/screenlock/ScreenLockSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/screenlock/ScreenLockSettingsFragment.kt
 @@ -1,7 +1,15 @@
@@ -3050,7 +3065,7 @@ index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de
  import androidx.fragment.app.viewModels
  import androidx.lifecycle.compose.collectAsStateWithLifecycle
  import org.signal.appsettings.screenlock.ScreenLockSettingsAction
-@@ -9,13 +17,17 @@ import org.signal.appsettings.screenlock.ScreenLockSettingsEvent
+@@ -9,13 +17,18 @@ import org.signal.appsettings.screenlock.ScreenLockSettingsEvent
  import org.signal.appsettings.screenlock.ScreenLockSettingsScreen
  import org.signal.core.ui.compose.CollectActions
  import org.signal.core.ui.compose.ComposeFragment
@@ -3059,6 +3074,7 @@ index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de
 +import org.thoughtcrime.securesms.R
 +import org.thoughtcrime.securesms.biometric.BiometricDialogFragment
 +import org.thoughtcrime.securesms.util.WindowUtil
++import org.signal.appsettings.R as AppSettingsR
  
 -/**
 - * Lets the user turn on Signal's screen lock and choose how long the app can be in the background before it locks.
@@ -3072,7 +3088,7 @@ index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de
  
    override fun onResume() {
      super.onResume()
-@@ -25,18 +37,59 @@ class ScreenLockSettingsFragment : ComposeFragment() {
+@@ -25,18 +38,59 @@ class ScreenLockSettingsFragment : ComposeFragment() {
    @Composable
    override fun FragmentContent() {
      val state by viewModel.state.collectAsStateWithLifecycle()
@@ -3094,7 +3110,7 @@ index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de
 -      onEvent = viewModel::onEvent
 +      onEvent = viewModel::onEvent,
 +      description = stringResource(R.string.PrivacySettingsFragment__lock_molly_access_with_fingerprint_or_face_recognition),
-+      toggleLabel = stringResource(R.string.preferences_app_protection__screen_lock)
++      toggleLabel = stringResource(AppSettingsR.string.preferences_app_protection__screen_lock)
      )
    }
  
@@ -3115,7 +3131,7 @@ index 65c0b23c0342eb97c3a280350dae5a3707005435..455036039c9de069e8d8deddc433a0de
 +            )
 +          } catch (e: ActivityNotFoundException) {
 +            Log.w(Log.tag(ScreenLockSettingsFragment::class), "Failed to navigate to system settings.", e)
-+            Toast.makeText(context, R.string.PrivacySettingsFragment__failed_to_navigate_to_system_settings, Toast.LENGTH_SHORT).show()
++            Toast.makeText(context, AppSettingsR.string.PrivacySettingsFragment__failed_to_navigate_to_system_settings, Toast.LENGTH_SHORT).show()
 +          }
 +        } else {
 +          Toast.makeText(context, R.string.PrivacySettingsFragment__please_first_setup_your_biometrics_in_android_settings, Toast.LENGTH_LONG).show()
@@ -3656,36 +3672,38 @@ index b02f2bff200236939e9cbc66cfc41bb2d0756813..c2e874f6e64672109fb9dd0f8d52ebb3
      fun provideUnreadReminderManager(): UnreadReminderManager
      fun provideLibsignalNetwork(config: SignalServiceConfiguration, proxyState: NetworkProxyState): Network
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/dependencies/CoreUiDependenciesProvider.kt b/app/src/main/java/org/thoughtcrime/securesms/dependencies/CoreUiDependenciesProvider.kt
-index bbad1fef48aace76758aed7e7e8ed99ca9c70c54..29fb18ea78f97909627a635c465915c64aae1efa 100644
+index bbad1fef48aace76758aed7e7e8ed99ca9c70c54..e4ac0ba80c7c94c6867d74b48165015d43d1b3ac 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/dependencies/CoreUiDependenciesProvider.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/dependencies/CoreUiDependenciesProvider.kt
-@@ -7,18 +7,24 @@ package org.thoughtcrime.securesms.dependencies
+@@ -6,19 +6,25 @@
+ package org.thoughtcrime.securesms.dependencies
  
  import org.signal.core.ui.CoreUiDependencies
- import org.thoughtcrime.securesms.BuildConfig
+-import org.thoughtcrime.securesms.BuildConfig
 +import org.thoughtcrime.securesms.ScreenLockController
  import org.thoughtcrime.securesms.keyvalue.SignalStore
 +import org.thoughtcrime.securesms.service.KeyCachingService
++import org.thoughtcrime.securesms.util.BackupUtil
  
  object CoreUiDependenciesProvider : CoreUiDependencies.Provider {
 -  override fun providePackageId(): String {
 -    return BuildConfig.APPLICATION_ID
 -  }
-+  override fun providePackageId(): String = BuildConfig.APPLICATION_ID
++  override fun provideBackupBaseDirName(): String = BackupUtil.getBackupBaseDirName()
  
    override fun provideIsIncognitoKeyboardEnabled(): Boolean {
 -    return SignalStore.settings.isIncognitoKeyboardEnabled
 +    // Neither privacy setting is a plaintext bootstrap exemption.
-+    return !AppDependencies.isInitialized() ||
-+      KeyCachingService.getMasterSecret() == null ||
++    return !AppDependencies.isInitialized ||
++      KeyCachingService.isLocked() ||
 +      SignalStore.settings.isIncognitoKeyboardEnabled
    }
  
    override fun provideIsScreenSecurityEnabled(): Boolean {
 -    return SignalStore.settings.isScreenSecurityEnabled
 +    return ScreenLockController.alwaysSetSecureFlagOnResume ||
-+      !AppDependencies.isInitialized() ||
-+      KeyCachingService.getMasterSecret() == null ||
++      !AppDependencies.isInitialized ||
++      KeyCachingService.isLocked() ||
 +      SignalStore.settings.isScreenSecurityEnabled
    }
  }
@@ -5767,6 +5785,34 @@ index 1735c6224b67787420eef4e26643f12fa8ba7a1a..1ff82292ec909d0b611cb657164325d8
 +    public void onReceiveUnlock(@NonNull Context context, @NonNull Intent intent) {
        Log.d(TAG, "onReceive()");
        AppDependencies.getTrimThreadsByDateManager().scheduleIfNecessary();
+     }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/UnreadReminderManager.kt b/app/src/main/java/org/thoughtcrime/securesms/service/UnreadReminderManager.kt
+index f5a00253c68748e4804c4b14c8195a19f9d93f34..8a9bdcaf31a113a3c0a97f4f58cc95ef3b6d83b4 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/service/UnreadReminderManager.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/service/UnreadReminderManager.kt
+@@ -1,7 +1,6 @@
+ package org.thoughtcrime.securesms.service
+ 
+ import android.app.Application
+-import android.content.BroadcastReceiver
+ import android.content.Context
+ import android.content.Intent
+ import androidx.annotation.WorkerThread
+@@ -66,13 +65,13 @@ class UnreadReminderManager(
+ 
+   data class Event(val delay: Long, val threadId: Long)
+ 
+-  class UnreadReminderAlarm : BroadcastReceiver() {
++  class UnreadReminderAlarm : ExportedBroadcastReceiver() {
+ 
+     companion object {
+       private val TAG = Log.tag(UnreadReminderAlarm::class.java)
+     }
+ 
+-    override fun onReceive(context: Context?, intent: Intent?) {
++    override fun onReceiveUnlock(context: Context?, intent: Intent?) {
+       Log.d(TAG, "onReceive()")
+       AppDependencies.unreadReminderManager.scheduleIfNecessary()
      }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/ActiveCallManager.kt b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/ActiveCallManager.kt
 index fa3f6a6e11061c9d0ddf3f1cc6837cd2bd85e9e3..5539bc33bff01d4a1bdf1f622838205c3feeb26a 100644
@@ -39221,7 +39267,7 @@ index 164dbe7f220d9300a8ad42350dc453a5e2918fc5..7e6be9be96e3dc19cec6b379930c1bc7
      <item name="reminder_action_update_now" type="id" />
      <item name="reminder_action_re_register" type="id" />
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModelTest.kt
-index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03af94a692 100644
+index 2dacc315747e6a9a2dde74a94d37378ee0e82624..597c8b9bba32ca2c96df79c5e90a478c5024524f 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModelTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsViewModelTest.kt
 @@ -40,10 +40,8 @@ import org.signal.appsettings.privacy.PrivacySettingsState.Snackbar
@@ -39235,8 +39281,11 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
  
  @OptIn(ExperimentalCoroutinesApi::class)
  class PrivacySettingsViewModelTest {
-@@ -60,9 +58,10 @@ class PrivacySettingsViewModelTest {
-   private var paymentLock = false
+@@ -57,12 +55,12 @@ class PrivacySettingsViewModelTest {
+   private var typingIndicators = false
+   private var screenSecurity = false
+   private var incognitoKeyboard = false
+-  private var paymentLock = false
    private var deviceSecure = true
    private var passphraseEnabled = false
 -  private var passphraseInitialized = true
@@ -39249,7 +39298,7 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
    private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
  
    @Before
-@@ -79,20 +78,22 @@ class PrivacySettingsViewModelTest {
+@@ -79,20 +77,20 @@ class PrivacySettingsViewModelTest {
      coEvery { PrivacySettingsRepository.setTypingIndicatorsEnabled(any()) } answers { typingIndicators = firstArg() }
      every { PrivacySettingsRepository.getUniversalExpireTimer() } returns 1.days
      every { PrivacySettingsRepository.isScreenLockEnabled() } returns false
@@ -39258,8 +39307,8 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
      every { PrivacySettingsRepository.setScreenSecurityEnabled(any()) } answers { screenSecurity = firstArg() }
      every { PrivacySettingsRepository.isIncognitoKeyboardEnabled() } answers { incognitoKeyboard }
      every { PrivacySettingsRepository.setIncognitoKeyboardEnabled(any()) } answers { incognitoKeyboard = firstArg() }
-     every { PrivacySettingsRepository.isPaymentLockEnabled() } answers { paymentLock }
-     every { PrivacySettingsRepository.setPaymentLockEnabled(any()) } answers { paymentLock = firstArg() }
+-    every { PrivacySettingsRepository.isPaymentLockEnabled() } answers { paymentLock }
+-    every { PrivacySettingsRepository.setPaymentLockEnabled(any()) } answers { paymentLock = firstArg() }
 -    every { PrivacySettingsRepository.isObsoletePassphraseEnabled() } answers { passphraseEnabled }
 -    every { PrivacySettingsRepository.isObsoletePassphraseInitialized() } answers { passphraseInitialized }
 -    coEvery { PrivacySettingsRepository.disableObsoletePassphrase() } answers { passphraseEnabled = false }
@@ -39280,7 +39329,123 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
    }
  
    @After
-@@ -254,41 +255,45 @@ class PrivacySettingsViewModelTest {
+@@ -104,12 +102,10 @@ class PrivacySettingsViewModelTest {
+   @Test
+   fun `initial state is read out of the repository`() = runTest(testDispatcher) {
+     readReceipts = true
+-    paymentLock = true
+ 
+     val state = createViewModel().state.value
+ 
+     assertThat(state.readReceipts).isTrue()
+-    assertThat(state.paymentLock).isTrue()
+     assertThat(state.universalExpireTimer).isEqualTo(1.days)
+     assertThat(state.scrollToPaymentLock).isFalse()
+     assertThat(state.isDeviceSecure).isTrue()
+@@ -129,13 +125,10 @@ class PrivacySettingsViewModelTest {
+   fun `ScreenResumed picks up settings changed while away`() = runTest(testDispatcher) {
+     val viewModel = createViewModel()
+     deviceSecure = false
+-    paymentLock = true
+ 
+     viewModel.onEvent(PrivacySettingsEvent.ScreenResumed)
+ 
+     assertThat(viewModel.state.value.isDeviceSecure).isFalse()
+-    assertThat(viewModel.state.value.paymentLock).isTrue()
+-    assertThat(viewModel.state.value.isPaymentLockOn).isFalse()
+   }
+ 
+   @Test
+@@ -149,13 +142,17 @@ class PrivacySettingsViewModelTest {
+   }
+ 
+   @Test
+-  fun `ScrolledToPaymentLock clears the scroll request`() = runTest(testDispatcher) {
++  fun `legacy wallet scroll requests remain inert`() = runTest(testDispatcher) {
+     val viewModel = createViewModel(scrollToPaymentLock = true)
+-    assertThat(viewModel.state.value.scrollToPaymentLock).isTrue()
++    val initialState = viewModel.state.value
++    val actions = collectActions(viewModel.actions)
++    assertThat(initialState.scrollToPaymentLock).isFalse()
+ 
+     viewModel.onEvent(PrivacySettingsEvent.ScrolledToPaymentLock)
+ 
+-    assertThat(viewModel.state.value.scrollToPaymentLock).isFalse()
++    assertThat(viewModel.state.value).isEqualTo(initialState)
++    assertThat(actions).isEmpty()
++    assertThat(navigationEvents).isEmpty()
+   }
+ 
+   @Test
+@@ -199,47 +196,31 @@ class PrivacySettingsViewModelTest {
+   }
+ 
+   @Test
+-  fun `EnablePaymentLockClicked turns payment lock on when the device is secure`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
++  fun `retired wallet events do not access storage navigate or emit actions`() = runTest(testDispatcher) {
++    val retiredEvents = listOf(
++      PrivacySettingsEvent.EnablePaymentLockClicked,
++      PrivacySettingsEvent.PaymentLockDisableAuthenticated,
++      PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked
++    )
+ 
+-    assertThat(viewModel.state.value.paymentLock).isTrue()
+-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
+-  }
++    for (secure in listOf(true, false)) {
++      deviceSecure = secure
++      val viewModel = createViewModel()
++      val actions = collectActions(viewModel.actions)
++      viewModel.onEvent(PrivacySettingsEvent.ScreenResumed)
++      val initialState = viewModel.state.value
+ 
+-  @Test
+-  fun `EnablePaymentLockClicked explains the device needs a screen lock when it has none`() = runTest(testDispatcher) {
+-    deviceSecure = false
+-    val viewModel = createViewModel()
++      for (event in retiredEvents) {
++        viewModel.onEvent(event)
++        assertThat(viewModel.state.value).isEqualTo(initialState)
++      }
+ 
+-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
++      assertThat(actions).isEmpty()
++      assertThat(navigationEvents).isEmpty()
++    }
+ 
++    verify(exactly = 0) { PrivacySettingsRepository.isPaymentLockEnabled() }
+     verify(exactly = 0) { PrivacySettingsRepository.setPaymentLockEnabled(any()) }
+-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.PaymentLockNeedsDeviceSecurity)
+-  }
+-
+-  @Test
+-  fun `OpenDeviceSecuritySettingsClicked closes the dialog and opens system settings`() = runTest(testDispatcher) {
+-    deviceSecure = false
+-    val viewModel = createViewModel()
+-    val actions = collectActions(viewModel.actions)
+-
+-    viewModel.onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
+-    viewModel.onEvent(PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked)
+-
+-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
+-    assertThat(actions).containsExactly(PrivacySettingsAction.OpenDeviceSecuritySettings)
+-  }
+-
+-  @Test
+-  fun `PaymentLockDisableAuthenticated turns payment lock off`() = runTest(testDispatcher) {
+-    paymentLock = true
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(PrivacySettingsEvent.PaymentLockDisableAuthenticated)
+-
+-    assertThat(viewModel.state.value.paymentLock).isFalse()
+   }
+ 
+   @Test
+@@ -254,41 +235,45 @@ class PrivacySettingsViewModelTest {
    }
  
    @Test
@@ -39337,7 +39502,7 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
      val viewModel = createViewModel()
      val actions = collectActions(viewModel.actions)
  
-@@ -299,14 +304,13 @@ class PrivacySettingsViewModelTest {
+@@ -299,14 +284,13 @@ class PrivacySettingsViewModelTest {
  
    @Test
    fun `ChangePassphraseClicked tells the user when no passphrase is set`() = runTest(testDispatcher) {
@@ -39353,7 +39518,7 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
    }
  
    @Test
-@@ -319,34 +323,45 @@ class PrivacySettingsViewModelTest {
+@@ -319,34 +303,45 @@ class PrivacySettingsViewModelTest {
    }
  
    @Test
@@ -39410,7 +39575,7 @@ index 2dacc315747e6a9a2dde74a94d37378ee0e82624..5653ad8186ad41c07970f8e059cd1c03
    }
  
    @Test
-@@ -399,6 +414,31 @@ class PrivacySettingsViewModelTest {
+@@ -399,6 +394,31 @@ class PrivacySettingsViewModelTest {
      assertThat(actions).containsExactly(PrivacySettingsAction.OpenIncognitoKeyboardLearnMore)
    }
  
@@ -39651,6 +39816,57 @@ index 9307d3ef28b41fd11b3e901fa7a8c2b137ca2487..e3effaa1c49e717528eed9b546ac5dde
 +    return actions
    }
  }
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt b/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..b28b0de5276cc455e8a6a1bbeb2d6f27f68fa0ff
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt
+@@ -0,0 +1,45 @@
++package org.thoughtcrime.securesms.dependencies
++
++import android.app.Application
++import android.content.Context
++import android.content.Intent
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkObject
++import io.mockk.unmockkObject
++import org.junit.After
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++import org.thoughtcrime.securesms.service.KeyCachingService
++import org.thoughtcrime.securesms.service.UnreadReminderManager
++
++@RunWith(RobolectricTestRunner::class)
++@Config(application = Application::class, sdk = [27])
++class PrivateUiLifecycleGateTest {
++  @Before
++  fun setup() {
++    mockkObject(AppDependencies)
++    every { AppDependencies.isInitialized } returns true
++    assertTrue(KeyCachingService.isLocked())
++  }
++
++  @After
++  fun teardown() {
++    unmockkObject(AppDependencies)
++  }
++
++  @Test
++  fun `private UI remains protected after the cached key is absent`() {
++    assertTrue(CoreUiDependenciesProvider.provideIsIncognitoKeyboardEnabled())
++    assertTrue(CoreUiDependenciesProvider.provideIsScreenSecurityEnabled())
++  }
++
++  @Test
++  fun `locked unread reminder alarms do not reach private dependencies`() {
++    UnreadReminderManager.UnreadReminderAlarm().onReceive(mockk<Context>(), mockk<Intent>())
++  }
++}
 diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsAction.kt b/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsAction.kt
 index f8fc637b222d17ef10692db453ebe521e48033d1..805810f0c94a8d5706c4f6c4179a49accf240442 100644
 --- a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsAction.kt
@@ -39685,10 +39901,45 @@ index bc2bd3efcbeff1c83dfd70bf68914c77a8ee19c6..26e86d88a2de0f66710a5512dcb70e63
    /** The screen came back to the foreground, so the blocked count and device security may have changed. */
    data object ScreenResumed : PrivacySettingsEvent
 diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsScreen.kt
-index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85b37e5212 100644
+index cc807c9402d033c0dea24877c60adb2d972cc40a..09d23cbc39716f6383c0306e7b2bdb0b8dff62db 100644
 --- a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsScreen.kt
 +++ b/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsScreen.kt
-@@ -87,7 +87,10 @@ private val PASSPHRASE_TIMEOUT_UNITS = listOf(DurationPickerUnit.MINUTES, Durati
+@@ -10,13 +10,10 @@ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.width
+ import androidx.compose.foundation.lazy.LazyListScope
+-import androidx.compose.foundation.lazy.LazyListState
+ import androidx.compose.foundation.lazy.rememberLazyListState
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.LaunchedEffect
+-import androidx.compose.runtime.snapshotFlow
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.platform.testTag
+@@ -32,13 +29,9 @@ import androidx.compose.ui.text.buildAnnotatedString
+ import androidx.compose.ui.text.withLink
+ import androidx.compose.ui.tooling.preview.PreviewWrapper
+ import androidx.compose.ui.unit.dp
+-import androidx.lifecycle.Lifecycle
+-import androidx.lifecycle.compose.LifecycleEventEffect
+ import androidx.lifecycle.compose.LifecycleResumeEffect
+-import kotlinx.coroutines.flow.first
+ import org.signal.appsettings.AppSettingsLazyColumn
+ import org.signal.appsettings.R
+-import org.signal.core.ui.biometrics.rememberBiometricsAuthentication
+ import org.signal.core.ui.compose.DayNightPreviews
+ import org.signal.core.ui.compose.Dialogs
+ import org.signal.core.ui.compose.Dividers
+@@ -81,13 +74,16 @@ private val PASSPHRASE_TIMEOUT_UNITS = listOf(DurationPickerUnit.MINUTES, Durati
+ 
+ /**
+  * The top level privacy settings: who can see the user's number, blocked contacts, messaging privacy, disappearing
+- * message defaults, app security and payment lock.
++ * message defaults and app security.
+  */
+ @Composable
  fun PrivacySettingsScreen(
    state: PrivacySettingsState,
    onEvent: (PrivacySettingsEvent) -> Unit,
@@ -39700,7 +39951,21 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
  ) {
    LifecycleResumeEffect(Unit) {
      onEvent(PrivacySettingsEvent.ScreenResumed)
-@@ -146,6 +149,8 @@ fun PrivacySettingsScreen(
+@@ -96,13 +92,6 @@ fun PrivacySettingsScreen(
+ 
+   val listState = rememberLazyListState()
+ 
+-  if (state.scrollToPaymentLock) {
+-    LaunchedEffect(Unit) {
+-      scrollToPaymentLock(listState)
+-      onEvent(PrivacySettingsEvent.ScrolledToPaymentLock)
+-    }
+-  }
+-
+   Scaffolds.Settings(
+     title = stringResource(R.string.PrivacySettingsScreen__privacy),
+     onNavigationClick = { onEvent(PrivacySettingsEvent.NavigateBackClicked) },
+@@ -146,6 +135,8 @@ fun PrivacySettingsScreen(
          )
        }
  
@@ -39709,7 +39974,7 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
        item {
          Dividers.Default()
        }
-@@ -160,6 +165,7 @@ fun PrivacySettingsScreen(
+@@ -160,6 +151,7 @@ fun PrivacySettingsScreen(
            text = stringResource(R.string.preferences__read_receipts),
            label = stringResource(R.string.preferences__if_read_receipts_are_disabled_you_wont_be_able_to_see_read_receipts),
            onCheckChanged = { onEvent(PrivacySettingsEvent.ReadReceiptsToggled(it)) },
@@ -39717,7 +39982,7 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
            modifier = Modifier.testTag(PrivacySettingsTestTags.ROW_READ_RECEIPTS)
          )
        }
-@@ -170,6 +176,7 @@ fun PrivacySettingsScreen(
+@@ -170,6 +162,7 @@ fun PrivacySettingsScreen(
            text = stringResource(R.string.preferences__typing_indicators),
            label = stringResource(R.string.preferences__if_typing_indicators_are_disabled_you_wont_be_able_to_see_typing_indicators),
            onCheckChanged = { onEvent(PrivacySettingsEvent.TypingIndicatorsToggled(it)) },
@@ -39725,7 +39990,7 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
            modifier = Modifier.testTag(PrivacySettingsTestTags.ROW_TYPING_INDICATORS)
          )
        }
-@@ -189,6 +196,8 @@ fun PrivacySettingsScreen(
+@@ -189,6 +182,8 @@ fun PrivacySettingsScreen(
          )
        }
  
@@ -39734,7 +39999,7 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
        item {
          Dividers.Default()
        }
-@@ -203,8 +212,8 @@ fun PrivacySettingsScreen(
+@@ -203,8 +198,8 @@ fun PrivacySettingsScreen(
          item {
            Rows.TextRow(
              text = stringResource(R.string.preferences_app_protection__screen_lock),
@@ -39745,7 +40010,7 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
              onClick = { onEvent(PrivacySettingsEvent.ScreenLockClicked) },
              onDisabledClick = { onEvent(PrivacySettingsEvent.DisabledScreenLockClicked) },
              modifier = Modifier.testTag(PrivacySettingsTestTags.ROW_SCREEN_LOCK)
-@@ -218,6 +227,7 @@ fun PrivacySettingsScreen(
+@@ -218,6 +213,7 @@ fun PrivacySettingsScreen(
            text = stringResource(R.string.preferences__screen_security),
            label = stringResource(R.string.PrivacySettingsFragment__block_screenshots_in_the_recents_list_and_inside_the_app),
            onCheckChanged = { onEvent(PrivacySettingsEvent.ScreenSecurityToggled(it)) },
@@ -39753,6 +40018,114 @@ index cc807c9402d033c0dea24877c60adb2d972cc40a..f664dc608af3751b47ed53f6d816bc85
            modifier = Modifier.testTag(PrivacySettingsTestTags.ROW_SCREEN_SECURITY)
          )
        }
+@@ -240,18 +236,6 @@ fun PrivacySettingsScreen(
+         Dividers.Default()
+       }
+ 
+-      item {
+-        Texts.SectionHeader(text = stringResource(R.string.preferences_app_protection__payments))
+-      }
+-
+-      item {
+-        PaymentLockRow(state = state, onEvent = onEvent)
+-      }
+-
+-      item {
+-        Dividers.Default()
+-      }
+-
+       item {
+         Rows.TextRow(
+           text = stringResource(R.string.PrivacySettingsScreen__advanced),
+@@ -284,27 +268,11 @@ fun PrivacySettingsScreen(
+           onDismiss = { onEvent(PrivacySettingsEvent.DialogDismissed) }
+         )
+       }
+-      PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity -> {
+-        Dialogs.SimpleAlertDialog(
+-          title = stringResource(R.string.PrivacySettingsFragment__cant_enable_title),
+-          body = stringResource(R.string.PrivacySettingsFragment__cant_enable_description),
+-          confirm = stringResource(R.string.PrivacySettingsScreen__turn_on),
+-          dismiss = stringResource(R.string.PrivacySettingsScreen__not_now),
+-          onConfirm = { onEvent(PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked) },
+-          onDeny = { onEvent(PrivacySettingsEvent.DialogDismissed) },
+-          onDismissRequest = { onEvent(PrivacySettingsEvent.DialogDismissed) }
+-        )
+-      }
++      PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity -> Unit
+     }
+   }
+ }
+ 
+-/** Payment lock is the second to last row, so landing on the last row brings it fully into view. */
+-private suspend fun scrollToPaymentLock(listState: LazyListState) {
+-  val itemCount = snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+-  listState.scrollToItem(itemCount - 1)
+-}
+-
+ private fun LazyListScope.obsoletePassphraseRows(
+   state: PrivacySettingsState,
+   onEvent: (PrivacySettingsEvent) -> Unit
+@@ -414,35 +382,6 @@ private fun IncognitoKeyboardDisclaimer(onEvent: (PrivacySettingsEvent) -> Unit)
+   )
+ }
+ 
+-@Composable
+-private fun PaymentLockRow(
+-  state: PrivacySettingsState,
+-  onEvent: (PrivacySettingsEvent) -> Unit
+-) {
+-  val disableBiometrics = rememberBiometricsAuthentication(
+-    promptTitle = stringResource(R.string.PrivacySettingsScreen__signal),
+-    proceedWhenUnavailable = false
+-  )
+-
+-  LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+-    disableBiometrics.cancelAuthentication()
+-  }
+-
+-  Rows.ToggleRow(
+-    checked = state.isPaymentLockOn,
+-    text = stringResource(R.string.preferences__payment_lock),
+-    label = stringResource(R.string.PrivacySettingsFragment__payment_lock_require_lock),
+-    onCheckChanged = { enabled ->
+-      if (enabled) {
+-        onEvent(PrivacySettingsEvent.EnablePaymentLockClicked)
+-      } else {
+-        disableBiometrics.withBiometricsAuthentication { onEvent(PrivacySettingsEvent.PaymentLockDisableAuthenticated) }
+-      }
+-    },
+-    modifier = Modifier.testTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
+-  )
+-}
+-
+ @Composable
+ private fun PrivacySettingsState.Snackbar.message(): String? {
+   return when (this) {
+@@ -460,8 +399,7 @@ private val previewState = PrivacySettingsState(
+   universalExpireTimer = 1.days,
+   screenLock = true,
+   screenLockTimeout = 5.minutes,
+-  screenSecurity = true,
+-  paymentLock = true
++  screenSecurity = true
+ )
+ 
+ @PreviewWrapper(SignalPreviewWrapper::class)
+@@ -514,13 +452,3 @@ private fun PrivacySettingsScreenPassphraseTimeoutDialogPreview() {
+     onEvent = {}
+   )
+ }
+-
+-@PreviewWrapper(SignalPreviewWrapper::class)
+-@DayNightPreviews
+-@Composable
+-private fun PrivacySettingsScreenPaymentLockDialogPreview() {
+-  PrivacySettingsScreen(
+-    state = previewState.copy(isDeviceSecure = false, dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity),
+-    onEvent = {}
+-  )
+-}
 diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsState.kt b/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsState.kt
 index dc3c0d46a86e5a4a76da1a135cd048508f5d4a6b..9bce0fa17b3b780457ec9e761454f7b9fbfd623d 100644
 --- a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsState.kt

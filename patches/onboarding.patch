@@ -12,7 +12,7 @@ Prior-version-input: 8e08caaa5e8ebe778d99272ecfaf73f5c9f9f58d
 Semantic-boundary: 22/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
-index c834f45be24bad235a9fda6a4b14469299ed3b86..64717be44fda8ba58fab703d4b1e99ffc8e1c6b9 100644
+index c834f45be24bad235a9fda6a4b14469299ed3b86..b59c35a76dd2dd0de5cfecd9e61cc07e3f619763 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
 @@ -2799,18 +2799,9 @@ class ConversationFragment :
@@ -34,6 +34,17 @@ index c834f45be24bad235a9fda6a4b14469299ed3b86..64717be44fda8ba58fab703d4b1e99ff
    }
  
    private fun initializeStickerSuggestions() {
+@@ -4383,9 +4374,7 @@ class ConversationFragment :
+     override fun onScheduledIndicatorClicked(view: View, conversationMessage: ConversationMessage) = Unit
+ 
+     override fun onUrlClicked(url: String): Boolean {
+-      if (CommunicationActions.handlePotentialGroupLinkUrl(requireActivity(), url) ||
+-        CommunicationActions.handlePotentialProxyLinkUrl(requireActivity(), url)
+-      ) {
++      if (CommunicationActions.handlePotentialGroupLinkUrl(requireActivity(), url)) {
+         return true
+       }
+ 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
 index aeaf56872d0e30b44bb1b2c2d7d1993430cb90e3..18db75a931baf9f99d1666ae14499c96c1377c19 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt

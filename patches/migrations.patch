@@ -987,7 +987,7 @@ index 14049fb0bbe6547c9bc0341e47ae47854842b256..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V190_UpdatePendingSelfDataMigration.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V190_UpdatePendingSelfDataMigration.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..b701cba220f2e4cf4ab9e074dfa4e0cacd2dfa93
+index 0000000000000000000000000000000000000000..e08bbca8438003ea9b9ef853c2eba29510b24b56
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V190_UpdatePendingSelfDataMigration.kt
 @@ -0,0 +1,146 @@
@@ -996,17 +996,17 @@ index 0000000000000000000000000000000000000000..b701cba220f2e4cf4ab9e074dfa4e0ca
 +import android.app.Application
 +import org.signal.core.models.ServiceId
 +import org.signal.core.util.JsonUtils
-+import org.signal.core.util.SqlUtil
++import org.signal.core.database.SqlUtil
++import org.signal.core.database.update
++import org.signal.core.models.recipients.RecipientId
 +import org.signal.core.util.logging.Log
 +import org.signal.core.util.readToSingleObject
 +import org.signal.core.util.requireLong
 +import org.signal.core.util.requireString
-+import org.signal.core.util.update
 +import org.thoughtcrime.securesms.database.KeyValueDatabase
 +import org.thoughtcrime.securesms.database.SQLiteDatabase
 +import org.thoughtcrime.securesms.database.ThreadTable
 +import org.thoughtcrime.securesms.dependencies.AppDependencies
-+import org.thoughtcrime.securesms.recipients.RecipientId
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
 +import java.io.IOException
 +
@@ -1152,7 +1152,7 @@ index f9e496695498aa81db202e2e68310d59e6d17a71..4030fe5e66b888b364f45e88594a51f6
          } else {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V238_FixAttachmentIdJsonSerialization.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V238_FixAttachmentIdJsonSerialization.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..c64b0bf996009812c4861dbf6ba6cbe4e18a37b7
+index 0000000000000000000000000000000000000000..71273b562d1bdd845ac466950d65107f29e2b1d9
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V238_FixAttachmentIdJsonSerialization.kt
 @@ -0,0 +1,98 @@
@@ -1164,7 +1164,7 @@ index 0000000000000000000000000000000000000000..c64b0bf996009812c4861dbf6ba6cbe4
 +import org.json.JSONObject
 +import org.signal.core.util.requireLong
 +import org.signal.core.util.requireString
-+import org.signal.core.util.update
++import org.signal.core.database.update
 +
 +/**
 + * Fix the JSON for AttachmentId in link_previews and shared_contacts message's columns.

@@ -543,7 +543,7 @@ index 210825d15747380d69d4b94559636f92206d3968..07569f6fbbd656eed5ee1f7813c3c095
  
      @JvmStatic
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
-index 913a69c4fd576eb262e214058f6dea23e9be9665..81bca99bf4624a4ee2f3c030ee721e9b0833525f 100644
+index 913a69c4fd576eb262e214058f6dea23e9be9665..f3cee9ec647d54f4965de163c4e2e1dc4bdc52d2 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
 @@ -2,7 +2,6 @@ package org.thoughtcrime.securesms.messages
@@ -682,6 +682,21 @@ index 913a69c4fd576eb262e214058f6dea23e9be9665..81bca99bf4624a4ee2f3c030ee721e9b
    }
  
    @Throws(StorageFailedException::class)
+@@ -1579,13 +1491,9 @@ object DataMessageProcessor {
+           .firstOrNull()
+       }
+ 
+-      if (quotedMessage.isPaymentNotification) {
+-        quotedMessage = SignalDatabase.payments.updateMessageWithPayment(quotedMessage) as MmsMessageRecord
+-      }
+-
+       val sharedContact = quotedMessage.sharedContacts.firstOrNull()
+       val body = when {
+-        quotedMessage.isPaymentNotification -> quotedMessage.getDisplayBody(context).toString()
++        quotedMessage.isPaymentNotification || quotedMessage.isPaymentTombstone -> quotedMessage.getDisplayBody(context).toString()
+         sharedContact != null -> sharedContact.quoteText(context)
+         else -> quotedMessage.body
+       }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java b/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java
 index d4484e2ba2545b779d58bb3bfd38854967844ef8..41d5de62619bcb05bbe1f4e3b22592571097ba16 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/net/StandardUserAgentInterceptor.java

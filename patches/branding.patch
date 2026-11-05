@@ -30,6 +30,19 @@ index cc8b5f18964794b30a32b0902801d023d7ccb86b..76712329db0256704acfcb2101e107f1
    item {
      val resources = LocalResources.current
      val amount = remember(resources, record.amount) { FiatMoneyUtil.format(resources, record.amount) }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/UnregisteredNotifier.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/UnregisteredNotifier.kt
+index 1cc560c667c7f0e5c0898a7f3695d4299a991518..b66465e225dc1bc0f5b83f13a71d9e790e69a3c1 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/notifications/UnregisteredNotifier.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/UnregisteredNotifier.kt
+@@ -45,7 +45,7 @@ object UnregisteredNotifier {
+     )
+ 
+     val notification = NotificationCompat.Builder(context, NotificationChannels.getInstance().FAILURES)
+-      .setSmallIcon(R.drawable.ic_signal_logo_large)
++      .setSmallIcon(R.drawable.ic_notification)
+       .setContentText(context.getString(R.string.LoggedOutNotification_you_have_been_logged_out))
+       .setContentIntent(reRegistrationIntent)
+       .setOnlyAlertOnce(true)
 diff --git a/app/src/main/res/drawable-anydpi/ic_notification.xml b/app/src/main/res/drawable-anydpi/ic_notification.xml
 new file mode 100644
 index 0000000000000000000000000000000000000000..82a2cb7768cac7e850db925b2a705a5a6502a65e

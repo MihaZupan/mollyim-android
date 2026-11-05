@@ -642,16 +642,17 @@ index 32afcd8a828aaa3634076c940c0c47091a64412f..030c1321234195a4eaeae34e5b2f931a
  
              // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
-index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..01f26d6135865ff4f603aef7f25225d4e5420ed4 100644
+index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..c64e5cf4ca28ca969416c002b843da7bed2390d8 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
-@@ -7,23 +7,24 @@ package org.thoughtcrime.securesms.components.settings.app
+@@ -7,23 +7,23 @@ package org.thoughtcrime.securesms.components.settings.app
  
  import androidx.lifecycle.asFlow
  import kotlinx.coroutines.flow.Flow
 +import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.flow.flowOf
  import kotlinx.coroutines.flow.map
- import kotlinx.coroutines.rx3.asFlow
+-import kotlinx.coroutines.rx3.asFlow
  import kotlinx.coroutines.withContext
  import org.signal.appsettings.home.AppSettingsState
  import org.signal.appsettings.home.BackupFailureState
@@ -662,7 +663,7 @@ index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..01f26d6135865ff4f603aef7f25225d4
 -import org.thoughtcrime.securesms.components.settings.app.subscription.InAppDonations
  import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
 -import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
- import org.thoughtcrime.securesms.conversationlist.model.UnreadPaymentsLiveData
+-import org.thoughtcrime.securesms.conversationlist.model.UnreadPaymentsLiveData
  import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
  import org.thoughtcrime.securesms.dependencies.AppDependencies
  import org.thoughtcrime.securesms.keyvalue.SignalStore
@@ -673,7 +674,15 @@ index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..01f26d6135865ff4f603aef7f25225d4
  import org.thoughtcrime.securesms.util.RemoteConfig
  import org.thoughtcrime.securesms.util.SignalE164Util
  
-@@ -53,6 +54,20 @@ object AppSettingsRepository {
+@@ -47,35 +47,44 @@ object AppSettingsRepository {
+     }
+   }
+ 
++  /** Compatibility state for a retired settings row, not a query of historical payment records. */
+   fun observeUnreadPaymentsCount(): Flow<Int> {
+-    return UnreadPaymentsLiveData().asFlow().map { payments -> payments.map { it.unreadCount }.orElse(0) }
++    return flowOf(0)
+   }
  
    fun isPrimaryDevice(): Boolean = SignalStore.account.isPrimaryDevice
  
@@ -694,9 +703,14 @@ index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..01f26d6135865ff4f603aef7f25225d4
    fun isUserUnregistered(): Boolean = SignalStore.account.isUnauthorizedReceived || !SignalStore.account.isRegistered
  
    fun isClientDeprecated(): Boolean = SignalStore.misc.isClientDeprecated
-@@ -63,19 +78,13 @@ object AppSettingsRepository {
  
-   fun showPayments(): Boolean = SignalStore.payments.paymentsAvailability.showPaymentsMenu()
+-  fun hasExpiredGiftBadge(): Boolean = SignalStore.inAppPayments.getExpiredGiftBadge() != null
++  fun hasExpiredGiftBadge(): Boolean = false
+ 
+   fun showInternalPreferences(): Boolean = RemoteConfig.internalUser
+ 
+-  fun showPayments(): Boolean = SignalStore.payments.paymentsAvailability.showPaymentsMenu()
++  fun showPayments(): Boolean = false
  
 -  fun showAppUpdates(): Boolean = Environment.IS_NIGHTLY
 +  fun showAppUpdates(): Boolean = BuildConfig.MANAGE_MOLLY_UPDATES
@@ -808,7 +822,7 @@ index 0000000000000000000000000000000000000000..36c092d1b2a8c0c838e7e6387576bfe9
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
-index 226ca476872964d7e7481589192a81043ce0603b..fafd975a1594b1db1c2a3780f263e1123d72f941 100644
+index 226ca476872964d7e7481589192a81043ce0603b..ed285118f8dbcd3144568a8001a1fa68be705774 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
 @@ -1,6 +1,7 @@
@@ -888,7 +902,7 @@ index 226ca476872964d7e7481589192a81043ce0603b..fafd975a1594b1db1c2a3780f263e112
        AppSettingsEvent.DonateLongClicked -> copySubscriberId(InAppPaymentSubscriberRecord.Type.DONATION, Snackbar.CopiedDonorSubscriberId)
        AppSettingsEvent.AppearanceClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AppearanceRoute.Appearance)
        AppSettingsEvent.ChatsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.ChatsRoute.Chats)
-@@ -89,13 +73,14 @@ class AppSettingsViewModel(
+@@ -89,13 +73,12 @@ class AppSettingsViewModel(
        AppSettingsEvent.PrivacyClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.PrivacyRoute.Privacy)
        AppSettingsEvent.BackupsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.BackupsRoute.Backups())
        AppSettingsEvent.BackupsLongClicked -> {
@@ -901,13 +915,11 @@ index 226ca476872964d7e7481589192a81043ce0603b..fafd975a1594b1db1c2a3780f263e112
        AppSettingsEvent.DataAndStorageClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.DataAndStorageRoute.DataAndStorage)
        AppSettingsEvent.AppUpdatesClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AppUpdates)
 -      AppSettingsEvent.PaymentsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.Payments)
-+      AppSettingsEvent.PaymentsClicked -> {
-+        if (_state.value.isPrimaryDevice && !_state.value.isLinkedDevice) parentEventEmitter.navigateTo(AppSettingsRoute.Payments)
-+      }
++      AppSettingsEvent.PaymentsClicked -> Unit
        AppSettingsEvent.HelpClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.HelpRoute.Settings())
        AppSettingsEvent.InviteClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.Invite)
        AppSettingsEvent.LabsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.LabsRoute.Labs)
-@@ -111,24 +96,36 @@ class AppSettingsViewModel(
+@@ -111,24 +94,36 @@ class AppSettingsViewModel(
        BackupFailureState.SUBSCRIPTION_STATE_MISMATCH, BackupFailureState.OUT_OF_STORAGE_SPACE -> Unit
        BackupFailureState.NONE -> return
      }
@@ -2702,10 +2714,22 @@ index 67c7525aae5edea4ff2ae14e3b02c63ab2528385..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
-index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..264cf41fd77c5a3f5a5f78a2aee805cf909a38bd 100644
+index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..6529ae95d231f19c866db1a87c4cfc6b62081430 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
-@@ -58,6 +58,8 @@ class AppSettingsViewModelTest {
+@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.flow.toList
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.test.TestScope
+@@ -54,10 +55,11 @@ class AppSettingsViewModelTest {
+   val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
+ 
+   private val profile = MutableStateFlow(AppSettingsState.Profile(name = "Miles Morales"))
+-  private val unreadPaymentsCount = MutableStateFlow(0)
    private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
  
    private var isPrimaryDevice = true
@@ -2714,16 +2738,39 @@ index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..264cf41fd77c5a3f5a5f78a2aee805cf
    private var userUnregistered = false
    private var backupFailureState = BackupFailureState.NONE
  
-@@ -69,6 +71,8 @@ class AppSettingsViewModelTest {
+@@ -67,13 +69,15 @@ class AppSettingsViewModelTest {
+     mockkObject(AppSettingsRepository)
+ 
      every { AppSettingsRepository.observeProfile() } returns profile
-     every { AppSettingsRepository.observeUnreadPaymentsCount() } returns unreadPaymentsCount
+-    every { AppSettingsRepository.observeUnreadPaymentsCount() } returns unreadPaymentsCount
++    every { AppSettingsRepository.observeUnreadPaymentsCount() } returns flowOf(0)
      every { AppSettingsRepository.isPrimaryDevice() } answers { isPrimaryDevice }
 +    every { AppSettingsRepository.isLinkedDevice() } answers { isLinkedDevice }
 +    coEvery { AppSettingsRepository.getLinkedDeviceCount() } answers { linkedDeviceCount }
      every { AppSettingsRepository.isUserUnregistered() } answers { userUnregistered }
      every { AppSettingsRepository.isClientDeprecated() } returns false
      every { AppSettingsRepository.hasExpiredGiftBadge() } returns false
-@@ -103,21 +107,22 @@ class AppSettingsViewModelTest {
+     every { AppSettingsRepository.showInternalPreferences() } returns false
+-    every { AppSettingsRepository.showPayments() } returns true
++    every { AppSettingsRepository.showPayments() } returns false
+     every { AppSettingsRepository.showAppUpdates() } returns false
+     every { AppSettingsRepository.likelyCanManageDonations() } returns false
+     coEvery { AppSettingsRepository.canManageDonations() } returns null
+@@ -91,42 +95,44 @@ class AppSettingsViewModelTest {
+ 
+   @Test
+   fun `initial state is read out of the repository`() = runTest(testDispatcher) {
+-    unreadPaymentsCount.value = 3
+-
+     val state = createViewModel().state.value
+ 
+     assertThat(state.profile).isEqualTo(profile.value)
+-    assertThat(state.unreadPaymentsCount).isEqualTo(3)
++    assertThat(state.unreadPaymentsCount).isEqualTo(0)
+     assertThat(state.isPrimaryDevice).isTrue()
+-    assertThat(state.showPayments).isTrue()
++    assertThat(state.showPayments).isFalse()
+     assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
    }
  
    @Test
@@ -2750,23 +2797,44 @@ index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..264cf41fd77c5a3f5a5f78a2aee805cf
    }
  
    @Test
-@@ -165,6 +170,7 @@ class AppSettingsViewModelTest {
+-  fun `unread payments update as they arrive`() = runTest(testDispatcher) {
++  fun `stale PaymentsClicked cannot navigate even with an upstream visibility hint`() = runTest(testDispatcher) {
++    every { AppSettingsRepository.showPayments() } returns true
+     val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
+ 
+-    unreadPaymentsCount.value = 7
++    viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
+ 
+-    assertThat(viewModel.state.value.unreadPaymentsCount).isEqualTo(7)
++    assertThat(navigationEvents).isEmpty()
++    assertThat(actions).isEmpty()
+   }
+ 
+   @Test
+@@ -165,9 +171,9 @@ class AppSettingsViewModelTest {
      viewModel.onEvent(AppSettingsEvent.NotificationsClicked)
      viewModel.onEvent(AppSettingsEvent.PrivacyClicked)
      viewModel.onEvent(AppSettingsEvent.BackupsClicked)
 +    viewModel.onEvent(AppSettingsEvent.NetworkClicked)
      viewModel.onEvent(AppSettingsEvent.DataAndStorageClicked)
      viewModel.onEvent(AppSettingsEvent.AppUpdatesClicked)
-     viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
-@@ -184,6 +190,7 @@ class AppSettingsViewModelTest {
+-    viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
+     viewModel.onEvent(AppSettingsEvent.HelpClicked)
+     viewModel.onEvent(AppSettingsEvent.InviteClicked)
+     viewModel.onEvent(AppSettingsEvent.LabsClicked)
+@@ -184,9 +190,9 @@ class AppSettingsViewModelTest {
        AppSettingsRoute.NotificationsRoute.Notifications,
        AppSettingsRoute.PrivacyRoute.Privacy,
        AppSettingsRoute.BackupsRoute.Backups(),
 +      AppSettingsRoute.DataAndStorageRoute.Proxy,
        AppSettingsRoute.DataAndStorageRoute.DataAndStorage,
        AppSettingsRoute.AppUpdates,
-       AppSettingsRoute.Payments,
-@@ -195,15 +202,15 @@ class AppSettingsViewModelTest {
+-      AppSettingsRoute.Payments,
+       AppSettingsRoute.HelpRoute.Settings(),
+       AppSettingsRoute.Invite,
+       AppSettingsRoute.LabsRoute.Labs,
+@@ -195,15 +201,15 @@ class AppSettingsViewModelTest {
    }
  
    @Test
@@ -2785,7 +2853,7 @@ index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..264cf41fd77c5a3f5a5f78a2aee805cf
    }
  
    @Test
-@@ -311,6 +318,22 @@ class AppSettingsViewModelTest {
+@@ -311,6 +317,22 @@ class AppSettingsViewModelTest {
      assertThat(navigationEvents).isEmpty()
    }
  

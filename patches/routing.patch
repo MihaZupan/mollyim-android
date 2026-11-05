@@ -2660,10 +2660,10 @@ index fa5014e8b5b419fb544e139b26ad6dbee26c94a3..2ce6c1db09a5d91b49009e862d131b48
        genericServerPublicParams = genericServerPublicParams,
        backupServerPublicParams = backupServerPublicParams,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/data/RegistrationRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/data/RegistrationRepository.kt
-index 37756529a10d1060081280b06276b2c347614ca0..f4daca246f0ee675cf58cd5c6b1ed37779489845 100644
+index 37756529a10d1060081280b06276b2c347614ca0..5d54b6c906aaa9fc1a69414d62832b3b1f9b3889 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/registration/data/RegistrationRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/registration/data/RegistrationRepository.kt
-@@ -9,13 +9,14 @@ import android.app.backup.BackupManager
+@@ -9,13 +9,13 @@ import android.app.backup.BackupManager
  import android.content.Context
  import androidx.annotation.VisibleForTesting
  import androidx.annotation.WorkerThread
@@ -2675,12 +2675,11 @@ index 37756529a10d1060081280b06276b2c347614ca0..f4daca246f0ee675cf58cd5c6b1ed377
 -import kotlinx.coroutines.tasks.await
  import kotlinx.coroutines.withContext
  import kotlinx.coroutines.withTimeoutOrNull
-+import org.greenrobot.eventbus.EventBus
 +import org.greenrobot.eventbus.Subscribe
  import org.signal.core.models.AccountEntropyPool
  import org.signal.core.models.MasterKey
  import org.signal.core.models.ServiceId
-@@ -239,8 +240,7 @@ object RegistrationRepository {
+@@ -239,8 +239,7 @@ object RegistrationRepository {
      val masterKey = if (data.masterKey != null) MasterKey(data.masterKey.toByteArray()) else null
      SvrRepository.onRegistrationComplete(masterKey, data.pin, hasPin, data.reglockEnabled, SignalStore.account.restoredAccountEntropyPool)
  
@@ -2690,7 +2689,7 @@ index 37756529a10d1060081280b06276b2c347614ca0..f4daca246f0ee675cf58cd5c6b1ed377
      PreKeysSyncJob.enqueue()
  
      recipientTable.clearSelfKeyTransparencyData()
-@@ -650,33 +650,6 @@ object RegistrationRepository {
+@@ -650,33 +649,6 @@ object RegistrationRepository {
        .toList()
    }
  

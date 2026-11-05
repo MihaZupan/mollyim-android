@@ -427,6 +427,275 @@ index 67838da5b5a8902c067ec8a20aa8965d6daf4591..4890e583b82a6dab6ba9fe7ad585f669
    private fun Quote.Type.toLocalQuoteType(): Int {
      return when (this) {
        Quote.Type.UNKNOWN -> QuoteModel.Type.NORMAL.code
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/badges/self/expired/ExpiredBadgeSheet.kt b/app/src/main/java/org/thoughtcrime/securesms/badges/self/expired/ExpiredBadgeSheet.kt
+deleted file mode 100644
+index 2ab165d95e315658d7c37e199325de9cd3758abf..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/badges/self/expired/ExpiredBadgeSheet.kt
++++ /dev/null
+@@ -1,64 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.expired
+-
+-import androidx.compose.material3.ExperimentalMaterial3Api
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.remember
+-import androidx.compose.ui.platform.LocalContext
+-import org.signal.core.models.badges.Badge
+-import org.signal.core.ui.compose.BottomSheets
+-import org.signal.core.ui.compose.LocalBottomSheetHostState
+-import org.signal.core.ui.compose.theme.SignalTheme
+-import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
+-import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
+-
+-/**
+- * A sheet telling the user that [badge] has expired, for use inside a composable screen.
+- * [ExpiredOneTimeBadgeBottomSheetDialogFragment] shows the same thing from a fragment.
+- */
+-@OptIn(ExperimentalMaterial3Api::class)
+-@Composable
+-fun ExpiredBadgeBottomSheet(
+-  badge: Badge,
+-  onDismissRequest: () -> Unit
+-) {
+-  BottomSheets.BottomSheet(
+-    onDismissRequest = onDismissRequest,
+-    containerColor = SignalTheme.colors.colorSurface1
+-  ) {
+-    ExpiredBadgeSheetEntry(badge = badge)
+-  }
+-}
+-
+-/**
+- * Hosts [ExpiredBadgeSheetContent] for [badge] and carries out its events, closing the sheet it's in once the user has
+- * chosen.
+- */
+-@Composable
+-fun ExpiredBadgeSheetEntry(badge: Badge) {
+-  val context = LocalContext.current
+-  val sheet = LocalBottomSheetHostState.current
+-  val isLikelyASustainer = remember { InAppPaymentsRepository.isLikelyASustainer() }
+-
+-  ExpiredBadgeSheetContent(
+-    state = ExpiredBadgeSheetState(badge = badge, isLikelyASustainer = isLikelyASustainer),
+-    onEvent = { event ->
+-      sheet.dismiss()
+-      when (event) {
+-        ExpiredBadgeSheetEvent.DonateClicked -> {
+-          if (isLikelyASustainer) {
+-            context.startActivity(AppSettingsActivity.boost(context))
+-          } else {
+-            context.startActivity(AppSettingsActivity.subscriptions(context))
+-          }
+-        }
+-
+-        ExpiredBadgeSheetEvent.NotNowClicked -> Unit
+-      }
+-    }
+-  )
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeEntry.kt
+deleted file mode 100644
+index 04adc5bec3b8a4ab31f8b07a004645c44e68b733..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeEntry.kt
++++ /dev/null
+@@ -1,55 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.featured
+-
+-import androidx.compose.foundation.layout.Box
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.remember
+-import androidx.compose.ui.Alignment
+-import androidx.compose.ui.Modifier
+-import androidx.compose.ui.unit.dp
+-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+-import androidx.lifecycle.viewmodel.compose.viewModel
+-import org.signal.appsettings.badges.SelectFeaturedBadgeScreen
+-import org.signal.appsettings.routes.AppSettingsNavigationEvent
+-import org.thoughtcrime.securesms.avatar.AvatarImage
+-import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImage64
+-import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImageLarge
+-import org.thoughtcrime.securesms.recipients.Recipient
+-
+-/**
+- * Hosts [SelectFeaturedBadgeScreen]. The view model navigates by sending events to [parentEventEmitter], so this works
+- * from whichever host owns the back stack.
+- */
+-@Composable
+-fun SelectFeaturedBadgeEntry(parentEventEmitter: (AppSettingsNavigationEvent) -> Unit) {
+-  val viewModel: SelectFeaturedBadgeViewModel = viewModel { SelectFeaturedBadgeViewModel(parentEventEmitter) }
+-  val state by viewModel.state.collectAsStateWithLifecycle()
+-  val self = remember { Recipient.self() }
+-
+-  SelectFeaturedBadgeScreen(
+-    state = state,
+-    onEvent = viewModel::onEvent,
+-    avatarPreview = { badge ->
+-      Box(modifier = Modifier.fillMaxSize()) {
+-        AvatarImage(recipient = self, modifier = Modifier.fillMaxSize())
+-
+-        if (badge != null) {
+-          BadgeImageLarge(
+-            badge = badge,
+-            modifier = Modifier
+-              .align(Alignment.BottomEnd)
+-              .size(32.dp)
+-          )
+-        }
+-      }
+-    },
+-    badgeImage = { badge, modifier -> BadgeImage64(badge = badge, modifier = modifier) }
+-  )
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewEntry.kt
+deleted file mode 100644
+index 92ad59b962acc79bb7cef9ac4bfb6be6bbcb9838..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewEntry.kt
++++ /dev/null
+@@ -1,49 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.overview
+-
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+-import androidx.lifecycle.viewmodel.compose.viewModel
+-import org.signal.appsettings.badges.BadgesOverviewEvent
+-import org.signal.appsettings.badges.BadgesOverviewScreen
+-import org.signal.appsettings.routes.AppSettingsNavigationEvent
+-import org.thoughtcrime.securesms.badges.self.expired.ExpiredBadgeBottomSheet
+-import org.thoughtcrime.securesms.badges.view.ViewBadgeBottomSheet
+-import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImage64
+-import org.thoughtcrime.securesms.recipients.Recipient
+-
+-/**
+- * Hosts [BadgesOverviewScreen] and the sheets it opens. The view model navigates by sending events to
+- * [parentEventEmitter], so this works from whichever host owns the back stack.
+- */
+-@Composable
+-fun BadgesOverviewEntry(parentEventEmitter: (AppSettingsNavigationEvent) -> Unit) {
+-  val viewModel: BadgesOverviewViewModel = viewModel { BadgesOverviewViewModel(parentEventEmitter) }
+-  val state by viewModel.state.collectAsStateWithLifecycle()
+-
+-  BadgesOverviewScreen(
+-    state = state,
+-    onEvent = viewModel::onEvent,
+-    badgeImage = { badge, modifier -> BadgeImage64(badge = badge, modifier = modifier) }
+-  )
+-
+-  state.viewedBadge?.let { badge ->
+-    ViewBadgeBottomSheet(
+-      recipientId = Recipient.self().id,
+-      startBadge = badge,
+-      onDismissRequest = { viewModel.onEvent(BadgesOverviewEvent.BadgeSheetDismissed) }
+-    )
+-  }
+-
+-  state.expiredBadge?.let { badge ->
+-    ExpiredBadgeBottomSheet(
+-      badge = badge,
+-      onDismissRequest = { viewModel.onEvent(BadgesOverviewEvent.ExpiredBadgeSheetDismissed) }
+-    )
+-  }
+-}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepository.kt
+deleted file mode 100644
+index d35b80e2974552462f237abf113b4b0f642082d5..0000000000000000000000000000000000000000
+--- a/app/src/main/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepository.kt
++++ /dev/null
+@@ -1,77 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.overview
+-
+-import kotlinx.coroutines.CancellationException
+-import kotlinx.coroutines.async
+-import kotlinx.coroutines.coroutineScope
+-import kotlinx.coroutines.flow.Flow
+-import kotlinx.coroutines.flow.distinctUntilChanged
+-import kotlinx.coroutines.flow.filterNot
+-import kotlinx.coroutines.rx3.asFlow
+-import kotlinx.coroutines.rx3.await
+-import org.signal.core.util.logging.Log
+-import org.signal.network.NetworkResult
+-import org.thoughtcrime.securesms.badges.BadgeRepository
+-import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
+-import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
+-import org.thoughtcrime.securesms.keyvalue.SignalStore
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.util.InternetConnectionObserver
+-
+-/**
+- * All of the storage and network access behind [BadgesOverviewViewModel].
+- */
+-object BadgesOverviewRepository {
+-
+-  private val TAG = Log.tag(BadgesOverviewRepository::class)
+-
+-  fun observeSelf(): Flow<Recipient> {
+-    return Recipient.observable(Recipient.self().id).asFlow().filterNot { it.isResolving }
+-  }
+-
+-  fun observeInternetConnection(): Flow<Boolean> {
+-    return InternetConnectionObserver.observe().asFlow().distinctUntilChanged()
+-  }
+-
+-  fun getDisplayBadgesOnProfile(): Boolean = SignalStore.inAppPayments.getDisplayBadgesOnProfile()
+-
+-  /**
+-   * The badge of a monthly donation that's been cancelled but hasn't run out yet, or null if there isn't one or the
+-   * service couldn't be reached.
+-   */
+-  suspend fun getFadedBadgeId(): String? {
+-    return try {
+-      val (active, all) = coroutineScope {
+-        val activeRequest = async { RecurringInAppPaymentRepository.getActiveSubscription(InAppPaymentSubscriberRecord.Type.DONATION).await() }
+-        val allRequest = async { RecurringInAppPaymentRepository.getSubscriptions().await() }
+-        activeRequest.await() to allRequest.await()
+-      }
+-
+-      if (!active.isActive && active.activeSubscription?.willCancelAtPeriodEnd == true) {
+-        all.firstOrNull { it.level == active.activeSubscription?.level }?.badge?.id
+-      } else {
+-        null
+-      }
+-    } catch (e: CancellationException) {
+-      throw e
+-    } catch (e: Exception) {
+-      Log.w(TAG, "Could not retrieve data from server", e)
+-      null
+-    }
+-  }
+-
+-  /** Shows or hides all of the user's badges on their profile, returning whether the service took the change. */
+-  suspend fun setDisplayBadgesOnProfile(displayBadgesOnProfile: Boolean): Boolean {
+-    val result = BadgeRepository.setVisibilityForAllBadges(displayBadgesOnProfile)
+-    if (result !is NetworkResult.Success) {
+-      Log.e(TAG, "Failed to update visibility.", result.getCause())
+-      return false
+-    }
+-
+-    return true
+-  }
+-}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/donor/InternalDonorErrorConfigurationViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/donor/InternalDonorErrorConfigurationViewModel.kt
 index fd0751e758f7061aec88dcbafa87b3318dfa76c0..291aae437fbaf54b16ffdd25a341100b1f3c35e8 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/donor/InternalDonorErrorConfigurationViewModel.kt
@@ -473,7 +742,7 @@ index 503e15808bdd88fb398821db060b3ae09edc805e..af288e13db4087aa49f4ce621283e601
          InAppPaymentType.RECURRING_BACKUP -> error("Unsupported start destination")
        }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/manage/ManageDonationsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/manage/ManageDonationsFragment.kt
-index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f38ef291e 100644
+index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..03cdb039b402525873d8aa1f251f1c8ff89fc167 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/manage/ManageDonationsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/manage/ManageDonationsFragment.kt
 @@ -5,17 +5,17 @@ import android.text.SpannableStringBuilder
@@ -496,15 +765,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
  import org.thoughtcrime.securesms.badges.models.BadgePreview
  import org.thoughtcrime.securesms.components.settings.DSLConfiguration
  import org.thoughtcrime.securesms.components.settings.DSLSettingsFragment
-@@ -41,7 +41,6 @@ import org.thoughtcrime.securesms.util.Material3OnScrollHelper
- import org.thoughtcrime.securesms.util.adapter.mapping.MappingAdapter
- import org.thoughtcrime.securesms.util.navigation.safeNavigate
- import kotlin.time.Duration.Companion.seconds
--import org.signal.core.ui.R as CoreUiR
- 
- /**
-  * Fragment displayed when a user enters "Subscriptions" via app settings but is already
-@@ -50,8 +49,7 @@ import org.signal.core.ui.R as CoreUiR
+@@ -50,8 +50,7 @@ import org.signal.core.ui.R as CoreUiR
  class ManageDonationsFragment :
    DSLSettingsFragment(
      layoutId = R.layout.manage_donations_fragment
@@ -514,7 +775,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
  
    companion object {
      private val alertedIdealDonations = mutableSetOf<Long>()
-@@ -62,10 +60,10 @@ class ManageDonationsFragment :
+@@ -62,10 +61,10 @@ class ManageDonationsFragment :
    private lateinit var launcher: ActivityResultLauncher<InAppPaymentType>
  
    private val supportTechSummary: CharSequence by lazy {
@@ -527,7 +788,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
            findNavController().safeNavigate(ManageDonationsFragmentDirections.actionManageDonationsFragmentToSubscribeLearnMoreBottomSheetDialog())
          }
        )
-@@ -99,12 +97,6 @@ class ManageDonationsFragment :
+@@ -99,12 +98,6 @@ class ManageDonationsFragment :
      BadgePreview.register(adapter)
      NetworkFailure.register(adapter)
  
@@ -540,7 +801,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
      viewModel.state.observe(viewLifecycleOwner) { state ->
        adapter.submitList(getConfiguration(state).toMappingModelList())
  
-@@ -139,8 +131,8 @@ class ManageDonationsFragment :
+@@ -139,8 +132,8 @@ class ManageDonationsFragment :
  
    override fun getMaterial3OnScrollHelper(toolbar: Toolbar?): Material3OnScrollHelper {
      return object : Material3OnScrollHelper(activity = requireActivity(), views = listOf(toolbar!!), lifecycleOwner = viewLifecycleOwner) {
@@ -551,7 +812,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
      }
    }
  
-@@ -217,7 +209,8 @@ class ManageDonationsFragment :
+@@ -217,7 +210,8 @@ class ManageDonationsFragment :
  
      presentPendingOrProcessingOneTimeDonationState(state)
  
@@ -561,7 +822,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
  
      presentOtherWaysToGive()
  
-@@ -321,7 +314,8 @@ class ManageDonationsFragment :
+@@ -321,7 +315,8 @@ class ManageDonationsFragment :
  
      presentPendingOrProcessingOneTimeDonationState(state)
  
@@ -571,7 +832,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
  
      presentOtherWaysToGive()
  
-@@ -350,15 +344,6 @@ class ManageDonationsFragment :
+@@ -350,15 +345,6 @@ class ManageDonationsFragment :
      )
    }
  
@@ -587,7 +848,7 @@ index 72ee0a03d0830569a1ac450f6c771c176d8a1f8f..fb9b4cba4d21b0b2444a4ad07bd1759f
  
    private fun DSLConfiguration.presentReceipts() {
      clickPref(
-@@ -443,8 +428,4 @@ class ManageDonationsFragment :
+@@ -443,8 +429,4 @@ class ManageDonationsFragment :
        }
      }
    }
@@ -2924,6 +3185,98 @@ index 9ca38006c326b74fc8aed9f2bf036111637dbd3b..e3fdb1b36662def50486bf76caf672d6
    }
  
    private class MetricEventListener(private val messageId: Long) : IndividualSendEvents {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/MultiDeviceOutgoingPaymentSyncJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/MultiDeviceOutgoingPaymentSyncJob.kt
+index 4247496dca42404305a3cec95a0de5b836b83d4b..2a4b7debcc4cc584eff5dabffc24dddc53f6315f 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/jobs/MultiDeviceOutgoingPaymentSyncJob.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/MultiDeviceOutgoingPaymentSyncJob.kt
+@@ -1,23 +1,16 @@
+ package org.thoughtcrime.securesms.jobs
+ 
+-import okio.ByteString.Companion.toByteString
+ import org.signal.core.util.logging.Log
+-import org.thoughtcrime.securesms.database.SignalDatabase
+ import org.thoughtcrime.securesms.jobmanager.CoroutineJob
+ import org.thoughtcrime.securesms.jobmanager.Job
+ import org.thoughtcrime.securesms.jobmanager.JsonJobData
+ import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint
+ import org.thoughtcrime.securesms.jobmanager.impl.SealedSenderConstraint
+-import org.thoughtcrime.securesms.keyvalue.SignalStore
+-import org.thoughtcrime.securesms.net.SignalNetwork
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.util.OutgoingContent
+-import org.whispersystems.signalservice.internal.push.SyncMessage
+ import java.util.UUID
+ import kotlin.time.Duration.Companion.days
+ 
+ /**
+- * Tells a linked device about sent payments.
++ * Retains the serialized outgoing-payment job contract without running the retired wallet sync.
+  */
+ class MultiDeviceOutgoingPaymentSyncJob private constructor(
+   parameters: Parameters,
+@@ -51,60 +44,8 @@ class MultiDeviceOutgoingPaymentSyncJob private constructor(
+   override fun getFactoryKey(): String = KEY
+ 
+   override suspend fun doRun(): Result {
+-    if (!Recipient.self().isRegistered) {
+-      Log.w(TAG, "Not registered, aborting...")
+-      return Result.failure()
+-    }
+-
+-    if (!SignalStore.account.isMultiDevice) {
+-      Log.i(TAG, "Not multi device, aborting...")
+-      return Result.success()
+-    }
+-
+-    val payment = SignalDatabase.payments.getPayment(uuid)
+-
+-    if (payment == null) {
+-      Log.w(TAG, "Payment not found $uuid")
+-      return Result.success()
+-    }
+-
+-    val txoIdentification = payment.paymentMetaData.mobileCoinTxoIdentification!!
+-    val defrag = payment.isDefrag
+-
+-    val recipientServiceId = if (!defrag && payment.payee.hasRecipientId()) {
+-      SignalDatabase.recipients.getRecord(payment.payee.requireRecipientId()).serviceId
+-    } else {
+-      null
+-    }
+-
+-    val receipt = payment.receipt ?: throw AssertionError("Trying to sync payment before sent?")
+-
+-    val outgoingPayment = SyncMessage.OutgoingPayment(
+-      recipientServiceId = recipientServiceId?.toString(),
+-      note = if (defrag) null else payment.note,
+-      mobileCoin = SyncMessage.OutgoingPayment.MobileCoin(
+-        recipientAddress = if (defrag) null else payment.payee.requirePublicAddress().serialize().toByteString(),
+-        amountPicoMob = payment.amount.requireMobileCoin().toPicoMobUint64(),
+-        feePicoMob = payment.fee.requireMobileCoin().toPicoMobUint64(),
+-        receipt = receipt.toByteString(),
+-        ledgerBlockTimestamp = payment.timestamp,
+-        ledgerBlockIndex = payment.blockIndex,
+-        outputPublicKeys = txoIdentification.publicKey,
+-        spentKeyImages = txoIdentification.keyImages
+-      )
+-    )
+-
+-    val result = SignalNetwork.messageService.sendSyncMessage(
+-      timestamp = System.currentTimeMillis(),
+-      envelopeContent = OutgoingContent.syncOutgoingPayment(outgoingPayment),
+-      urgent = false,
+-      onEncrypted = null
+-    )
+-
+-    return result.fold(
+-      ifRight = { Result.success() },
+-      ifLeft = { error -> error.toSyncJobResult(TAG, "outgoing payment sync", defaultBackoff()) }
+-    )
++    Log.i(TAG, "Outgoing payment sync is disabled in Molly.")
++    return Result.failure()
+   }
+ 
+   override fun onFailure() {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/PaymentLedgerUpdateJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/PaymentLedgerUpdateJob.java
 deleted file mode 100644
 index 889e0026a34efe626cf4cfd8176d251056b334bd..0000000000000000000000000000000000000000
@@ -16931,6 +17284,621 @@ zdQ0z%8|T;t|E@mm82|syq6>)@52x)|6WeWmz4WT_ftiBq<~klMDs9=v<meQiuHrG}
 z;%xPO?Dji%_&1gWKCIgQcCPZHeGjf`un5~2GS9nPmD7KWUE)~%J@-C)jd?6==a+_<
 hl<$4hIs2u!^Zn@C@&Eed!WW%&m|K^mbnBjkIsk}=Sg-&9
 
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeViewModelTest.kt
+deleted file mode 100644
+index d63d22d6ba73b9db934764feb66da516986968ff..0000000000000000000000000000000000000000
+--- a/app/src/test/java/org/thoughtcrime/securesms/badges/self/featured/SelectFeaturedBadgeViewModelTest.kt
++++ /dev/null
+@@ -1,206 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.featured
+-
+-import android.app.Application
+-import android.net.Uri
+-import assertk.assertThat
+-import assertk.assertions.containsExactly
+-import assertk.assertions.isEmpty
+-import assertk.assertions.isEqualTo
+-import assertk.assertions.isNull
+-import io.mockk.coEvery
+-import io.mockk.coVerify
+-import io.mockk.every
+-import io.mockk.mockkObject
+-import io.mockk.unmockkAll
+-import io.reactivex.rxjava3.subjects.BehaviorSubject
+-import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+-import kotlinx.coroutines.test.resetMain
+-import kotlinx.coroutines.test.runTest
+-import kotlinx.coroutines.test.setMain
+-import org.junit.After
+-import org.junit.Before
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-import org.robolectric.RobolectricTestRunner
+-import org.robolectric.annotation.Config
+-import org.signal.appsettings.badges.SelectFeaturedBadgeEvent
+-import org.signal.appsettings.badges.SelectFeaturedBadgeState
+-import org.signal.appsettings.routes.AppSettingsNavigationEvent
+-import org.signal.core.models.badges.Badge
+-import org.signal.core.models.recipients.RecipientId
+-import org.signal.network.NetworkResult
+-import org.thoughtcrime.securesms.badges.BadgeRepository
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.testing.CoroutineDispatcherRule
+-import java.io.IOException
+-
+-@OptIn(ExperimentalCoroutinesApi::class)
+-@RunWith(RobolectricTestRunner::class)
+-@Config(application = Application::class)
+-class SelectFeaturedBadgeViewModelTest {
+-
+-  private val testDispatcher = UnconfinedTestDispatcher()
+-
+-  @get:Rule
+-  val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
+-
+-  private val selfSubject = BehaviorSubject.create<Recipient>()
+-  private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
+-
+-  private val first = createBadge("first")
+-  private val second = createBadge("second")
+-  private val expired = createBadge("expired", expirationTimestamp = 1)
+-
+-  @Before
+-  fun setUp() {
+-    Dispatchers.setMain(testDispatcher)
+-
+-    mockkObject(BadgeRepository)
+-    mockkObject(Recipient.Companion)
+-    every { Recipient.self() } returns createSelf(emptyList())
+-    every { Recipient.observable(SELF_ID) } returns selfSubject
+-
+-    coEvery { BadgeRepository.setFeaturedBadge(any()) } returns NetworkResult.Success(Unit)
+-  }
+-
+-  @After
+-  fun tearDown() {
+-    Dispatchers.resetMain()
+-    unmockkAll()
+-  }
+-
+-  @Test
+-  fun `initial state selects the first unexpired badge`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = listOf(first, expired, second))
+-
+-    val state = viewModel.state.value
+-    assertThat(state.stage).isEqualTo(SelectFeaturedBadgeState.Stage.READY)
+-    assertThat(state.badges).containsExactly(first, second)
+-    assertThat(state.selectedBadge).isEqualTo(first)
+-  }
+-
+-  @Test
+-  fun `an unresolved self recipient is ignored`() = runTest(testDispatcher) {
+-    val viewModel = SelectFeaturedBadgeViewModel(parentEventEmitter = { navigationEvents += it })
+-
+-    selfSubject.onNext(createSelf(listOf(first), isResolving = true))
+-
+-    val state = viewModel.state.value
+-    assertThat(state.stage).isEqualTo(SelectFeaturedBadgeState.Stage.INIT)
+-    assertThat(state.badges).isEmpty()
+-  }
+-
+-  @Test
+-  fun `BadgeClicked updates the selected badge`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = listOf(first, second))
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.BadgeClicked(second))
+-
+-    assertThat(viewModel.state.value.selectedBadge).isEqualTo(second)
+-  }
+-
+-  @Test
+-  fun `Save features the selected badge and navigates back`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = listOf(first, second))
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.BadgeClicked(second))
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-
+-    coVerify(exactly = 1) { BadgeRepository.setFeaturedBadge(second) }
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateBack)
+-  }
+-
+-  @Test
+-  fun `a failed Save returns to READY and shows a snackbar until it's dismissed`() = runTest(testDispatcher) {
+-    coEvery { BadgeRepository.setFeaturedBadge(any()) } returns NetworkResult.NetworkError(IOException())
+-
+-    val viewModel = createViewModel(badges = listOf(first))
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-
+-    assertThat(viewModel.state.value.stage).isEqualTo(SelectFeaturedBadgeState.Stage.READY)
+-    assertThat(viewModel.state.value.snackbar).isEqualTo(SelectFeaturedBadgeState.Snackbar.FailedToUpdateProfile)
+-    assertThat(navigationEvents).isEmpty()
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SnackbarDismissed)
+-
+-    assertThat(viewModel.state.value.snackbar).isEqualTo(SelectFeaturedBadgeState.Snackbar.None)
+-  }
+-
+-  @Test
+-  fun `NavigateBackClicked navigates back`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = listOf(first))
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.NavigateBackClicked)
+-
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateBack)
+-  }
+-
+-  @Test
+-  fun `Save does nothing without a selected badge`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = emptyList())
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-
+-    assertThat(viewModel.state.value.selectedBadge).isNull()
+-    assertThat(viewModel.state.value.stage).isEqualTo(SelectFeaturedBadgeState.Stage.READY)
+-    coVerify(exactly = 0) { BadgeRepository.setFeaturedBadge(any()) }
+-  }
+-
+-  @Test
+-  fun `Save does nothing before the screen is ready`() = runTest(testDispatcher) {
+-    val viewModel = SelectFeaturedBadgeViewModel(parentEventEmitter = { navigationEvents += it })
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.BadgeClicked(first))
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-
+-    assertThat(viewModel.state.value.stage).isEqualTo(SelectFeaturedBadgeState.Stage.INIT)
+-    coVerify(exactly = 0) { BadgeRepository.setFeaturedBadge(any()) }
+-  }
+-
+-  @Test
+-  fun `a second Save after success is ignored`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel(badges = listOf(first))
+-
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-    viewModel.onEvent(SelectFeaturedBadgeEvent.SaveClicked)
+-
+-    coVerify(exactly = 1) { BadgeRepository.setFeaturedBadge(first) }
+-  }
+-
+-  private fun createViewModel(badges: List<Badge>): SelectFeaturedBadgeViewModel {
+-    val viewModel = SelectFeaturedBadgeViewModel(parentEventEmitter = { navigationEvents += it })
+-    selfSubject.onNext(createSelf(badges))
+-    return viewModel
+-  }
+-
+-  private fun createSelf(badges: List<Badge>, isResolving: Boolean = false): Recipient {
+-    return Recipient(id = SELF_ID, isResolving = isResolving, badges = badges)
+-  }
+-
+-  private fun createBadge(id: String, expirationTimestamp: Long = 0): Badge {
+-    return Badge(
+-      id = id,
+-      category = Badge.Category.Donor,
+-      name = id,
+-      description = "",
+-      imageUrl = Uri.EMPTY,
+-      imageDensity = "xxxhdpi",
+-      expirationTimestamp = expirationTimestamp,
+-      visible = true,
+-      duration = 0
+-    )
+-  }
+-
+-  companion object {
+-    private val SELF_ID = RecipientId.from(1)
+-  }
+-}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepositoryTest.kt b/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepositoryTest.kt
+deleted file mode 100644
+index a8a444ebe0658317e076f153d6981c23902eb801..0000000000000000000000000000000000000000
+--- a/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewRepositoryTest.kt
++++ /dev/null
+@@ -1,157 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.overview
+-
+-import android.app.Application
+-import android.net.Uri
+-import assertk.assertThat
+-import assertk.assertions.containsExactly
+-import assertk.assertions.isEqualTo
+-import assertk.assertions.isFalse
+-import assertk.assertions.isNull
+-import assertk.assertions.isTrue
+-import io.mockk.coEvery
+-import io.mockk.every
+-import io.mockk.mockkObject
+-import io.mockk.unmockkAll
+-import io.reactivex.rxjava3.core.Single
+-import io.reactivex.rxjava3.subjects.BehaviorSubject
+-import kotlinx.coroutines.flow.toList
+-import kotlinx.coroutines.launch
+-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+-import kotlinx.coroutines.test.runTest
+-import org.junit.After
+-import org.junit.Before
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.runner.RunWith
+-import org.robolectric.RobolectricTestRunner
+-import org.robolectric.annotation.Config
+-import org.signal.core.models.badges.Badge
+-import org.signal.core.models.recipients.RecipientId
+-import org.signal.network.NetworkResult
+-import org.thoughtcrime.securesms.badges.BadgeRepository
+-import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
+-import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.subscription.Subscription
+-import org.thoughtcrime.securesms.testutil.MockAppDependenciesRule
+-import org.thoughtcrime.securesms.testutil.MockSignalStoreRule
+-import org.whispersystems.signalservice.api.subscriptions.ActiveSubscription
+-import java.io.IOException
+-
+-@RunWith(RobolectricTestRunner::class)
+-@Config(application = Application::class)
+-class BadgesOverviewRepositoryTest {
+-
+-  @get:Rule
+-  val appDependencies = MockAppDependenciesRule()
+-
+-  @get:Rule
+-  val signalStore = MockSignalStoreRule()
+-
+-  private val selfSubject = BehaviorSubject.create<Recipient>()
+-  private val badge = createBadge("first")
+-
+-  @Before
+-  fun setUp() {
+-    mockkObject(Recipient.Companion)
+-    every { Recipient.self() } returns createSelf(emptyList())
+-    every { Recipient.observable(SELF_ID) } returns selfSubject
+-
+-    mockkObject(RecurringInAppPaymentRepository)
+-    every { RecurringInAppPaymentRepository.getActiveSubscription(InAppPaymentSubscriberRecord.Type.DONATION) } returns Single.just(ActiveSubscription.EMPTY)
+-    every { RecurringInAppPaymentRepository.getSubscriptions() } returns Single.just(emptyList())
+-
+-    mockkObject(BadgeRepository)
+-    coEvery { BadgeRepository.setVisibilityForAllBadges(any(), any()) } returns NetworkResult.Success(Unit)
+-  }
+-
+-  @After
+-  fun tearDown() {
+-    unmockkAll()
+-  }
+-
+-  @Test
+-  fun `a self recipient that's still resolving is skipped`() = runTest(UnconfinedTestDispatcher()) {
+-    val emitted = mutableListOf<Recipient>()
+-    backgroundScope.launch { BadgesOverviewRepository.observeSelf().toList(emitted) }
+-
+-    selfSubject.onNext(createSelf(listOf(badge), isResolving = true))
+-    selfSubject.onNext(createSelf(listOf(badge)))
+-
+-    assertThat(emitted.map { it.isResolving }).containsExactly(false)
+-  }
+-
+-  @Test
+-  fun `a subscription cancelling at period end fades its badge`() = runTest {
+-    every { RecurringInAppPaymentRepository.getActiveSubscription(InAppPaymentSubscriberRecord.Type.DONATION) } returns Single.just(createActiveSubscription(isActive = false, willCancelAtPeriodEnd = true))
+-    every { RecurringInAppPaymentRepository.getSubscriptions() } returns Single.just(listOf(createSubscription(badge)))
+-
+-    assertThat(BadgesOverviewRepository.getFadedBadgeId()).isEqualTo(badge.id)
+-  }
+-
+-  @Test
+-  fun `an active subscription does not fade its badge`() = runTest {
+-    every { RecurringInAppPaymentRepository.getActiveSubscription(InAppPaymentSubscriberRecord.Type.DONATION) } returns Single.just(createActiveSubscription(isActive = true, willCancelAtPeriodEnd = true))
+-    every { RecurringInAppPaymentRepository.getSubscriptions() } returns Single.just(listOf(createSubscription(badge)))
+-
+-    assertThat(BadgesOverviewRepository.getFadedBadgeId()).isNull()
+-  }
+-
+-  @Test
+-  fun `a failed subscription lookup leaves no badge faded`() = runTest {
+-    every { RecurringInAppPaymentRepository.getSubscriptions() } returns Single.error(IOException())
+-
+-    assertThat(BadgesOverviewRepository.getFadedBadgeId()).isNull()
+-  }
+-
+-  @Test
+-  fun `setDisplayBadgesOnProfile reports whether the service took the change`() = runTest {
+-    assertThat(BadgesOverviewRepository.setDisplayBadgesOnProfile(false)).isTrue()
+-
+-    coEvery { BadgeRepository.setVisibilityForAllBadges(any(), any()) } returns NetworkResult.NetworkError(IOException())
+-
+-    assertThat(BadgesOverviewRepository.setDisplayBadgesOnProfile(false)).isFalse()
+-  }
+-
+-  private fun createSelf(badges: List<Badge>, isResolving: Boolean = false): Recipient {
+-    return Recipient(id = SELF_ID, isResolving = isResolving, badges = badges)
+-  }
+-
+-  private fun createActiveSubscription(isActive: Boolean, willCancelAtPeriodEnd: Boolean): ActiveSubscription {
+-    return ActiveSubscription(
+-      activeSubscription = ActiveSubscription.Subscription(
+-        level = LEVEL,
+-        isActive = isActive,
+-        willCancelAtPeriodEnd = willCancelAtPeriodEnd
+-      )
+-    )
+-  }
+-
+-  private fun createSubscription(badge: Badge): Subscription {
+-    return Subscription(id = LEVEL.toString(), badge = badge, prices = emptySet(), level = LEVEL)
+-  }
+-
+-  private fun createBadge(id: String): Badge {
+-    return Badge(
+-      id = id,
+-      category = Badge.Category.Donor,
+-      name = id,
+-      description = "",
+-      imageUrl = Uri.EMPTY,
+-      imageDensity = "xxxhdpi",
+-      expirationTimestamp = 0,
+-      visible = true,
+-      duration = 0
+-    )
+-  }
+-
+-  companion object {
+-    private val SELF_ID = RecipientId.from(1)
+-    private const val LEVEL = 500
+-  }
+-}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewViewModelTest.kt
+deleted file mode 100644
+index 94d49991c3e7342d62153a41a41871f68a8e38c5..0000000000000000000000000000000000000000
+--- a/app/src/test/java/org/thoughtcrime/securesms/badges/self/overview/BadgesOverviewViewModelTest.kt
++++ /dev/null
+@@ -1,234 +0,0 @@
+-/*
+- * Copyright 2026 Signal Messenger, LLC
+- * SPDX-License-Identifier: AGPL-3.0-only
+- */
+-
+-package org.thoughtcrime.securesms.badges.self.overview
+-
+-import android.net.Uri
+-import assertk.assertThat
+-import assertk.assertions.containsExactly
+-import assertk.assertions.isEqualTo
+-import assertk.assertions.isFalse
+-import assertk.assertions.isNull
+-import assertk.assertions.isTrue
+-import io.mockk.coEvery
+-import io.mockk.coVerify
+-import io.mockk.every
+-import io.mockk.mockk
+-import io.mockk.mockkObject
+-import io.mockk.unmockkObject
+-import kotlinx.coroutines.CompletableDeferred
+-import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.flow.MutableStateFlow
+-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+-import kotlinx.coroutines.test.resetMain
+-import kotlinx.coroutines.test.runTest
+-import kotlinx.coroutines.test.setMain
+-import org.junit.After
+-import org.junit.Before
+-import org.junit.Rule
+-import org.junit.Test
+-import org.signal.appsettings.badges.BadgesOverviewEvent
+-import org.signal.appsettings.badges.BadgesOverviewState
+-import org.signal.appsettings.routes.AppSettingsNavigationEvent
+-import org.signal.appsettings.routes.AppSettingsRoute
+-import org.signal.core.models.badges.Badge
+-import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.testing.CoroutineDispatcherRule
+-
+-@OptIn(ExperimentalCoroutinesApi::class)
+-class BadgesOverviewViewModelTest {
+-
+-  private val testDispatcher = UnconfinedTestDispatcher()
+-
+-  @get:Rule
+-  val dispatcherRule = CoroutineDispatcherRule(testDispatcher)
+-
+-  private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
+-  private val activeBadge = badge(id = "star", expirationTimestamp = Long.MAX_VALUE)
+-  private val expiredBadge = badge(id = "boost", expirationTimestamp = 1)
+-  private val self = MutableStateFlow(recipient(badges = listOf(activeBadge, expiredBadge), featuredBadge = activeBadge))
+-  private val internet = MutableStateFlow(true)
+-
+-  @Before
+-  fun setUp() {
+-    Dispatchers.setMain(testDispatcher)
+-    mockkObject(BadgesOverviewRepository)
+-
+-    every { BadgesOverviewRepository.observeSelf() } returns self
+-    every { BadgesOverviewRepository.observeInternetConnection() } returns internet
+-    every { BadgesOverviewRepository.getDisplayBadgesOnProfile() } returns true
+-    coEvery { BadgesOverviewRepository.getFadedBadgeId() } returns null
+-    coEvery { BadgesOverviewRepository.setDisplayBadgesOnProfile(any()) } returns true
+-  }
+-
+-  @After
+-  fun tearDown() {
+-    unmockkObject(BadgesOverviewRepository)
+-    Dispatchers.resetMain()
+-  }
+-
+-  @Test
+-  fun `the badges are read from the self recipient`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    val state = viewModel.state.value
+-    assertThat(state.stage).isEqualTo(BadgesOverviewState.Stage.READY)
+-    assertThat(state.badges).containsExactly(activeBadge, expiredBadge)
+-    assertThat(state.featuredBadge).isEqualTo(activeBadge)
+-    assertThat(state.displayBadgesOnProfile).isTrue()
+-    assertThat(state.hasUnexpiredBadges).isTrue()
+-    assertThat(state.canChangeSettings).isTrue()
+-  }
+-
+-  @Test
+-  fun `settings can't be changed when every badge has expired`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    self.value = recipient(badges = listOf(expiredBadge), featuredBadge = null)
+-
+-    assertThat(viewModel.state.value.hasUnexpiredBadges).isFalse()
+-    assertThat(viewModel.state.value.canChangeSettings).isFalse()
+-  }
+-
+-  @Test
+-  fun `settings can't be changed while offline`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    internet.value = false
+-
+-    assertThat(viewModel.state.value.canChangeSettings).isFalse()
+-  }
+-
+-  @Test
+-  fun `a cancelled donation's badge is faded`() = runTest(testDispatcher) {
+-    coEvery { BadgesOverviewRepository.getFadedBadgeId() } returns activeBadge.id
+-
+-    val viewModel = createViewModel()
+-
+-    assertThat(viewModel.state.value.fadedBadgeId).isEqualTo(activeBadge.id)
+-  }
+-
+-  @Test
+-  fun `clicking an active badge opens its sheet until it's dismissed`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.BadgeClicked(activeBadge))
+-
+-    assertThat(viewModel.state.value.viewedBadge).isEqualTo(activeBadge)
+-    assertThat(viewModel.state.value.expiredBadge).isNull()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.BadgeSheetDismissed)
+-
+-    assertThat(viewModel.state.value.viewedBadge).isNull()
+-  }
+-
+-  @Test
+-  fun `clicking an expired badge explains that it expired until the sheet is dismissed`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.BadgeClicked(expiredBadge))
+-
+-    assertThat(viewModel.state.value.expiredBadge).isEqualTo(expiredBadge)
+-    assertThat(viewModel.state.value.viewedBadge).isNull()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.ExpiredBadgeSheetDismissed)
+-
+-    assertThat(viewModel.state.value.expiredBadge).isNull()
+-  }
+-
+-  @Test
+-  fun `clicking a faded badge explains that it will expire`() = runTest(testDispatcher) {
+-    coEvery { BadgesOverviewRepository.getFadedBadgeId() } returns activeBadge.id
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.BadgeClicked(activeBadge))
+-
+-    assertThat(viewModel.state.value.expiredBadge).isEqualTo(activeBadge)
+-  }
+-
+-  @Test
+-  fun `toggling display badges saves it and shows progress until it's done`() = runTest(testDispatcher) {
+-    val saved = CompletableDeferred<Boolean>()
+-    coEvery { BadgesOverviewRepository.setDisplayBadgesOnProfile(false) } coAnswers { saved.await() }
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.DisplayBadgesOnProfileToggled(false))
+-    assertThat(viewModel.state.value.stage).isEqualTo(BadgesOverviewState.Stage.UPDATING_BADGE_DISPLAY_STATE)
+-
+-    saved.complete(true)
+-
+-    coVerify { BadgesOverviewRepository.setDisplayBadgesOnProfile(false) }
+-    assertThat(viewModel.state.value.stage).isEqualTo(BadgesOverviewState.Stage.READY)
+-    assertThat(viewModel.state.value.snackbar).isEqualTo(BadgesOverviewState.Snackbar.None)
+-  }
+-
+-  @Test
+-  fun `navigating back still works while display badges is saving`() = runTest(testDispatcher) {
+-    coEvery { BadgesOverviewRepository.setDisplayBadgesOnProfile(any()) } coAnswers { CompletableDeferred<Boolean>().await() }
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.DisplayBadgesOnProfileToggled(false))
+-    viewModel.onEvent(BadgesOverviewEvent.NavigateBackClicked)
+-
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateBack)
+-  }
+-
+-  @Test
+-  fun `a failed display badges save shows a snackbar until it's dismissed`() = runTest(testDispatcher) {
+-    coEvery { BadgesOverviewRepository.setDisplayBadgesOnProfile(any()) } returns false
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.DisplayBadgesOnProfileToggled(false))
+-
+-    assertThat(viewModel.state.value.stage).isEqualTo(BadgesOverviewState.Stage.READY)
+-    assertThat(viewModel.state.value.snackbar).isEqualTo(BadgesOverviewState.Snackbar.FailedToUpdateProfile)
+-
+-    viewModel.onEvent(BadgesOverviewEvent.SnackbarDismissed)
+-
+-    assertThat(viewModel.state.value.snackbar).isEqualTo(BadgesOverviewState.Snackbar.None)
+-  }
+-
+-  @Test
+-  fun `FeaturedBadgeClicked opens the featured badge picker`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.FeaturedBadgeClicked)
+-
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateToScreen(AppSettingsRoute.DonationsRoute.Featured))
+-  }
+-
+-  @Test
+-  fun `NavigateBackClicked navigates back`() = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
+-
+-    viewModel.onEvent(BadgesOverviewEvent.NavigateBackClicked)
+-
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateBack)
+-  }
+-
+-  private fun createViewModel(): BadgesOverviewViewModel = BadgesOverviewViewModel(parentEventEmitter = { navigationEvents += it })
+-
+-  private fun badge(id: String, expirationTimestamp: Long): Badge {
+-    return Badge(
+-      id = id,
+-      category = Badge.Category.Donor,
+-      name = id,
+-      description = "",
+-      imageUrl = mockk<Uri>(),
+-      imageDensity = "xxxhdpi",
+-      expirationTimestamp = expirationTimestamp,
+-      visible = true,
+-      duration = 0
+-    )
+-  }
+-
+-  private fun recipient(badges: List<Badge>, featuredBadge: Badge?): Recipient {
+-    return mockk {
+-      every { this@mockk.badges } returns badges
+-      every { this@mockk.featuredBadge } returns featuredBadge
+-    }
+-  }
+-}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/conversation/MenuStateTest.kt b/app/src/test/java/org/thoughtcrime/securesms/conversation/MenuStateTest.kt
 new file mode 100644
 index 0000000000000000000000000000000000000000..6b4c5ecbec81939f652de4dba9fdf2e1eaed2d0a
@@ -17913,3 +18881,124 @@ index 41d6a4b7d8ccae35bd3ea8c6a79f34b881d6978d..00000000000000000000000000000000
 -    assertEquals(Arrays.asList(1, -1, 3, -2, 4, 5), zipList(a, b, Integer::compare));
 -  }
 -}
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsLayoutTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsLayoutTest.kt
+index 2644da058988b991835c55c627bff2535dc26d23..75fb3dd02f40dfceecae3e406bba3839c81bf359 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsLayoutTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsLayoutTest.kt
+@@ -24,8 +24,7 @@ class PrivacySettingsLayoutTest : SignalLayoutStressTest() {
+     screenLock = true,
+     screenLockTimeout = 6.days + 23.hours,
+     screenSecurity = true,
+-    incognitoKeyboard = true,
+-    paymentLock = true
++    incognitoKeyboard = true
+   )
+ 
+   @Test
+@@ -59,8 +58,8 @@ class PrivacySettingsLayoutTest : SignalLayoutStressTest() {
+   }
+ 
+   @Test
+-  fun `payment lock needs device security`() = assertPassesLayoutChecks {
+-    Screen(populated.copy(isDeviceSecure = false, dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
++  fun `stale wallet flags and dialog leave the privacy layout available`() = assertPassesLayoutChecks {
++    Screen(populated.copy(paymentLock = true, scrollToPaymentLock = true, isDeviceSecure = false, dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
+   }
+ 
+   @Test
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsScreenTest.kt
+index 3bb71521c83d3859efc2da40ab24e8faa4352905..13cf6b816c23340e4034d48d17fbc2f38b1bf0f3 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsScreenTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/privacy/PrivacySettingsScreenTest.kt
+@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performFirstLinkClick
+ import androidx.compose.ui.test.performScrollToNode
+ import assertk.assertThat
+ import assertk.assertions.containsExactly
++import assertk.assertions.isEmpty
+ import org.junit.Rule
+ import org.junit.Test
+ import org.junit.runner.RunWith
+@@ -191,33 +192,13 @@ class PrivacySettingsScreenTest {
+   }
+ 
+   @Test
+-  fun `turning on payment lock emits EnablePaymentLockClicked`() {
+-    setContent(PrivacySettingsState(paymentLock = false))
++  fun `stale wallet lock flags do not add a control or emit events`() {
++    setContent(PrivacySettingsState(paymentLock = true, scrollToPaymentLock = true))
+ 
+-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
+-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
+-
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.EnablePaymentLockClicked)
+-  }
+-
+-  @Test
+-  fun `turning off payment lock emits PaymentLockDisableAuthenticated once authenticated`() {
+-    setContent(PrivacySettingsState(paymentLock = true))
+-
+-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
+-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
+-
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.PaymentLockDisableAuthenticated)
+-  }
+-
+-  @Test
+-  fun `payment lock reads as off on an insecure device, so tapping it tries to turn it on`() {
+-    setContent(PrivacySettingsState(paymentLock = true, isDeviceSecure = false))
+-
+-    scrollTo(PrivacySettingsTestTags.ROW_PAYMENT_LOCK)
+-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).performClick()
++    scrollTo(PrivacySettingsTestTags.ROW_ADVANCED)
++    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).assertDoesNotExist()
+ 
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.EnablePaymentLockClicked)
++    assertThat(interactionEvents).isEmpty()
+   }
+ 
+   @Test
+@@ -230,16 +211,6 @@ class PrivacySettingsScreenTest {
+     assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.AdvancedClicked)
+   }
+ 
+-  @Test
+-  fun `asking to scroll to payment lock emits ScrolledToPaymentLock`() {
+-    setContent(PrivacySettingsState(scrollToPaymentLock = true))
+-
+-    composeTestRule.waitForIdle()
+-    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_PAYMENT_LOCK).assertIsDisplayed()
+-
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.ScrolledToPaymentLock)
+-  }
+-
+   @Test
+   fun `confirming the disable passphrase dialog emits DisablePassphraseConfirmed`() {
+     setContent(PrivacySettingsState(isObsoletePassphraseEnabled = true, dialog = PrivacySettingsState.Dialog.ConfirmDisablePassphrase))
+@@ -250,21 +221,16 @@ class PrivacySettingsScreenTest {
+   }
+ 
+   @Test
+-  fun `accepting the payment lock dialog emits OpenDeviceSecuritySettingsClicked`() {
++  fun `a stale wallet dialog is absent and leaves screen lock usable`() {
+     setContent(PrivacySettingsState(dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
+ 
+-    composeTestRule.onNodeWithText("Turn On").performClick()
+-
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.OpenDeviceSecuritySettingsClicked)
+-  }
+-
+-  @Test
+-  fun `declining the payment lock dialog emits DialogDismissed`() {
+-    setContent(PrivacySettingsState(dialog = PrivacySettingsState.Dialog.PaymentLockNeedsDeviceSecurity))
++    composeTestRule.onNodeWithText("Turn On").assertDoesNotExist()
++    composeTestRule.onNodeWithText("Not Now").assertDoesNotExist()
+ 
+-    composeTestRule.onNodeWithText("Not Now").performClick()
++    scrollTo(PrivacySettingsTestTags.ROW_SCREEN_LOCK)
++    composeTestRule.onNodeWithTag(PrivacySettingsTestTags.ROW_SCREEN_LOCK).performClick()
+ 
+-    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.DialogDismissed)
++    assertThat(interactionEvents).containsExactly(PrivacySettingsEvent.ScreenLockClicked)
+   }
+ 
+   @Test

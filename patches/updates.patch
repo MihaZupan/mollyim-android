@@ -458,7 +458,7 @@ index 86722b1c4b13ea9b2cd4c38432d5698a0f8c9bf0..5fe4fd1e477db61d15edd5a4e019f706
  
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
-index af977fce147339b9668a9c6e2813fde319b99293..49d3d982241273c6d172eb818a87c13bb8623a64 100644
+index af977fce147339b9668a9c6e2813fde319b99293..42ff4804848bc353fb7bc074d725ec6a12992dc9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
 @@ -29,6 +29,7 @@ import org.thoughtcrime.securesms.components.settings.app.chats.registerChatsRou
@@ -477,12 +477,23 @@ index af977fce147339b9668a9c6e2813fde319b99293..49d3d982241273c6d172eb818a87c13b
              registerPrivacyRoutes(router::onEvent)
  
              // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
+@@ -113,10 +115,4 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
+     finish()
+     startActivity(intent)
+   }
+-
+-  @Suppress("DEPRECATION")
+-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+-    super.onActivityResult(requestCode, resultCode, data)
+-    googlePayResultPublisher.onNext(GooglePayComponent.GooglePayResult(requestCode, resultCode, data))
+-  }
+ }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/updates/AppUpdatesSettingsEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/updates/AppUpdatesSettingsEntry.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..8ecc96bdfaf05bc4a14f0176374b89fb4e2faf61
+index 0000000000000000000000000000000000000000..028dcd1baeb3882ff5ec88345f7af4598343fc48
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/updates/AppUpdatesSettingsEntry.kt
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,54 @@
 +package org.thoughtcrime.securesms.components.settings.app.updates
 +
 +import androidx.compose.runtime.Composable
@@ -500,6 +511,7 @@ index 0000000000000000000000000000000000000000..8ecc96bdfaf05bc4a14f0176374b89fb
 +import org.thoughtcrime.securesms.util.DateUtils
 +import java.util.Locale
 +import kotlin.time.Duration
++import org.signal.appsettings.R as AppSettingsR
 +
 +@Composable
 +fun AppUpdatesSettingsEntry(onNavigateBack: () -> Unit) {
@@ -524,7 +536,7 @@ index 0000000000000000000000000000000000000000..8ecc96bdfaf05bc4a14f0176374b89fb
 +    state = state,
 +    onEvent = viewModel::onEvent,
 +    labels = AppUpdatesSettingsLabels(
-+      version = stringResource(R.string.HelpSettingsFragment__version),
++      version = stringResource(AppSettingsR.string.HelpSettingsFragment__version),
 +      storeManagedMessage = stringResource(R.string.HelpSettingsFragment_for_updates_please_check_your_app_store),
 +      autoUpdates = stringResource(R.string.preferences__autoupdate_molly),
 +      autoUpdatesDescription = stringResource(R.string.preferences__periodically_check_for_new_releases_and_ask_to_install_them),

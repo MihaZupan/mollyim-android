@@ -1162,7 +1162,7 @@ index 3a6654cb50fa5207511e000f5b44d3f1421cced1..a4c4707074cf371f94290eb9e1e11f1a
      this.recentlyUsed   = getPersistedCache();
    }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
-index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231e5106e69 100644
+index 6c254d5b308534dc6f1627360903c4f2de024002..f6dd72f632266582e2103c54aaa0cc094e2a039a 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
 @@ -10,16 +10,20 @@ import android.widget.Toast
@@ -1206,17 +1206,16 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
 +import im.molly.unifiedpush.UnifiedPushDefaultDistributorLinkActivity
 +import im.molly.unifiedpush.components.settings.app.notifications.MollySocketQrScannerActivity
 +import kotlinx.coroutines.launch
-+import org.greenrobot.eventbus.EventBus
-+import org.greenrobot.eventbus.Subscribe
-+import org.greenrobot.eventbus.ThreadMode
++import org.signal.core.util.eventbus.EventBus
++import org.signal.core.util.eventbus.RestartableSubscription
++import org.signal.core.util.eventbus.ThreadMode
  import org.signal.core.ui.BottomSheetUtil
  import org.signal.core.ui.compose.ComposeFragment
  import org.signal.core.ui.compose.DayNightPreviews
-@@ -57,8 +73,12 @@ import org.signal.core.util.logging.Log
+@@ -57,8 +73,11 @@ import org.signal.core.util.logging.Log
  import org.thoughtcrime.securesms.R
  import org.thoughtcrime.securesms.components.PromptBatterySaverDialogFragment
  import org.thoughtcrime.securesms.components.settings.models.Banner
-+import org.thoughtcrime.securesms.conversation.v2.registerForLifecycle
 +import org.thoughtcrime.securesms.events.PushServiceEvent
 +import org.thoughtcrime.securesms.keyvalue.SettingsValues.NotificationDeliveryMethod
  import org.thoughtcrime.securesms.notifications.NotificationChannels
@@ -1225,7 +1224,7 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
  import org.thoughtcrime.securesms.util.RingtoneUtil
  import org.thoughtcrime.securesms.util.navigation.safeNavigate
  import org.signal.core.ui.R as CoreUiR
-@@ -71,6 +91,8 @@ class NotificationsSettingsFragment : ComposeFragment() {
+@@ -71,6 +90,8 @@ class NotificationsSettingsFragment : ComposeFragment() {
  
    private val appSettingsRouter: AppSettingsRouter by viewModels()
  
@@ -1234,7 +1233,7 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
    private lateinit var callbacks: DefaultNotificationsSettingsCallbacks
  
    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-@@ -86,6 +108,10 @@ class NotificationsSettingsFragment : ComposeFragment() {
+@@ -86,6 +107,10 @@ class NotificationsSettingsFragment : ComposeFragment() {
              findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_notificationProfilesFragment)
            }
  
@@ -1245,7 +1244,7 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
            AppSettingsRoute.NotificationsRoute.MutedNotifications -> {
              findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_mutedNotificationsFragment)
            }
-@@ -94,6 +120,12 @@ class NotificationsSettingsFragment : ComposeFragment() {
+@@ -94,6 +119,14 @@ class NotificationsSettingsFragment : ComposeFragment() {
          }
        }
      }
@@ -1254,15 +1253,16 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
 +      viewModel.setPlayServicesErrorCode(args.playServicesErrorCode)
 +    }
 +
-+    EventBus.getDefault().registerForLifecycle(subscriber = this, lifecycleOwner = viewLifecycleOwner)
++    RestartableSubscription {
++      EventBus.default.subscribe<PushServiceEvent>(ThreadMode.MAIN, ::onPushServiceEvent)
++    }.bindTo(viewLifecycleOwner, Lifecycle.State.STARTED)
    }
  
    override fun onResume() {
-@@ -101,6 +133,11 @@ class NotificationsSettingsFragment : ComposeFragment() {
+@@ -101,6 +134,10 @@ class NotificationsSettingsFragment : ComposeFragment() {
      viewModel.refresh()
    }
  
-+  @Subscribe(threadMode = ThreadMode.MAIN)
 +  fun onPushServiceEvent(event: PushServiceEvent) {
 +    viewModel.refresh()
 +  }
@@ -1335,8 +1335,8 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
 +            .setPositiveButton(R.string.AddLinkDeviceFragment__scan_qr_code) { _, _ ->
 +              qrScanLauncher.launch()
 +            }
-+            .setNegativeButton(R.string.RegistrationActivity_cancel, null)
-+            .setNeutralButton(R.string.LearnMoreTextView_learn_more) { _, _ ->
++            .setNegativeButton(android.R.string.cancel, null)
++            .setNeutralButton(CoreUiR.string.LearnMoreTextView_learn_more) { _, _ ->
 +              CommunicationActions.openBrowserLink(activity, activity.getString(R.string.mollysocket_setup_url))
 +            }
 +            .show()
@@ -1357,7 +1357,7 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
 +        R.string.NotificationsSettingsFragment__the_installed_version_of_google_play_services_on_this_device_is_outdated
 +
 +      ConnectionResult.SERVICE_UPDATING ->
-+        R.string.RegistrationActivity_google_play_services_is_updating_or_unavailable
++        R.string.GooglePlayServicesAvailability__service_updating_title
 +
 +      else -> R.string.NotificationsSettingsFragment__please_check_if_google_play_services_is_installed_and_enabled
 +    }
@@ -1411,7 +1411,7 @@ index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231
        }
  
 +      item {
-+        Texts.SectionHeader(stringResource(R.string.NotificationsSettingsFragment__notify_when))
++        Texts.SectionHeader(stringResource(R.string.NotificationsSettingsFragment__push_notifications))
 +      }
 +
 +      item {
@@ -4072,7 +4072,7 @@ index 26511277b7a582b0f294b9ba1c42ecabac378eeb..e4cd59db90a8f0f6bc631112dcea0f91
  
    /** Stores the ID offset that was determined during the big migration that moved all SMS messages into the MMS table. */
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
-index a9158ca265c25284d372d184bc7bf53f467eb5ed..8d96662840c8b7e1796bfb2e8dd049ede641436c 100644
+index a9158ca265c25284d372d184bc7bf53f467eb5ed..28cdc00e3c2272a3ba0970f7662f46ebffcf6c90 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
 @@ -4,6 +4,7 @@ import android.content.Context
@@ -4184,7 +4184,7 @@ index a9158ca265c25284d372d184bc7bf53f467eb5ed..8d96662840c8b7e1796bfb2e8dd049ed
 +  var preferredNotificationMethod: NotificationDeliveryMethod
 +    get() = if (store.containsKey(MOLLY_NOTIFICATION_METHOD)) {
 +      NotificationDeliveryMethod.deserialize(getString(MOLLY_NOTIFICATION_METHOD, NotificationDeliveryMethod.FCM.serialize()))
-+    } else if (SignalStore.account.isFcmEnabled) {
++    } else if (SignalStore.account.fcmEnabled) {
 +      NotificationDeliveryMethod.FCM
 +    } else {
 +      NotificationDeliveryMethod.WEBSOCKET

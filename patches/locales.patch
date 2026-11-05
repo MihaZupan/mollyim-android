@@ -33,6 +33,19 @@ index 086f1a9c98dbf501b5f6cbd2c9761983da4d9539..b2788f5636d6324c359aa407a8bdf560
        TextView searchText = findViewById(androidx.appcompat.R.id.search_src_text);
        if (searchText != null) {
          searchText.setFilters(appendEmojiFilter(searchText));
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/LocalTimeExtensions.kt b/app/src/main/java/org/thoughtcrime/securesms/util/LocalTimeExtensions.kt
+index a5de45a837aef37da4da9e3297ed391799f5b15f..c59b496478bcf2045f94c113fbc646655205ac8d 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/util/LocalTimeExtensions.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/util/LocalTimeExtensions.kt
+@@ -10,7 +10,7 @@ import java.util.Locale
+  * Formats [LocalTime] as localized time. For example, "1:45 PM" or "13:45"
+  */
+ fun LocalTime.formatHours(context: Context): String {
+-  return formatHours(is24Hour = DateFormat.is24HourFormat(context), locale = LocaleUtil.getFirstLocale())
++  return formatHours(is24Hour = DateFormat.is24HourFormat(context), locale = Locale.getDefault())
+ }
+ 
+ /**
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/LocaleUtil.kt b/app/src/main/java/org/thoughtcrime/securesms/util/LocaleUtil.kt
 index dc6f2b71ee4a850dcb217950ed7620601151d53d..c5a6b312cb96d82ee3ce7fbb574567cca1d3cdce 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/LocaleUtil.kt
