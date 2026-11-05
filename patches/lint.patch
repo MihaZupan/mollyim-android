@@ -158,7 +158,7 @@ index 046875b7b10820acdd8bf73dcdf3e32bc493fe82..cb8c36bd237995ab7e2136c74b92c4f1
    @Override
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt b/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..4303beefab21c4a2a772a0d9fa8be343464c743b
+index 0000000000000000000000000000000000000000..4fa837318b6ade016c560eae212576e1b2a1ead7
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt
 @@ -0,0 +1,164 @@
@@ -213,19 +213,19 @@ index 0000000000000000000000000000000000000000..4303beefab21c4a2a772a0d9fa8be343
 +
 +  @Before
 +  fun setUp() {
-+    mockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, SignalStore)
++    mockkObject(RegistrationActivityLifecycle.Companion, SignalStore)
++    mockkStatic(MasterSecretUtil::class, TextSecurePreferences::class, PlainTextKeyValueStore::class)
 +    every { PlainTextKeyValueStore.language } returns "zz"
 +    every { SignalStore.account } throws AssertionError("Private account accessed before profile admission")
 +    every { SignalStore.registration } throws AssertionError("Profile host entered account-state routing")
-+    mockkStatic(MasterSecretUtil::class, TextSecurePreferences::class)
 +    every { TextSecurePreferences.isDynamicColorsEnabled(any()) } returns false
 +  }
 +
 +  @After
 +  fun tearDown() {
 +    PrivateRestoreProbe.rejectCreation = false
-+    unmockkStatic(MasterSecretUtil::class, TextSecurePreferences::class)
-+    unmockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, SignalStore)
++    unmockkStatic(MasterSecretUtil::class, TextSecurePreferences::class, PlainTextKeyValueStore::class)
++    unmockkObject(RegistrationActivityLifecycle.Companion, SignalStore)
 +  }
 +
 +  @Test

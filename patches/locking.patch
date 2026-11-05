@@ -39818,7 +39818,7 @@ index 9307d3ef28b41fd11b3e901fa7a8c2b137ca2487..e3effaa1c49e717528eed9b546ac5dde
  }
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt b/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..b28b0de5276cc455e8a6a1bbeb2d6f27f68fa0ff
+index 0000000000000000000000000000000000000000..3717fec68c6b350e14685811a268526b3418ff03
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/dependencies/PrivateUiLifecycleGateTest.kt
 @@ -0,0 +1,45 @@
@@ -39829,8 +39829,8 @@ index 0000000000000000000000000000000000000000..b28b0de5276cc455e8a6a1bbeb2d6f27
 +import android.content.Intent
 +import io.mockk.every
 +import io.mockk.mockk
-+import io.mockk.mockkObject
-+import io.mockk.unmockkObject
++import io.mockk.mockkStatic
++import io.mockk.unmockkStatic
 +import org.junit.After
 +import org.junit.Assert.assertTrue
 +import org.junit.Before
@@ -39846,14 +39846,14 @@ index 0000000000000000000000000000000000000000..b28b0de5276cc455e8a6a1bbeb2d6f27
 +class PrivateUiLifecycleGateTest {
 +  @Before
 +  fun setup() {
-+    mockkObject(AppDependencies)
++    mockkStatic(AppDependencies::class)
 +    every { AppDependencies.isInitialized } returns true
 +    assertTrue(KeyCachingService.isLocked())
 +  }
 +
 +  @After
 +  fun teardown() {
-+    unmockkObject(AppDependencies)
++    unmockkStatic(AppDependencies::class)
 +  }
 +
 +  @Test

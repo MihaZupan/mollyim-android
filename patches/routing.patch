@@ -3468,7 +3468,7 @@ index fddf2993330fb2496c7fb4779b7ee921bf9fb2fb..1aa08f05c8bb74423140ac9ea55a1ddb
      val viewModel = DataAndStorageSettingsViewModel()
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/preferences/NetworkPreferenceActivityTest.kt b/app/src/test/java/org/thoughtcrime/securesms/preferences/NetworkPreferenceActivityTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..1fbaeed9064de349c0980970e82b61c68cec1697
+index 0000000000000000000000000000000000000000..ddcbeabf56764352afbb35ab83d31704f9df0e6a
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/preferences/NetworkPreferenceActivityTest.kt
 @@ -0,0 +1,131 @@
@@ -3518,17 +3518,17 @@ index 0000000000000000000000000000000000000000..1fbaeed9064de349c0980970e82b61c6
 +
 +  @Before
 +  fun setUp() {
-+    mockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, AppDependencies)
++    mockkObject(RegistrationActivityLifecycle.Companion)
++    mockkStatic(MasterSecretUtil::class, PlainTextKeyValueStore::class, AppDependencies::class)
 +    every { PlainTextKeyValueStore.language } returns "zz"
 +    every { AppDependencies.networkManager } throws AssertionError("Private network access before admission")
-+    mockkStatic(MasterSecretUtil::class)
 +  }
 +
 +  @After
 +  fun tearDown() {
 +    PrivateRestoreProbe.rejectCreation = false
-+    unmockkStatic(MasterSecretUtil::class)
-+    unmockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, AppDependencies)
++    unmockkStatic(MasterSecretUtil::class, PlainTextKeyValueStore::class, AppDependencies::class)
++    unmockkObject(RegistrationActivityLifecycle.Companion)
 +  }
 +
 +  @Test
