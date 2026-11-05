@@ -2960,7 +2960,7 @@ index f7cda7f8874e4c171cb3eff168371378cec85e95..38e3be21ad73ca47ac169b750810a35d
      modifier = Modifier
        .padding(8.dp)
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/OnboardingMegaphone.kt b/app/src/main/java/org/thoughtcrime/securesms/megaphone/OnboardingMegaphone.kt
-index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c1668a568cd 100644
+index 1a213537e39190cfcc6895580835bb4dc03c98de..ec91bd078c5eeb91e2da10469f4bbf3863ac89a4 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/OnboardingMegaphone.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/OnboardingMegaphone.kt
 @@ -5,6 +5,7 @@
@@ -2971,7 +2971,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
  import androidx.annotation.ColorRes
  import androidx.annotation.DrawableRes
  import androidx.annotation.StringRes
-@@ -54,13 +55,16 @@ import org.signal.core.ui.compose.DayNightPreviews
+@@ -54,16 +55,21 @@ import org.signal.core.ui.compose.DayNightPreviews
  import org.signal.core.ui.compose.IconButtons
  import org.signal.core.ui.compose.Previews
  import org.signal.core.ui.compose.SignalIcons
@@ -2990,7 +2990,12 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
  import org.thoughtcrime.securesms.wallpaper.ChatWallpaperActivity
  import org.signal.core.ui.R as CoreUiR
  
-@@ -212,7 +216,7 @@ private fun OnboardingMegaphonePreview() {
++private const val TAG = "OnboardingMegaphone"
++
+ /**
+  * The onboarding megaphone (list of cards)
+  */
+@@ -212,7 +218,7 @@ private fun OnboardingMegaphonePreview() {
  private fun OnboardingMegaphoneListItemPreview() {
    Previews.Preview {
      OnboardingMegaphoneListItem(
@@ -2999,7 +3004,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
        onActionClick = {},
        onCloseClick = {}
      )
-@@ -232,16 +236,11 @@ enum class OnboardingListItem(
+@@ -232,16 +238,11 @@ enum class OnboardingListItem(
      icon = CoreUiR.drawable.symbol_at_24,
      cardColor = R.color.onboarding_background_5
    ),
@@ -3018,7 +3023,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
    ADD_PHOTO(
      title = R.string.Megaphones_add_a_profile_photo,
      icon = CoreUiR.drawable.symbol_person_circle_24,
-@@ -298,8 +297,7 @@ abstract class OnboardingState private constructor(
+@@ -298,8 +299,7 @@ abstract class OnboardingState private constructor(
    private object Preview : OnboardingState(
      initialState = DisplayState(
        shouldShowSetUpUsername = true,
@@ -3028,7 +3033,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
        shouldShowAddPhoto = true,
        shouldShowAppearance = true
      ),
-@@ -308,8 +306,7 @@ abstract class OnboardingState private constructor(
+@@ -308,8 +308,7 @@ abstract class OnboardingState private constructor(
      override fun onItemCloseClick(onboardingListItem: OnboardingListItem) {
        displayState = when (onboardingListItem) {
          OnboardingListItem.SET_UP_USERNAME -> displayState.copy(shouldShowSetUpUsername = false)
@@ -3038,7 +3043,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
          OnboardingListItem.ADD_PHOTO -> displayState.copy(shouldShowAddPhoto = false)
          OnboardingListItem.APPEARANCE -> displayState.copy(shouldShowAppearance = false)
        }
-@@ -322,11 +319,17 @@ abstract class OnboardingState private constructor(
+@@ -322,11 +321,17 @@ abstract class OnboardingState private constructor(
     * Real implementation, used automatically on-device. Backed by SignalStore.
     */
    private class Real(megaphoneActionController: MegaphoneActionController) : OnboardingState(megaphoneActionController = megaphoneActionController) {
@@ -3058,7 +3063,7 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
          OnboardingListItem.ADD_PHOTO -> SignalStore.onboarding.setShowAddPhoto(false)
          OnboardingListItem.APPEARANCE -> SignalStore.onboarding.setShowAppearance(false)
        }
-@@ -341,8 +344,18 @@ abstract class OnboardingState private constructor(
+@@ -341,8 +346,18 @@ abstract class OnboardingState private constructor(
      override fun onItemActionClick(onboardingListItem: OnboardingListItem) {
        when (onboardingListItem) {
          OnboardingListItem.SET_UP_USERNAME -> megaphoneActionController.onMegaphoneDialogFragmentRequested(ConnectWithUsernamesDialogFragment())
@@ -3072,14 +3077,14 @@ index 1a213537e39190cfcc6895580835bb4dc03c98de..3027f4f31301ba745f41a9f0e2667c16
 +                onItemCloseClick(OnboardingListItem.STORIES)
 +                megaphoneActionController.onMegaphoneNavigationRequested(Intent(megaphoneActionController.megaphoneActivity, MainActivity::class.java))
 +              }, { error ->
-+                Log.w("OnboardingMegaphone", "Unable to enable stories", error)
++                Log.w(TAG, "Unable to enable stories", error)
 +              })
 +          )
 +        }
          OnboardingListItem.ADD_PHOTO -> {
            megaphoneActionController.onMegaphoneNavigationRequested(EditProfileActivity.getIntentForAvatarEdit(megaphoneActionController.megaphoneActivity))
            SignalStore.onboarding.setShowAddPhoto(false)
-@@ -366,18 +379,16 @@ abstract class OnboardingState private constructor(
+@@ -366,18 +381,16 @@ abstract class OnboardingState private constructor(
     */
    data class DisplayState(
      private val shouldShowSetUpUsername: Boolean = SignalStore.onboarding.shouldShowSetUpUsername() && SignalStore.account.isPhoneNumberless && SignalStore.account.username == null,
