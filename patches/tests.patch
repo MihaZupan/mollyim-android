@@ -4,18 +4,16 @@ Date: Wed, 4 Nov 2026 08:10:24 +0100
 Subject: [PATCH] tests: retain reference characterization and product contract
  coverage
 
-Preserve existing unit/instrumentation test sources, including known AST24 and AndroidTest compilation debt. M1 synthetic applications, guards and diagnostic manifests are not imported.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: TEST-CHARACTERIZATION-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 97dd4c9427f14ca778725998e219362ba01cafbc
+Semantic-boundary: 29/36
 
 diff --git a/app/src/androidTest/java/org/thoughtcrime/securesms/SignalInstrumentationApplicationContext.kt b/app/src/androidTest/java/org/thoughtcrime/securesms/SignalInstrumentationApplicationContext.kt
-index 2c6ec745bcd49bc79169dab1617aa6de88d65468..dc9cc1a23e7f377e9eb9f1639d878ac3116e5da0 100644
+index cde0a67f554ebbadfd7e969eb0318d3557c10878..f675ce8805a2234b82c4f199b4e5fd3e26d3665f 100644
 --- a/app/src/androidTest/java/org/thoughtcrime/securesms/SignalInstrumentationApplicationContext.kt
 +++ b/app/src/androidTest/java/org/thoughtcrime/securesms/SignalInstrumentationApplicationContext.kt
 @@ -5,6 +5,7 @@ import org.signal.core.util.concurrent.SignalExecutors
@@ -47,10 +45,10 @@ index 2c6ec745bcd49bc79169dab1617aa6de88d65468..dc9cc1a23e7f377e9eb9f1639d878ac3
  
      SignalProtocolLoggerProvider.setProvider(CustomSignalProtocolLogger())
 diff --git a/app/src/androidTest/java/org/thoughtcrime/securesms/conversation/v2/items/V2ConversationItemShapeTest.kt b/app/src/androidTest/java/org/thoughtcrime/securesms/conversation/v2/items/V2ConversationItemShapeTest.kt
-index 1de15ca8660fd3008cad9a2bd8b3074eef73c7f9..72951ad5032331c13a0c6ba0c77ffd173bdc0a74 100644
+index 8203c55803f4de106612e799d67cc350601f3a6a..dc97c3c07a8c36a4c9c1938b6facb590616f9145 100644
 --- a/app/src/androidTest/java/org/thoughtcrime/securesms/conversation/v2/items/V2ConversationItemShapeTest.kt
 +++ b/app/src/androidTest/java/org/thoughtcrime/securesms/conversation/v2/items/V2ConversationItemShapeTest.kt
-@@ -311,18 +311,10 @@ class V2ConversationItemShapeTest {
+@@ -313,18 +313,10 @@ class V2ConversationItemShapeTest {
  
      override fun onInviteToSignalClicked() = Unit
  
@@ -317,7 +315,7 @@ index 58ef4927109759bc5b6b901b258b70a428962d78..fbba31ef446c89f0e6f2981adc725e90
      executor.execute {
        predicates.clear()
 diff --git a/app/src/androidTest/java/org/thoughtcrime/securesms/testing/SignalActivityRule.kt b/app/src/androidTest/java/org/thoughtcrime/securesms/testing/SignalActivityRule.kt
-index 9bc03066b07da7578073f043f93a13b432422597..882eae3f120d97541dc49d7ac9608aa619161475 100644
+index b58da71465739a229267df9647131121f511c0a8..675fe84127eb9c3e7e0636942818aaea2283fa37 100644
 --- a/app/src/androidTest/java/org/thoughtcrime/securesms/testing/SignalActivityRule.kt
 +++ b/app/src/androidTest/java/org/thoughtcrime/securesms/testing/SignalActivityRule.kt
 @@ -4,8 +4,6 @@ import android.app.Activity
@@ -329,7 +327,7 @@ index 9bc03066b07da7578073f043f93a13b432422597..882eae3f120d97541dc49d7ac9608aa6
  import androidx.test.core.app.ActivityScenario
  import androidx.test.platform.app.InstrumentationRegistry
  import kotlinx.coroutines.runBlocking
-@@ -16,7 +14,6 @@ import org.signal.libsignal.protocol.IdentityKey
+@@ -17,7 +15,6 @@ import org.signal.libsignal.protocol.IdentityKey
  import org.signal.libsignal.protocol.IdentityKeyPair
  import org.signal.libsignal.protocol.SignalProtocolAddress
  import org.thoughtcrime.securesms.SignalInstrumentationApplicationContext
@@ -337,7 +335,7 @@ index 9bc03066b07da7578073f043f93a13b432422597..882eae3f120d97541dc49d7ac9608aa6
  import org.thoughtcrime.securesms.crypto.ProfileKeyUtil
  import org.thoughtcrime.securesms.database.IdentityTable
  import org.thoughtcrime.securesms.database.SignalDatabase
-@@ -33,6 +30,7 @@ import org.thoughtcrime.securesms.registration.data.RegistrationData
+@@ -34,6 +31,7 @@ import org.thoughtcrime.securesms.registration.data.RegistrationData
  import org.thoughtcrime.securesms.registration.data.RegistrationRepository
  import org.thoughtcrime.securesms.registration.util.RegistrationUtil
  import org.thoughtcrime.securesms.testing.GroupTestingUtils.asMember
@@ -345,7 +343,7 @@ index 9bc03066b07da7578073f043f93a13b432422597..882eae3f120d97541dc49d7ac9608aa6
  import org.whispersystems.signalservice.api.profiles.SignalServiceProfile
  import org.whispersystems.signalservice.api.push.SignalServiceAddress
  import java.util.UUID
-@@ -81,11 +79,10 @@ class SignalActivityRule(private val othersCount: Int = 4, private val createGro
+@@ -82,11 +80,10 @@ class SignalActivityRule(private val othersCount: Int = 4, private val createGro
    }
  
    private fun setupSelf(): Recipient {
@@ -362,10 +360,10 @@ index 9bc03066b07da7578073f043f93a13b432422597..882eae3f120d97541dc49d7ac9608aa6
      SignalStore.account.generateAciIdentityKeyIfNecessary()
      SignalStore.account.generatePniIdentityKeyIfNecessary()
 diff --git a/app/src/debug/java/org/thoughtcrime/securesms/components/settings/app/internal/conversation/test/InternalConversationTestFragment.kt b/app/src/debug/java/org/thoughtcrime/securesms/components/settings/app/internal/conversation/test/InternalConversationTestFragment.kt
-index 3ccc420da5a622a98a623dea59b9ab78281c82eb..f92de19d72f8082dcee9fe0e84e6d84928ded1c1 100644
+index 5bdaba0e52af4e8c6f032c659e19d60099750f6f..186d23b7bb5b7049b93d5f149915d3ac0b9c4608 100644
 --- a/app/src/debug/java/org/thoughtcrime/securesms/components/settings/app/internal/conversation/test/InternalConversationTestFragment.kt
 +++ b/app/src/debug/java/org/thoughtcrime/securesms/components/settings/app/internal/conversation/test/InternalConversationTestFragment.kt
-@@ -257,14 +257,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
+@@ -261,14 +261,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
  
@@ -380,7 +378,7 @@ index 3ccc420da5a622a98a623dea59b9ab78281c82eb..f92de19d72f8082dcee9fe0e84e6d849
      override fun onScheduledIndicatorClicked(view: View, conversationMessage: ConversationMessage) {
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
-@@ -274,14 +266,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
+@@ -278,14 +270,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
        return true
      }
  
@@ -395,7 +393,7 @@ index 3ccc420da5a622a98a623dea59b9ab78281c82eb..f92de19d72f8082dcee9fe0e84e6d849
      override fun goToMediaPreview(parent: ConversationItem?, sharedElement: View?, args: MediaIntentFactory.MediaPreviewArgs?) {
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
-@@ -310,10 +294,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
+@@ -318,10 +302,6 @@ class InternalConversationTestFragment : Fragment(R.layout.conversation_test_fra
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
  
@@ -407,18 +405,18 @@ index 3ccc420da5a622a98a623dea59b9ab78281c82eb..f92de19d72f8082dcee9fe0e84e6d849
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
-index 56793dc4b09c16f0e2f961001e4a813bcb26c7ca..e10fb40c04cbb3b15ee4d5be72d583cb46d673d2 100644
+index 6c3f26c37dbfc8b0f93b99ebf8c6611a1f367744..cd532d069e15254d03684edf9d8ba159207c0802 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
-@@ -7,6 +7,7 @@ import io.mockk.mockkStatic
- import org.junit.Assert.assertEquals
+@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
  import org.junit.Assert.assertNotNull
  import org.junit.Assert.assertTrue
+ import org.junit.Before
 +import org.junit.Ignore
  import org.junit.Test
  import org.junit.runner.RunWith
  import org.robolectric.RobolectricTestRunner
-@@ -16,6 +17,7 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies
+@@ -19,6 +20,7 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies
  import org.whispersystems.signalservice.internal.push.SubscriptionsConfiguration
  import java.util.Currency
  
@@ -630,11 +628,11 @@ index 0000000000000000000000000000000000000000..2040ef8838669a280240320d53ccf73f
 +  }
 +}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt b/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
-index 8fcc51d0f0e4cf144fa4228a7fe772a2f124d135..0abe0c59743e651ce51db26a95c8a2e43ee7e5d3 100644
+index ce8816d9b7d10ecaba7563ceb2548a60a9dca0e9..23bb0eb98db66d48055ae17aefd55cc618bbd0a0 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
-@@ -32,8 +32,8 @@ import org.thoughtcrime.securesms.database.PendingRetryReceiptCache
- import org.thoughtcrime.securesms.jobmanager.JobManager
+@@ -42,8 +42,8 @@ import org.thoughtcrime.securesms.jobmanager.JobManager
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
  import org.thoughtcrime.securesms.megaphone.MegaphoneRepository
  import org.thoughtcrime.securesms.messages.IncomingMessageObserver
 +import org.thoughtcrime.securesms.net.NetworkManager
@@ -643,15 +641,15 @@ index 8fcc51d0f0e4cf144fa4228a7fe772a2f124d135..0abe0c59743e651ce51db26a95c8a2e4
  import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess
  import org.thoughtcrime.securesms.recipients.LiveRecipientCache
  import org.thoughtcrime.securesms.revealable.ViewOnceMessageManager
-@@ -46,7 +46,6 @@ import org.thoughtcrime.securesms.service.PinnedMessageManager
- import org.thoughtcrime.securesms.service.ScheduledMessageManager
+@@ -57,7 +57,6 @@ import org.thoughtcrime.securesms.service.ScheduledMessageManager
  import org.thoughtcrime.securesms.service.TrimThreadsByDateManager
+ import org.thoughtcrime.securesms.service.UnreadReminderManager
  import org.thoughtcrime.securesms.service.webrtc.SignalCallManager
 -import org.thoughtcrime.securesms.shakereport.ShakeToReport
  import org.thoughtcrime.securesms.util.EarlyMessageCache
  import org.thoughtcrime.securesms.util.FrameRateTracker
  import org.thoughtcrime.securesms.video.exo.GiphyMp4Cache
-@@ -184,14 +183,6 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
+@@ -213,14 +212,6 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
      return mockk(relaxed = true)
    }
  
@@ -666,7 +664,7 @@ index 8fcc51d0f0e4cf144fa4228a7fe772a2f124d135..0abe0c59743e651ce51db26a95c8a2e4
    override fun provideSignalCallManager(): SignalCallManager {
      return mockk(relaxed = true)
    }
-@@ -248,11 +239,15 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
+@@ -279,6 +270,10 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
      return mockk(relaxed = true)
    }
  
@@ -677,12 +675,6 @@ index 8fcc51d0f0e4cf144fa4228a7fe772a2f124d135..0abe0c59743e651ce51db26a95c8a2e4
    override fun providePinnedMessageManager(): PinnedMessageManager {
      return mockk(relaxed = true)
    }
- 
--  override fun provideLibsignalNetwork(config: SignalServiceConfiguration): Network {
-+  override fun provideLibsignalNetwork(config: SignalServiceConfiguration, proxyState: NetworkProxyState): Network {
-     return mockk(relaxed = true)
-   }
- 
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/keyvalue/PaymentsValuesTest.kt b/app/src/test/java/org/thoughtcrime/securesms/keyvalue/PaymentsValuesTest.kt
 deleted file mode 100644
 index b3be92f2b00f82220394a570960e65e79a484943..0000000000000000000000000000000000000000
@@ -924,76 +916,11 @@ index dc7a5b5f5163ce23522d453c5049a4d30567ebaa..00000000000000000000000000000000
 -    return BackupUpsellSchedule.BACKUP_UPSELL_EVENTS.associateWith { record(it, seenCount = 0) }
 -  }
 -}
-diff --git a/app/src/test/java/org/thoughtcrime/securesms/messages/NetworkConnectionListenerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/messages/NetworkConnectionListenerTest.kt
-deleted file mode 100644
-index b44838bd58bf189afed0c902f3827ba5571d06a4..0000000000000000000000000000000000000000
---- a/app/src/test/java/org/thoughtcrime/securesms/messages/NetworkConnectionListenerTest.kt
-+++ /dev/null
-@@ -1,59 +0,0 @@
--package org.thoughtcrime.securesms.messages
--
--import android.app.Application
--import android.net.ConnectivityManager
--import android.net.Network
--import android.net.NetworkCapabilities
--import androidx.test.core.app.ApplicationProvider
--import assertk.assertThat
--import assertk.assertions.containsExactly
--import io.mockk.mockk
--import org.junit.Test
--import org.junit.runner.RunWith
--import org.robolectric.RobolectricTestRunner
--import org.robolectric.annotation.Config
--import org.robolectric.util.ReflectionHelpers
--
--@RunWith(RobolectricTestRunner::class)
--@Config(manifest = Config.NONE, application = Application::class, sdk = [31])
--class NetworkConnectionListenerTest {
--
--  @Test
--  fun `default network capability changes notify listener`() {
--    val unavailableEvents = mutableListOf<Boolean>()
--    val listener = NetworkConnectionListener(
--      context = ApplicationProvider.getApplicationContext(),
--      onNetworkLost = { isNetworkUnavailable -> unavailableEvents += isNetworkUnavailable() },
--      onProxySettingsChanged = {}
--    )
--    val callback = ReflectionHelpers.getField<ConnectivityManager.NetworkCallback>(listener, "networkChangedCallback")
--    val network = mockk<Network>()
--
--    callback.onCapabilitiesChanged(network, capabilities(hasInternet = true, validated = false))
--    callback.onCapabilitiesChanged(network, capabilities(hasInternet = true, validated = false))
--    callback.onCapabilitiesChanged(network, capabilities(hasInternet = true, validated = true))
--    callback.onCapabilitiesChanged(network, capabilities(hasInternet = false, validated = false))
--
--    assertThat(unavailableEvents).containsExactly(false, false, true)
--  }
--
--  private fun capabilities(hasInternet: Boolean, validated: Boolean): NetworkCapabilities {
--    val capabilities = NetworkCapabilities()
--
--    if (hasInternet) {
--      capabilities.addCapabilityReflectively(NetworkCapabilities.NET_CAPABILITY_INTERNET)
--    }
--
--    if (validated) {
--      capabilities.addCapabilityReflectively(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
--    }
--
--    return capabilities
--  }
--
--  private fun NetworkCapabilities.addCapabilityReflectively(capability: Int) {
--    val method = NetworkCapabilities::class.java.getDeclaredMethod("addCapability", Int::class.javaPrimitiveType)
--    method.isAccessible = true
--    method.invoke(this, capability)
--  }
--}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/registration/util/RegistrationUtilTest.kt b/app/src/test/java/org/thoughtcrime/securesms/registration/util/RegistrationUtilTest.kt
-index 13e2b833c3dd9dd50b5087f7b4d378958bc1d4e1..dd282c780d89411ecd3dea172bfb514e02bf11a5 100644
+index b6b332ad8732b00aac414c2be97438f0e384ead8..2c2dfafd64ce57346019d9f4fa9ea379f461efec 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/registration/util/RegistrationUtilTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/registration/util/RegistrationUtilTest.kt
-@@ -90,6 +90,7 @@ class RegistrationUtilTest {
+@@ -91,6 +91,7 @@ class RegistrationUtilTest {
    fun maybeMarkRegistrationComplete_missingData() {
      every { signalStore.registration.isRegistrationComplete } returns false
      every { signalStore.account.isRegistered } returns false
@@ -1002,7 +929,7 @@ index 13e2b833c3dd9dd50b5087f7b4d378958bc1d4e1..dd282c780d89411ecd3dea172bfb514e
      RegistrationUtil.maybeMarkRegistrationComplete()
  
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
-index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52f3f00baf 100644
+index eddca8777f4a5614e6d91cb46304631af3de31ab..fcf2d95117d1ec57c3f0a5e32336f96cd31493ea 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
 @@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.registration.v2
@@ -1013,7 +940,7 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
  import androidx.test.core.app.ApplicationProvider
  import assertk.assertThat
  import assertk.assertions.isEqualTo
-@@ -20,10 +21,13 @@ import io.mockk.coVerify
+@@ -20,11 +21,14 @@ import io.mockk.coVerify
  import io.mockk.every
  import io.mockk.justRun
  import io.mockk.mockk
@@ -1023,11 +950,12 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
  import io.mockk.verify
 +import kotlinx.coroutines.flow.toList
  import kotlinx.coroutines.runBlocking
+ import okio.ByteString
 +import kotlinx.coroutines.withTimeout
  import okio.ByteString.Companion.toByteString
  import org.junit.After
  import org.junit.Before
-@@ -32,6 +36,7 @@ import org.junit.Test
+@@ -33,6 +37,7 @@ import org.junit.Test
  import org.junit.runner.RunWith
  import org.robolectric.RobolectricTestRunner
  import org.robolectric.annotation.Config
@@ -1035,7 +963,7 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
  import org.signal.core.models.AccountEntropyPool
  import org.signal.core.models.MasterKey
  import org.signal.core.models.ServiceId.ACI
-@@ -41,10 +46,14 @@ import org.signal.libsignal.protocol.IdentityKeyPair
+@@ -43,11 +48,15 @@ import org.signal.registration.RestoreDecision
  import org.signal.registration.proto.AccountData
  import org.signal.registration.proto.LinkedDeviceData
  import org.signal.registration.proto.RegistrationData
@@ -1045,14 +973,15 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
  import org.thoughtcrime.securesms.crypto.PreKeyUtil
  import org.thoughtcrime.securesms.database.RecipientTable
  import org.thoughtcrime.securesms.database.SignalDatabase
+ import org.thoughtcrime.securesms.database.model.databaseprotos.RestoreDecisionState
  import org.thoughtcrime.securesms.dependencies.AppDependencies
 +import org.thoughtcrime.securesms.jobmanager.impl.DataRestoreConstraint
  import org.thoughtcrime.securesms.jobmanager.runJobBlocking
  import org.thoughtcrime.securesms.jobs.DirectoryRefreshJob
  import org.thoughtcrime.securesms.jobs.PreKeysSyncJob
-@@ -52,9 +61,12 @@ import org.thoughtcrime.securesms.jobs.RefreshOwnProfileJob
- import org.thoughtcrime.securesms.jobs.RotateCertificateJob
+@@ -59,9 +68,13 @@ import org.thoughtcrime.securesms.keyvalue.NewAccount
  import org.thoughtcrime.securesms.keyvalue.SignalStore
+ import org.thoughtcrime.securesms.keyvalue.Skipped
  import org.thoughtcrime.securesms.registration.util.RegistrationUtil
 +import org.thoughtcrime.securesms.service.BackupProgressService
 +import org.thoughtcrime.securesms.service.KeyCachingService
@@ -1060,10 +989,11 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
  import org.thoughtcrime.securesms.testutil.SignalDatabaseRule
  import org.thoughtcrime.securesms.testutil.SignalStoreRule
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
- import org.thoughtcrime.securesms.util.TextSecurePreferences
++import org.thoughtcrime.securesms.util.TextSecurePreferences
  import java.io.ByteArrayInputStream
  import java.io.File
-@@ -100,6 +112,12 @@ class AppRegistrationStorageControllerTest {
+ import java.io.IOException
+@@ -107,6 +120,12 @@ class AppRegistrationStorageControllerTest {
  
    @Before
    fun setUp() {
@@ -1076,7 +1006,7 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
      mockkStatic(RegistrationUtil::class)
      justRun { RegistrationUtil.maybeMarkRegistrationComplete() }
  
-@@ -117,9 +135,54 @@ class AppRegistrationStorageControllerTest {
+@@ -124,9 +143,54 @@ class AppRegistrationStorageControllerTest {
  
    @After
    fun tearDown() {
@@ -1132,12 +1062,12 @@ index 080064e3b0179209bb632885addddcb8fbc6adc6..d4bc78c0e00ea167de0f02e8055f4a52
    fun `commit - new primary with pin and aep - applies all account fields`() = runBlocking<Unit> {
      seedInProgressData(
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt
-index f7368fb3f424fadc40e5bcef83aea225f1254b2e..e061d77a0aec63f7caad796f8628874ea1ac1715 100644
+index ca3553ddaca35912cf262a17605a00c3231228b7..b69999c3f37e931acc8cf1a56ae338619f82c4ca 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt
-@@ -23,8 +23,8 @@ import org.thoughtcrime.securesms.testutil.MockRandom
+@@ -23,8 +23,8 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore
+ import org.thoughtcrime.securesms.testutil.MockRandom
  import org.thoughtcrime.securesms.testutil.MockSignalStoreRule
- import org.thoughtcrime.securesms.util.toLocalDateTime
  import java.time.Duration
 -import java.time.LocalDateTime
 -import java.time.ZoneId
@@ -1251,7 +1181,7 @@ index b800384f930226544ecc34e15b7e5ecd3368f195..041a8ad3e9b6706e24518844a3290c37
      return verbose;
    }
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/testutil/MockAppDependenciesRule.kt b/app/src/test/java/org/thoughtcrime/securesms/testutil/MockAppDependenciesRule.kt
-index 386c16bf8de4ecaf7eebd72cb95e913f1b60a1b5..5208e9a5aa0f528cccb1ef9b35bcdb4b82a1820c 100644
+index a824009594ad87fb2fdf732b1fc9f1cd9e6e6901..9a642c479c33914c02876eefa6c77ead84cb9c26 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/testutil/MockAppDependenciesRule.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/testutil/MockAppDependenciesRule.kt
 @@ -6,6 +6,7 @@
@@ -1261,19 +1191,12 @@ index 386c16bf8de4ecaf7eebd72cb95e913f1b60a1b5..5208e9a5aa0f528cccb1ef9b35bcdb4b
 +import im.molly.app.base.ApplicationInstance
  import io.mockk.clearMocks
  import org.junit.rules.ExternalResource
- import org.thoughtcrime.securesms.dependencies.AppDependencies
-@@ -25,6 +26,7 @@ class MockAppDependenciesRule : ExternalResource() {
-     "databaseObserver",
-     "groupsV2Authorization",
-     "isInitialized",
-+    "networkProxyState",
-     "okHttpClient",
-     "signalOkHttpClient",
-     "webSocketObserver"
-@@ -36,8 +38,9 @@ class MockAppDependenciesRule : ExternalResource() {
-     .filterNot { skipList.contains(it.name) }
+ import org.signal.core.util.PartAuthorityUris
+@@ -40,9 +41,9 @@ class MockAppDependenciesRule : ExternalResource() {
  
    override fun before() {
+     PartAuthorityUris.init(BuildConfig.APPLICATION_ID)
+-
 +    ApplicationInstance.setForTests(ApplicationProvider.getApplicationContext())
      if (!AppDependencies.isInitialized) {
 -      AppDependencies.init(ApplicationProvider.getApplicationContext(), MockApplicationDependencyProvider())
@@ -1281,7 +1204,7 @@ index 386c16bf8de4ecaf7eebd72cb95e913f1b60a1b5..5208e9a5aa0f528cccb1ef9b35bcdb4b
      }
    }
  
-@@ -46,5 +49,6 @@ class MockAppDependenciesRule : ExternalResource() {
+@@ -51,5 +52,6 @@ class MockAppDependenciesRule : ExternalResource() {
        .forEach { property ->
          property.get(AppDependencies)?.let { clearMocks(it) }
        }
@@ -1315,7 +1238,7 @@ index e1b30d5b6a7a35268637d203d251416e1c84122a..2d540f24ab6a2a83dac27038ff636894
          { "кц.com",                                false },
          { "http://asĸ.com",                        false },
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/util/RemoteConfig_StaticValuesTest.kt b/app/src/test/java/org/thoughtcrime/securesms/util/RemoteConfig_StaticValuesTest.kt
-index 93b1071ef3d604f2f6b48d13fbcbe4973fb8e5a0..0d6eec234ca56cfa4d44482b2217120d3ac17f68 100644
+index 33ef61407330055e44c616416103899e2b4204d5..aea29ec3f2f63cac11867779e97211c5c842320b 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/util/RemoteConfig_StaticValuesTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/util/RemoteConfig_StaticValuesTest.kt
 @@ -1,6 +1,7 @@
@@ -1493,7 +1416,7 @@ index 699060223dfc734cd61ff44483901ebb17a9a9aa..7721627a864178870be5f8beb600b941
      assertEquals(output, UriUtil.isValidExternalUri(context, uri));
    }
 diff --git a/core/ui/src/testFixtures/java/org/signal/core/ui/CoreUiDependenciesRule.kt b/core/ui/src/testFixtures/java/org/signal/core/ui/CoreUiDependenciesRule.kt
-index 777d19013007afe39e5d0e00fb08325ba0f43b68..688beda182eae56ab92bf43f7f219928ef3e8129 100644
+index 6eb8c32b347ce4d60a629c765af1566beaa090cc..846ad96aac8e84a43c496b9f5983ac5299f5e6a2 100644
 --- a/core/ui/src/testFixtures/java/org/signal/core/ui/CoreUiDependenciesRule.kt
 +++ b/core/ui/src/testFixtures/java/org/signal/core/ui/CoreUiDependenciesRule.kt
 @@ -23,7 +23,7 @@ class CoreUiDependenciesRule(
@@ -1504,7 +1427,7 @@ index 777d19013007afe39e5d0e00fb08325ba0f43b68..688beda182eae56ab92bf43f7f219928
 +    override fun provideBackupBaseDirName(): String = "Test"
      override fun provideIsIncognitoKeyboardEnabled(): Boolean = isIncognitoKeyboardEnabled
      override fun provideIsScreenSecurityEnabled(): Boolean = false
-     override fun provideForceSplitPane(): Boolean = false
+   }
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
 index 6fb6d2553afec28bbbf325d08e7fb7436e629953..35a00944e686e27680d24a8c069703c8224b9583 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
@@ -1549,39 +1472,3 @@ index b5a8dd4838699f9bba7e068012745193b9929155..ba090410672743c76bddce9fc1ba2e3c
      })
    }
  
-diff --git a/lib/network/src/test/java/org/signal/network/rest/SignalRestClientTest.kt b/lib/network/src/test/java/org/signal/network/rest/SignalRestClientTest.kt
-index 008e16416f71a4d9f160f460e1f897ec2baf137e..d9667612c24a17e99bef310cc05e7a798c162c73 100644
---- a/lib/network/src/test/java/org/signal/network/rest/SignalRestClientTest.kt
-+++ b/lib/network/src/test/java/org/signal/network/rest/SignalRestClientTest.kt
-@@ -10,6 +10,7 @@ import assertk.assertions.isEqualTo
- import assertk.assertions.isInstanceOf
- import assertk.assertions.isSameInstanceAs
- import kotlinx.coroutines.runBlocking
-+import okhttp3.Dns
- import okhttp3.Interceptor
- import okhttp3.MediaType.Companion.toMediaType
- import okhttp3.OkHttpClient
-@@ -31,8 +32,10 @@ import org.whispersystems.signalservice.internal.configuration.SignalStorageUrl
- import org.whispersystems.signalservice.internal.configuration.SignalSvr2Url
- import java.io.ByteArrayInputStream
- import java.io.IOException
-+import java.net.ProxySelector
- import java.util.Optional
- import java.util.Random
-+import javax.net.SocketFactory
- 
- class SignalRestClientTest {
- 
-@@ -174,9 +177,9 @@ class SignalRestClientTest {
-       signalCdsiUrls = emptyArray<SignalCdsiUrl>(),
-       signalSvr2Urls = emptyArray<SignalSvr2Url>(),
-       networkInterceptors = emptyList(),
--      dns = Optional.empty(),
--      signalProxy = Optional.empty(),
--      systemHttpProxy = Optional.empty(),
-+      dns = Dns.SYSTEM,
-+      socketFactory = SocketFactory.getDefault(),
-+      proxySelector = ProxySelector.getDefault(),
-       zkGroupServerPublicParams = ByteArray(0),
-       genericServerPublicParams = ByteArray(0),
-       backupServerPublicParams = ByteArray(0),

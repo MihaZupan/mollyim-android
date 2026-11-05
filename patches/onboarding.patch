@@ -3,31 +3,55 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:10 +0100
 Subject: [PATCH] onboarding: preserve starter-sticker and first-boot choices
 
-Keep existing first-start hints and starter content choices without redesign.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-STICKER-ONBOARD-001, MOL-BOOT-HINT-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 8e08caaa5e8ebe778d99272ecfaf73f5c9f9f58d
+Semantic-boundary: 22/36
 
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
+index c834f45be24bad235a9fda6a4b14469299ed3b86..64717be44fda8ba58fab703d4b1e99ffc8e1c6b9 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
+@@ -2799,18 +2799,9 @@ class ConversationFragment :
+   }
+ 
+   private fun initializeMediaKeyboard() {
+-    val stickerIntro: Boolean = !SignalStore.tooltips.hasSeenStickerIntroTooltip()
+-
+     inputPanel.showMediaKeyboardToggle(true)
+     inputPanel.setMediaKeyboardToggleMode(preferredKeyboardPage())
+ 
+-    if (stickerIntro) {
+-      SignalStore.settings.mediaKeyboardMode = MediaKeyboardMode.STICKER
+-      inputPanel.setMediaKeyboardToggleMode(KeyboardPage.STICKER)
+-      conversationTooltips.displayStickerIntroductionTooltip(inputPanel.mediaKeyboardToggleAnchorView) {
+-        EventBus.default.removeStickyEvent<StickerPackInstallEvent>()
+-      }
+-    }
+   }
+ 
+   private fun initializeStickerSuggestions() {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
-index 0e7b253ad5fc0b00dd9d20ae62db571966122ceb..66f7d2fb6b92fdc6ca89a4cc9ac2457a75b4c9cc 100644
+index aeaf56872d0e30b44bb1b2c2d7d1993430cb90e3..18db75a931baf9f99d1666ae14499c96c1377c19 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationTooltips.kt
-@@ -24,18 +24,6 @@ class ConversationTooltips(fragment: Fragment) {
-   /**
-    *  Displayed to teach the user about sticker packs
-    */
+@@ -22,21 +22,6 @@ class ConversationTooltips(fragment: Fragment) {
+ 
+   private val viewModel: TooltipViewModel by fragment.viewModels()
+ 
+-  /**
+-   *  Displayed to teach the user about sticker packs
+-   */
 -  fun displayStickerIntroductionTooltip(anchor: View, onDismiss: () -> Unit) {
 -    TooltipPopup.forTarget(anchor)
--      .setBackgroundTint(ContextCompat.getColor(anchor.context, R.color.core_ultramarine))
--      .setTextColor(ContextCompat.getColor(anchor.context, R.color.core_white))
+-      .setBackgroundTint(ContextCompat.getColor(anchor.context, CoreUiR.color.core_ultramarine))
+-      .setTextColor(ContextCompat.getColor(anchor.context, CoreUiR.color.core_white))
 -      .setText(R.string.ConversationActivity_new_say_it_with_stickers)
 -      .setOnDismissListener {
--        TextSecurePreferences.setHasSeenStickerIntroTooltip(anchor.context, true)
+-        SignalStore.tooltips.markStickerIntroTooltipSeen()
 -        onDismiss()
 -      }
 -      .show(TooltipPopup.POSITION_ABOVE)

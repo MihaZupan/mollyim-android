@@ -4,19 +4,17 @@ Date: Wed, 4 Nov 2026 08:09:42 +0100
 Subject: [PATCH] crypto: preserve passphrase wrapping, encrypted preferences
  and RAM cleanup
 
-Preserve the readable encrypted formats, master-secret ownership and cache clearing. Shared preference consumers are kept whole to avoid inventing a second preference layer.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-CRYPTO-001, MOL-PREFS-001, MOL-RAM-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: bcc1a681ee083df9fa341931198b159f29e00627
+Semantic-boundary: 02/36
 
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestUsers.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestUsers.kt
 deleted file mode 100644
-index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..0000000000000000000000000000000000000000
+index 0329bebeb5ff83feab7a6d9589e42648d719b958..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestUsers.kt
 +++ /dev/null
 @@ -1,228 +0,0 @@
@@ -28,6 +26,7 @@ index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..00000000000000000000000000000000
 -import kotlinx.coroutines.runBlocking
 -import okio.ByteString
 -import org.signal.core.models.ServiceId.ACI
+-import org.signal.core.models.recipients.RecipientId
 -import org.signal.core.util.Util
 -import org.signal.libsignal.protocol.IdentityKeyPair
 -import org.signal.libsignal.protocol.SignalProtocolAddress
@@ -50,13 +49,12 @@ index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.net.DeviceTransferBlockingInterceptor
 -import org.thoughtcrime.securesms.profiles.ProfileName
 -import org.thoughtcrime.securesms.recipients.Recipient
--import org.thoughtcrime.securesms.recipients.RecipientId
+-import org.thoughtcrime.securesms.recipients.RecipientIds
 -import org.thoughtcrime.securesms.registration.data.AccountRegistrationResult
 -import org.thoughtcrime.securesms.registration.data.LocalRegistrationMetadataUtil
 -import org.thoughtcrime.securesms.registration.data.RegistrationData
 -import org.thoughtcrime.securesms.registration.data.RegistrationRepository
 -import org.thoughtcrime.securesms.registration.util.RegistrationUtil
--import org.thoughtcrime.securesms.util.TextSecurePreferences
 -import org.whispersystems.signalservice.api.profiles.SignalServiceProfile
 -import org.whispersystems.signalservice.api.push.SignalServiceAddress
 -import java.util.UUID
@@ -110,8 +108,8 @@ index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..00000000000000000000000000000000
 -    SignalStore.registration.restoreDecisionState = RestoreDecisionState.Skipped
 -    RegistrationUtil.maybeMarkRegistrationComplete()
 -    SignalDatabase.recipients.setProfileName(Recipient.self().id, ProfileName.fromParts("Tester", "McTesterson"))
--    TextSecurePreferences.setPromptedOptimizeDoze(application, true)
--    TextSecurePreferences.setRatingEnabled(application, false)
+-    SignalStore.uiHints.setHasPromptedOptimizeDoze(true)
+-    SignalStore.misc.ratingEnabled = false
 -
 -    PreKeyUtil.generateAndStoreSignedPreKey(AppDependencies.protocolStore.aci(), SignalStore.account.aciPreKeys)
 -    PreKeyUtil.generateAndStoreOneTimeEcPreKeys(AppDependencies.protocolStore.aci(), SignalStore.account.aciPreKeys)
@@ -152,10 +150,10 @@ index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..00000000000000000000000000000000
 -
 -      for (i in generatedOthers until generatedOthers + othersCount) {
 -        val aci = ACI.from(UUID.randomUUID())
--        val recipientId = RecipientId.from(SignalServiceAddress(aci, "+15555551%03d".format(i)))
+-        val recipientId = RecipientIds.from(SignalServiceAddress(aci, "+15555551%03d".format(i)))
 -        SignalDatabase.recipients.setProfileName(recipientId, ProfileName.fromParts("Buddy", "#$i"))
 -        SignalDatabase.recipients.setProfileKeyIfAbsent(recipientId, ProfileKeyUtil.createNew())
--        SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true))
+-        SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true, false))
 -        SignalDatabase.recipients.setProfileSharing(recipientId, true)
 -        SignalDatabase.recipients.markRegistered(recipientId, aci)
 -        val otherIdentity = IdentityKeyPair.generate()
@@ -176,10 +174,10 @@ index 5d4c3f073130dac4faa2a62e926c5aa1fe4cf443..00000000000000000000000000000000
 -      for (i in 0 until othersCount) {
 -        val otherClient = Harness.otherClients[i]
 -
--        val recipientId = RecipientId.from(SignalServiceAddress(otherClient.serviceId, otherClient.e164))
+-        val recipientId = RecipientIds.from(SignalServiceAddress(otherClient.serviceId, otherClient.e164))
 -        SignalDatabase.recipients.setProfileName(recipientId, ProfileName.fromParts("Buddy", "#$i"))
 -        SignalDatabase.recipients.setProfileKeyIfAbsent(recipientId, otherClient.profileKey)
--        SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true))
+-        SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true, false))
 -        SignalDatabase.recipients.setProfileSharing(recipientId, true)
 -        SignalDatabase.recipients.markRegistered(recipientId, otherClient.serviceId)
 -        AppDependencies.protocolStore.aci().saveIdentity(SignalProtocolAddress(otherClient.serviceId.toString(), 1), otherClient.identityKeyPair.publicKey)
@@ -823,7 +821,7 @@ index cc7666ca5c6d01c66c8ba65dd0e4300ba8a9538c..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/PassphraseCreateActivity.java b/app/src/main/java/org/thoughtcrime/securesms/PassphraseCreateActivity.java
-index c0adaa33abac108b72695ddcbe87ecb41b25f930..3a20b9beb1eb90fb2232b4b6e54ed480eaa56889 100644
+index c01d8a1e99b35f463e0696da5fecc376ad446123..3a20b9beb1eb90fb2232b4b6e54ed480eaa56889 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/PassphraseCreateActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/PassphraseCreateActivity.java
 @@ -16,13 +16,14 @@
@@ -856,7 +854,7 @@ index c0adaa33abac108b72695ddcbe87ecb41b25f930..3a20b9beb1eb90fb2232b4b6e54ed480
    public PassphraseCreateActivity() { }
  
    @Override
-@@ -43,39 +49,39 @@ public class PassphraseCreateActivity extends PassphraseActivity {
+@@ -43,41 +49,39 @@ public class PassphraseCreateActivity extends PassphraseActivity {
      initializeResources();
    }
  
@@ -885,8 +883,10 @@ index c0adaa33abac108b72695ddcbe87ecb41b25f930..3a20b9beb1eb90fb2232b4b6e54ed480
  
 -      MasterSecretUtil.generateAsymmetricMasterSecret(PassphraseCreateActivity.this, masterSecret);
 -      SignalStore.account().generateAciIdentityKeyIfNecessary();
--      SignalStore.account().generatePniIdentityKeyIfNecessary();
--      VersionTracker.updateLastSeenVersion(PassphraseCreateActivity.this);
+-      if (SignalStore.account().getPni() != null) {
+-        SignalStore.account().generatePniIdentityKeyIfNecessary();
+-      }
+-      VersionTracker.updateLastSeenVersion();
 +    yesButton.setOnClickListener(v -> onButtonClicked(true));
 +    noButton.setOnClickListener(v -> onButtonClicked(false));
 +  }
@@ -922,18 +922,18 @@ index c0adaa33abac108b72695ddcbe87ecb41b25f930..3a20b9beb1eb90fb2232b4b6e54ed480
    }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupImporter.java b/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupImporter.java
-index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb2397187274b 100644
+index 7bb9b70c8411f0af3f10c705ad1607ad2d68513b..b2c24ea15c1b6a23fcb87da3d79a337b6f8c1b3c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupImporter.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/backup/FullBackupImporter.java
-@@ -16,6 +16,7 @@ import net.zetetic.database.sqlcipher.SQLiteDatabase;
- import org.greenrobot.eventbus.EventBus;
- import org.signal.core.util.SqlUtil;
+@@ -17,6 +17,7 @@ import org.signal.core.database.SqlUtil;
+ import org.signal.core.models.recipients.RecipientId;
+ import org.signal.core.util.eventbus.EventBus;
  import org.signal.core.util.logging.Log;
 +import org.thoughtcrime.securesms.BuildConfig;
  import org.thoughtcrime.securesms.backup.proto.Attachment;
  import org.thoughtcrime.securesms.backup.proto.Avatar;
  import org.thoughtcrime.securesms.backup.proto.BackupFrame;
-@@ -24,8 +25,7 @@ import org.thoughtcrime.securesms.backup.proto.KeyValue;
+@@ -25,8 +26,7 @@ import org.thoughtcrime.securesms.backup.proto.KeyValue;
  import org.thoughtcrime.securesms.backup.proto.SharedPreference;
  import org.thoughtcrime.securesms.backup.proto.SqlStatement;
  import org.thoughtcrime.securesms.backup.proto.Sticker;
@@ -941,11 +941,11 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
 -import org.signal.core.util.crypto.ModernEncryptingPartOutputStream;
 +import org.thoughtcrime.securesms.crypto.EncryptedPreferences;
  import org.thoughtcrime.securesms.database.AttachmentTable;
+ import org.thoughtcrime.securesms.database.CallTable;
  import org.thoughtcrime.securesms.database.EmojiSearchTable;
- import org.thoughtcrime.securesms.database.KeyValueDatabase;
-@@ -41,7 +41,10 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
+@@ -43,7 +43,10 @@ import org.thoughtcrime.securesms.keyvalue.KeyValueDataSet;
+ import org.thoughtcrime.securesms.keyvalue.SignalStore;
  import org.thoughtcrime.securesms.profiles.AvatarHelper;
- import org.thoughtcrime.securesms.recipients.RecipientId;
  import org.thoughtcrime.securesms.util.BackupUtil;
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager;
  import org.signal.core.util.Util;
@@ -954,7 +954,7 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
  
  import java.io.ByteArrayOutputStream;
  import java.io.File;
-@@ -52,6 +55,7 @@ import java.io.OutputStream;
+@@ -54,6 +57,7 @@ import java.io.OutputStream;
  import java.security.InvalidAlgorithmParameterException;
  import java.security.InvalidKeyException;
  import java.util.ArrayList;
@@ -962,7 +962,7 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
  import java.util.Collections;
  import java.util.HashSet;
  import java.util.LinkedHashMap;
-@@ -308,9 +312,15 @@ public class FullBackupImporter extends FullBackupBase {
+@@ -328,9 +332,15 @@ public class FullBackupImporter extends FullBackupBase {
      KeyValueDatabase.getInstance(AppDependencies.getApplication()).writeDataSet(dataSet, Collections.emptyList());
    }
  
@@ -979,7 +979,7 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
  
      // Identity keys were moved from shared prefs into SignalStore. Need to handle importing backups made before the migration.
      if ("SecureSMS-Preferences".equals(preference.file_)) {
-@@ -323,12 +333,20 @@ public class FullBackupImporter extends FullBackupBase {
+@@ -343,12 +353,20 @@ public class FullBackupImporter extends FullBackupBase {
        return;
      }
  
@@ -1001,18 +1001,10 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
-index 92951893bd4c9bb679aa698c23f8e3a883945e85..50248357464eab1832d1fa8b0641a79cb5a8d161 100644
+index e1164ad96cc38512ff3a21145fa72afdc41ccdfe..ecd433b3b9d1e9540cbd720c2d28f663a406a17f 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
-@@ -44,6 +44,7 @@ import org.thoughtcrime.securesms.recipients.Recipient
- import org.thoughtcrime.securesms.recipients.RecipientId
- import org.thoughtcrime.securesms.util.Environment
- import org.thoughtcrime.securesms.util.ProfileUtil
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager
- import org.thoughtcrime.securesms.util.TextSecurePreferences
- import org.thoughtcrime.securesms.webrtc.CallDataMode
- import org.whispersystems.signalservice.api.push.UsernameLinkComponents
-@@ -51,8 +52,6 @@ import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.AppleIAPOr
+@@ -49,8 +49,6 @@ import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.AppleIAPOr
  import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.GooglePlayBillingPurchaseToken
  import org.whispersystems.signalservice.api.subscriptions.SubscriberId
  import java.util.Currency
@@ -1021,7 +1013,7 @@ index 92951893bd4c9bb679aa698c23f8e3a883945e85..50248357464eab1832d1fa8b0641a79c
  
  /**
   * Handles importing/exporting [AccountData] frames for an archive.
-@@ -75,12 +74,7 @@ object AccountDataArchiveProcessor {
+@@ -71,12 +69,7 @@ object AccountDataArchiveProcessor {
  
      val backupSubscriberRecord = db.inAppPaymentSubscriberTable.getBackupsSubscriber()
  
@@ -1033,30 +1025,21 @@ index 92951893bd4c9bb679aa698c23f8e3a883945e85..50248357464eab1832d1fa8b0641a79c
 -    }
 +    val screenLockTimeoutMinutes = null // MOLLY: FIXME
  
-     val mobileAutoDownload = TextSecurePreferences.getMobileMediaDownloadAllowed(context)
-     val wifiAutoDownload = TextSecurePreferences.getWifiMediaDownloadAllowed(context)
-@@ -276,9 +270,9 @@ object AccountDataArchiveProcessor {
+     val mobileAutoDownload = SignalStore.settings.mobileMediaDownloadAllowed
+     val wifiAutoDownload = SignalStore.settings.wifiMediaDownloadAllowed
+@@ -279,9 +272,9 @@ object AccountDataArchiveProcessor {
      SignalStore.story.userHasSeenGroupStoryEducationSheet = settings.hasSeenGroupStoryEducationSheet
      SignalStore.story.viewedReceiptsEnabled = settings.storyViewReceiptsEnabled ?: settings.readReceipts
      SignalStore.backup.optimizeStorage = !importState.backupMode.isLinkAndSync && settings.optimizeOnDeviceStorage
 -    SignalStore.backup.backupTier = MessageBackupTier.fromBackupLevel(settings.backupTier)
 +    SignalStore.backup.backupTier = if (SignalStore.account.isPrimaryDevice) MessageBackupTier.fromBackupLevel(settings.backupTier) else null
      SignalStore.settings.sentMediaQuality = settings.defaultSentMediaQuality.toLocalSentMediaQuality()
--    SignalStore.settings.setTheme(settings.appTheme.toLocalTheme())
+-    SignalStore.settings.theme = settings.appTheme.toLocalTheme()
 +    SignalStore.settings.setTheme(settings.appTheme.toLocalTheme(), false)  // MOLLY: FIXME
-     SignalStore.settings.setCallDataMode(settings.callsUseLessDataSetting.toLocalCallDataMode())
+     SignalStore.settings.callDataMode = settings.callsUseLessDataSetting.toLocalCallDataMode()
      SignalStore.settings.automaticVerificationEnabled = settings.allowAutomaticKeyVerification
- 
-@@ -287,7 +281,7 @@ object AccountDataArchiveProcessor {
-       val mobileAndWifiDownloadSet = autoDownloadSettings.toLocalAutoDownloadSet(AccountData.AutoDownloadSettings.AutoDownloadOption.WIFI_AND_CELLULAR)
-       val wifiDownloadSet = mobileAndWifiDownloadSet + autoDownloadSettings.toLocalAutoDownloadSet(AccountData.AutoDownloadSettings.AutoDownloadOption.WIFI)
- 
--      TextSecurePreferences.getSharedPreferences(context).edit().apply {
-+      SecurePreferenceManager.getSecurePreferences(context).edit().apply {
-         putStringSet(TextSecurePreferences.MEDIA_DOWNLOAD_MOBILE_PREF, mobileAndWifiDownloadSet)
-         putStringSet(TextSecurePreferences.MEDIA_DOWNLOAD_WIFI_PREF, wifiDownloadSet)
-         apply()
-@@ -296,7 +290,7 @@ object AccountDataArchiveProcessor {
+     SignalStore.settings.setUnreadBadgeType(settings.unreadBadgeType.value)
+@@ -304,7 +297,7 @@ object AccountDataArchiveProcessor {
  
      val screenLockTimeoutMinutes = settings.screenLockTimeoutMinutes
      if (screenLockTimeoutMinutes != null) {
@@ -1066,26 +1049,26 @@ index 92951893bd4c9bb679aa698c23f8e3a883945e85..50248357464eab1832d1fa8b0641a79c
  
      val pinReminders = settings.pinReminders
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/KeyboardAwareLinearLayout.java b/app/src/main/java/org/thoughtcrime/securesms/components/KeyboardAwareLinearLayout.java
-index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248b0b1e527 100644
+index d5dde8a4d729f2e98d6fc5a73b51631f35f26dca..7a73e82063bfd64c745de8c3df48f78a052258d1 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/KeyboardAwareLinearLayout.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/KeyboardAwareLinearLayout.java
-@@ -19,7 +19,6 @@ package org.thoughtcrime.securesms.components;
+@@ -18,7 +18,6 @@ package org.thoughtcrime.securesms.components;
+ 
  import android.content.Context;
- import android.graphics.Rect;
- import android.os.Build;
+ import android.content.res.Configuration;
 -import android.preference.PreferenceManager;
  import android.util.AttributeSet;
- import android.util.DisplayMetrics;
- import android.view.Surface;
-@@ -30,6 +29,7 @@ import androidx.appcompat.widget.LinearLayoutCompat;
+ 
+ import androidx.annotation.NonNull;
+@@ -29,6 +28,7 @@ import androidx.core.view.WindowInsetsCompat;
  
  import org.signal.core.util.logging.Log;
  import org.thoughtcrime.securesms.R;
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager;
- import org.signal.core.util.ServiceUtil;
  import org.signal.core.util.Util;
- import org.thoughtcrime.securesms.util.ViewUtil;
-@@ -45,6 +45,9 @@ import java.util.Set;
+ 
+ import java.util.HashSet;
+@@ -44,6 +44,9 @@ import java.util.Set;
  public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
    private static final String TAG = Log.tag(KeyboardAwareLinearLayout.class);
  
@@ -1094,8 +1077,8 @@ index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248
 +
    private static final long KEYBOARD_DEBOUNCE = 150;
  
-   private final Rect                          rect            = new Rect();
-@@ -235,8 +238,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
+   private final Set<OnKeyboardHiddenListener> hiddenListeners = new HashSet<>();
+@@ -203,8 +206,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
        return getRootView().getHeight() - minCustomKeyboardTopMarginLandscapeBubble;
      }
  
@@ -1106,7 +1089,7 @@ index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248
      return Util.clamp(keyboardHeight, minCustomKeyboardSize, getRootView().getHeight() - minCustomKeyboardTopMarginLandscape);
    }
  
-@@ -246,8 +249,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
+@@ -214,8 +217,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
        return height - (int)(height * 0.45);
      }
  
@@ -1117,7 +1100,7 @@ index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248
      return Util.clamp(keyboardHeight, minCustomKeyboardSize, getRootView().getHeight() - minCustomKeyboardTopMarginPortrait);
    }
  
-@@ -256,8 +259,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
+@@ -224,8 +227,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
        return;
      }
  
@@ -1128,7 +1111,7 @@ index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248
    }
  
    private void setKeyboardLandscapeHeight(int height) {
-@@ -265,8 +268,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
+@@ -233,8 +236,8 @@ public class KeyboardAwareLinearLayout extends LinearLayoutCompat {
        return;
      }
  
@@ -1140,7 +1123,7 @@ index a97156b35995bb8d750f4853328af8e572bb6c53..6889789b38ba849e530bb8f85467a248
  
    public void postOnKeyboardClose(final Runnable runnable) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/emoji/RecentEmojiPageModel.java b/app/src/main/java/org/thoughtcrime/securesms/components/emoji/RecentEmojiPageModel.java
-index 2fbcffb2b7076e1a62f244b515494c3b03324773..5aa077172c22354b6e6c013b97ff919f15cb5ead 100644
+index 3a6654cb50fa5207511e000f5b44d3f1421cced1..a4c4707074cf371f94290eb9e1e11f1ad6fed383 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/emoji/RecentEmojiPageModel.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/emoji/RecentEmojiPageModel.java
 @@ -3,7 +3,6 @@ package org.thoughtcrime.securesms.components.emoji;
@@ -1164,7 +1147,7 @@ index 2fbcffb2b7076e1a62f244b515494c3b03324773..5aa077172c22354b6e6c013b97ff919f
  
  import java.io.IOException;
  import java.util.ArrayList;
-@@ -35,11 +35,11 @@ public class RecentEmojiPageModel implements EmojiPageModel {
+@@ -40,11 +40,11 @@ public class RecentEmojiPageModel implements EmojiPageModel {
    private final LinkedHashSet<String> recentlyUsed;
  
    public static boolean hasRecents(Context context, @NonNull String preferenceName) {
@@ -1178,140 +1161,11 @@ index 2fbcffb2b7076e1a62f244b515494c3b03324773..5aa077172c22354b6e6c013b97ff919f
      this.preferenceName = preferenceName;
      this.recentlyUsed   = getPersistedCache();
    }
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsFragment.kt
-index d7dd7f6483b0b9e85309a6dc565508b009467dac..972e281167d40e223378db4375e7353d050c32c9 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsFragment.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsFragment.kt
-@@ -14,10 +14,8 @@ import androidx.compose.ui.res.stringResource
- import androidx.fragment.app.viewModels
- import androidx.lifecycle.compose.collectAsStateWithLifecycle
- import androidx.navigation.fragment.findNavController
--import androidx.preference.PreferenceManager
- import org.signal.core.ui.compose.ComposeFragment
- import org.signal.core.ui.compose.DayNightPreviews
--import org.signal.core.ui.compose.Dialogs
- import org.signal.core.ui.compose.Dividers
- import org.signal.core.ui.compose.Previews
- import org.signal.core.ui.compose.Rows
-@@ -29,6 +27,7 @@ import org.signal.mediasend.SentMediaQuality
- import org.thoughtcrime.securesms.R
- import org.thoughtcrime.securesms.compose.rememberStatusBarColorNestedScrollModifier
- import org.thoughtcrime.securesms.util.AttachmentUtil
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager
- import org.thoughtcrime.securesms.util.navigation.safeNavigate
- import org.thoughtcrime.securesms.webrtc.CallDataMode
- import kotlin.math.abs
-@@ -37,7 +36,7 @@ class DataAndStorageSettingsFragment : ComposeFragment() {
- 
-   private val viewModel: DataAndStorageSettingsViewModel by viewModels(
-     factoryProducer = {
--      val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
-+      val preferences =  SecurePreferenceManager.getSecurePreferences(requireContext())
-       val repository = DataAndStorageSettingsRepository()
-       DataAndStorageSettingsViewModel.Factory(preferences, repository)
-     }
-@@ -76,10 +75,6 @@ class DataAndStorageSettingsFragment : ComposeFragment() {
-       viewModel.setCallDataMode(CallDataMode.fromCode(abs(code.toInt() - 2)))
-     }
- 
--    override fun onUseProxyClick() {
--      findNavController().safeNavigate(R.id.action_dataAndStorageSettingsFragment_to_editProxyFragment)
--    }
--
-     override fun onMobileDataAutoDownloadSelectionChanged(selection: Array<String>) {
-       viewModel.setMobileAutoDownloadValues(selection.toSet())
-     }
-@@ -91,18 +86,6 @@ class DataAndStorageSettingsFragment : ComposeFragment() {
-     override fun onRoamingDataAutoDownloadSelectionChanged(selection: Array<String>) {
-       viewModel.setRoamingAutoDownloadValues(selection.toSet())
-     }
--
--    override fun onForceWebsocketModeChanged(enabled: Boolean) {
--      viewModel.onForceWebsocketModeToggled(enabled)
--    }
--
--    override fun onConfirmStayConnectedInBackground() {
--      viewModel.confirmStayConnectedInBackground()
--    }
--
--    override fun onDismissStayConnectedInBackgroundDialog() {
--      viewModel.dismissStayConnectedInBackgroundDialog()
--    }
-   }
- }
- 
-@@ -111,7 +94,6 @@ private interface DataAndStorageSettingsCallbacks {
-   fun onManageStorageClick() = Unit
-   fun onSentMediaQualitySelected(code: String) = Unit
-   fun onCallDataModeSelected(code: String) = Unit
--  fun onUseProxyClick() = Unit
-   fun onMobileDataAutoDownloadSelectionChanged(selection: Array<String>) = Unit
-   fun onWifiDataAutoDownloadSelectionChanged(selection: Array<String>) = Unit
-   fun onRoamingDataAutoDownloadSelectionChanged(selection: Array<String>) = Unit
-@@ -263,46 +245,6 @@ private fun DataAndStorageSettingsScreen(
-           }
-         )
-       }
--
--      item {
--        Dividers.Default()
--      }
--
--      item {
--        Rows.ToggleRow(
--          checked = state.forceWebsocketMode || !state.playServicesAvailable,
--          text = stringResource(R.string.DataAndStorageSettingsFragment__stay_connected_in_background),
--          enabled = state.playServicesAvailable,
--          onCheckChanged = callbacks::onForceWebsocketModeChanged
--        )
--      }
--
--      item {
--        Dividers.Default()
--      }
--
--      item {
--        Texts.SectionHeader(stringResource(R.string.preferences_proxy))
--      }
--
--      item {
--        Rows.TextRow(
--          text = stringResource(R.string.preferences_use_proxy),
--          label = stringResource(if (state.isProxyEnabled) R.string.preferences_on else R.string.preferences_off),
--          onClick = callbacks::onUseProxyClick
--        )
--      }
--    }
--
--    if (state.showStayConnectedDialog) {
--      Dialogs.SimpleAlertDialog(
--        title = "",
--        body = stringResource(R.string.DataAndStorageSettingsFragment__staying_connected_while_in_the_background_will_likely_result_in_increased_battery_usage),
--        confirm = stringResource(R.string.DataAndStorageSettingsFragment__enable),
--        dismiss = stringResource(android.R.string.cancel),
--        onConfirm = callbacks::onConfirmStayConnectedInBackground,
--        onDismiss = callbacks::onDismissStayConnectedInBackgroundDialog
--      )
-     }
-   }
- }
-@@ -318,11 +260,7 @@ private fun DataAndStorageSettingsScreenPreview() {
-         wifiAutoDownloadValues = setOf(),
-         roamingAutoDownloadValues = setOf(),
-         callDataMode = CallDataMode.HIGH_ALWAYS,
--        isProxyEnabled = false,
-         sentMediaQuality = SentMediaQuality.STANDARD,
--        forceWebsocketMode = false,
--        playServicesAvailable = true,
--        showStayConnectedDialog = false
-       ),
-       callbacks = DataAndStorageSettingsCallbacks.Empty
-     )
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
-index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e34e75eeb 100644
+index 6c254d5b308534dc6f1627360903c4f2de024002..0d23414666681848f48e26f265347231e5106e69 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsFragment.kt
-@@ -10,21 +10,27 @@ import android.widget.Toast
+@@ -10,16 +10,20 @@ import android.widget.Toast
  import androidx.activity.result.ActivityResultCallback
  import androidx.activity.result.ActivityResultLauncher
  import androidx.activity.result.contract.ActivityResultContract
@@ -1325,13 +1179,14 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
 +import androidx.compose.foundation.lazy.rememberLazyListState
  import androidx.compose.foundation.shape.CircleShape
 +import androidx.compose.material3.Icon
-+import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.MaterialTheme
  import androidx.compose.material3.Text
  import androidx.compose.runtime.Composable
 +import androidx.compose.runtime.LaunchedEffect
  import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
  import androidx.compose.runtime.remember
- import androidx.compose.ui.Modifier
+@@ -28,6 +32,7 @@ import androidx.compose.ui.Modifier
  import androidx.compose.ui.draw.clip
  import androidx.compose.ui.graphics.Color
  import androidx.compose.ui.res.colorResource
@@ -1339,28 +1194,27 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
  import androidx.compose.ui.res.stringArrayResource
  import androidx.compose.ui.res.stringResource
  import androidx.compose.ui.unit.dp
-@@ -34,9 +40,17 @@ import androidx.lifecycle.Lifecycle
- import androidx.lifecycle.compose.collectAsStateWithLifecycle
- import androidx.lifecycle.lifecycleScope
- import androidx.lifecycle.repeatOnLifecycle
+@@ -41,6 +46,17 @@ import org.signal.appsettings.routes.AppSettingsNavigationEvent
+ import org.signal.appsettings.routes.AppSettingsRoute
+ import org.signal.appsettings.routes.AppSettingsRouter
+ import org.signal.appsettings.routes.navigateTo
++import androidx.lifecycle.lifecycleScope
 +import androidx.lifecycle.withStateAtLeast
- import androidx.navigation.fragment.findNavController
--import androidx.preference.PreferenceManager
 +import androidx.navigation.fragment.navArgs
 +import com.google.android.gms.common.ConnectionResult
 +import com.google.android.material.dialog.MaterialAlertDialogBuilder
 +import im.molly.unifiedpush.UnifiedPushDefaultDistributorLinkActivity
 +import im.molly.unifiedpush.components.settings.app.notifications.MollySocketQrScannerActivity
- import kotlinx.coroutines.launch
++import kotlinx.coroutines.launch
 +import org.greenrobot.eventbus.EventBus
 +import org.greenrobot.eventbus.Subscribe
 +import org.greenrobot.eventbus.ThreadMode
  import org.signal.core.ui.BottomSheetUtil
  import org.signal.core.ui.compose.ComposeFragment
  import org.signal.core.ui.compose.DayNightPreviews
-@@ -52,16 +66,21 @@ import org.thoughtcrime.securesms.components.PromptBatterySaverDialogFragment
- import org.thoughtcrime.securesms.components.settings.app.routes.AppSettingsRoute
- import org.thoughtcrime.securesms.components.settings.app.routes.AppSettingsRouter
+@@ -57,8 +73,12 @@ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.R
+ import org.thoughtcrime.securesms.components.PromptBatterySaverDialogFragment
  import org.thoughtcrime.securesms.components.settings.models.Banner
 +import org.thoughtcrime.securesms.conversation.v2.registerForLifecycle
 +import org.thoughtcrime.securesms.events.PushServiceEvent
@@ -1369,37 +1223,29 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
  import org.thoughtcrime.securesms.notifications.TurnOnNotificationsBottomSheet
 +import org.thoughtcrime.securesms.util.CommunicationActions
  import org.thoughtcrime.securesms.util.RingtoneUtil
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager
  import org.thoughtcrime.securesms.util.navigation.safeNavigate
- import org.thoughtcrime.securesms.util.viewModel
+ import org.signal.core.ui.R as CoreUiR
+@@ -71,6 +91,8 @@ class NotificationsSettingsFragment : ComposeFragment() {
  
- class NotificationsSettingsFragment : ComposeFragment() {
- 
-   private val viewModel: NotificationsSettingsViewModel by viewModel {
--    val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
-+    val sharedPreferences = SecurePreferenceManager.getSecurePreferences(requireContext())
- 
-     NotificationsSettingsViewModel.Factory(sharedPreferences).create(NotificationsSettingsViewModel::class.java)
-   }
-@@ -70,6 +89,8 @@ class NotificationsSettingsFragment : ComposeFragment() {
-     AppSettingsRouter()
-   }
+   private val appSettingsRouter: AppSettingsRouter by viewModels()
  
 +  private val args: NotificationsSettingsFragmentArgs by navArgs()
 +
    private lateinit var callbacks: DefaultNotificationsSettingsCallbacks
  
    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-@@ -85,11 +106,21 @@ class NotificationsSettingsFragment : ComposeFragment() {
-               findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_notificationProfilesFragment)
-             }
- 
-+            AppSettingsRoute.NotificationsRoute.UnifiedPushSettings -> {
-+              findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_unifiedPushFragment)
-+            }
-+
-             else -> error("Unexpected route: ${it.javaClass.name}")
+@@ -86,6 +108,10 @@ class NotificationsSettingsFragment : ComposeFragment() {
+             findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_notificationProfilesFragment)
            }
+ 
++          AppSettingsRoute.NotificationsRoute.UnifiedPushSettings -> {
++            findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_unifiedPushFragment)
++          }
++
+           AppSettingsRoute.NotificationsRoute.MutedNotifications -> {
+             findNavController().safeNavigate(R.id.action_notificationsSettingsFragment_to_mutedNotificationsFragment)
+           }
+@@ -94,6 +120,12 @@ class NotificationsSettingsFragment : ComposeFragment() {
          }
        }
      }
@@ -1412,7 +1258,7 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
    }
  
    override fun onResume() {
-@@ -97,6 +128,11 @@ class NotificationsSettingsFragment : ComposeFragment() {
+@@ -101,6 +133,11 @@ class NotificationsSettingsFragment : ComposeFragment() {
      viewModel.refresh()
    }
  
@@ -1424,7 +1270,7 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
    @Composable
    override fun FragmentContent() {
      val state by viewModel.state.collectAsStateWithLifecycle()
-@@ -160,6 +196,35 @@ open class DefaultNotificationsSettingsCallbacks(
+@@ -164,6 +201,35 @@ open class DefaultNotificationsSettingsCallbacks(
      callback = {}
    )
  
@@ -1460,9 +1306,9 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
    override fun onTurnOnNotificationsActionClick() {
      TurnOnNotificationsBottomSheet.turnOnSystemNotificationsFragment(activity).show(activity.supportFragmentManager, BottomSheetUtil.STANDARD_BOTTOM_SHEET_FRAGMENT_TAG)
    }
-@@ -263,6 +328,70 @@ open class DefaultNotificationsSettingsCallbacks(
-   override fun setNotifyWhenContactJoinsSignal(enabled: Boolean) {
-     viewModel.setNotifyWhenContactJoinsSignal(enabled)
+@@ -283,6 +349,70 @@ open class DefaultNotificationsSettingsCallbacks(
+   override fun onReset() {
+     viewModel.resetSettings()
    }
 +
 +  override fun setNotifyNewActivityWhileLocked(enabled: Boolean, isSupported: Boolean) {
@@ -1502,7 +1348,7 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
 +  }
 +
 +  override fun onNavigationUnifiedPushSettings() {
-+    appSettingsRouter.navigateTo(AppSettingsRoute.NotificationsRoute.UnifiedPushSettings)
++    appSettingsRouter::onEvent.navigateTo(AppSettingsRoute.NotificationsRoute.UnifiedPushSettings)
 +  }
 +
 +  override fun onPlayServicesError(errorCode: Int) {
@@ -1531,10 +1377,10 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
  }
  
  interface NotificationsSettingsCallbacks {
-@@ -286,6 +415,10 @@ interface NotificationsSettingsCallbacks {
-   fun setCallVibrateEnabled(enabled: Boolean) = Unit
-   fun onNavigationProfilesClick() = Unit
-   fun setNotifyWhenContactJoinsSignal(enabled: Boolean) = Unit
+@@ -310,6 +440,10 @@ interface NotificationsSettingsCallbacks {
+   fun setReactionNotificationEnabled(enabled: Boolean) = Unit
+   fun setUnreadReminderEnabled(enabled: Boolean) = Unit
+   fun onReset() = Unit
 +  fun setNotifyNewActivityWhileLocked(enabled: Boolean, isSupported: Boolean) = Unit
 +  fun onNotificationMethodChanged(fromToMethods: Pair<NotificationDeliveryMethod, NotificationDeliveryMethod>) = Unit
 +  fun onNavigationUnifiedPushSettings() = Unit
@@ -1542,7 +1388,7 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
  
    object Empty : NotificationsSettingsCallbacks
  }
-@@ -301,7 +434,17 @@ fun NotificationsSettingsScreen(
+@@ -339,7 +473,17 @@ fun NotificationsSettingsScreen(
      onNavigationClick = callbacks::onNavigationClick,
      navigationIcon = SignalIcons.ArrowStart.imageVector
    ) {
@@ -1560,10 +1406,14 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
        modifier = Modifier.padding(it)
      ) {
        if (!state.messageNotificationsState.canEnableNotifications) {
-@@ -520,6 +663,17 @@ fun NotificationsSettingsScreen(
-         Texts.SectionHeader(stringResource(R.string.NotificationsSettingsFragment__notify_when))
+@@ -593,6 +737,21 @@ fun NotificationsSettingsScreen(
+         Dividers.Default()
        }
  
++      item {
++        Texts.SectionHeader(stringResource(R.string.NotificationsSettingsFragment__notify_when))
++      }
++
 +      item {
 +        Rows.ToggleRow(
 +          text = stringResource(R.string.NotificationsSettingsFragment__new_activity_while_locked),
@@ -1576,10 +1426,10 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
 +      }
 +
        item {
-         Rows.ToggleRow(
-           text = stringResource(R.string.NotificationsSettingsFragment__contact_joins_signal),
-@@ -527,6 +681,75 @@ fun NotificationsSettingsScreen(
-           onCheckChanged = callbacks::setNotifyWhenContactJoinsSignal
+         Rows.TextRow(
+           text = stringResource(R.string.NotificationsSettingsFragment__reset),
+@@ -600,6 +759,75 @@ fun NotificationsSettingsScreen(
+           onClick = { showDialog = true }
          )
        }
 +
@@ -1654,7 +1504,7 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
      }
    }
  }
-@@ -602,6 +825,13 @@ private fun rememberTestState(): NotificationsSettingsState = remember {
+@@ -699,6 +927,13 @@ private fun rememberTestState(): NotificationsSettingsState = remember {
        ringtone = Uri.EMPTY,
        vibrateEnabled = true
      ),
@@ -1669,35 +1519,10 @@ index 1d55a68be767de23b3586e6ee3a2951f6c0ecfca..b31ddca64d5bdf4cf66f1d1e45f7498e
    )
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsFragment.kt
-index e6b45f50de01099d47cd9b6b0c97fb5ced4e69c2..86124d11c2bfb3a13c4f4fc6458a43a4674969bc 100644
+index b10da031ee86e12cca2aa96fda6233690f12f9fa..4ce521664e690f1f4adb5c0760a1f582346e2232 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsFragment.kt
-@@ -32,7 +32,6 @@ import androidx.lifecycle.Lifecycle
- import androidx.lifecycle.compose.collectAsStateWithLifecycle
- import androidx.lifecycle.lifecycleScope
- import androidx.lifecycle.repeatOnLifecycle
--import androidx.preference.PreferenceManager
- import kotlinx.coroutines.launch
- import org.signal.core.ui.compose.ComposeFragment
- import org.signal.core.ui.compose.DayNightPreviews
-@@ -45,6 +44,7 @@ import org.signal.core.ui.compose.Texts
- import org.thoughtcrime.securesms.R
- import org.thoughtcrime.securesms.compose.rememberStatusBarColorNestedScrollModifier
- import org.thoughtcrime.securesms.util.CommunicationActions
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager
- import org.thoughtcrime.securesms.util.viewModel
- 
- /**
-@@ -55,7 +55,7 @@ class AdvancedPrivacySettingsFragment : ComposeFragment() {
- 
-   private val viewModel: AdvancedPrivacySettingsViewModel by viewModel {
-     val repository = AdvancedPrivacySettingsRepository(requireContext())
--    val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
-+    val preferences = SecurePreferenceManager.getSecurePreferences(requireContext())
- 
-     AdvancedPrivacySettingsViewModel(
-       preferences,
-@@ -197,7 +197,8 @@ private fun AdvancedPrivacySettingsScreen(
+@@ -189,7 +189,8 @@ private fun AdvancedPrivacySettingsScreen(
      ) {
        item {
          Rows.ToggleRow(
@@ -1707,7 +1532,7 @@ index e6b45f50de01099d47cd9b6b0c97fb5ced4e69c2..86124d11c2bfb3a13c4f4fc6458a43a4
            text = stringResource(R.string.preferences_advanced__always_relay_calls),
            label = stringResource(R.string.preferences_advanced__relay_all_calls_through_the_signal_server_to_avoid_revealing_your_ip_address),
            onCheckChanged = callbacks::onAlwaysRelayCallsChanged
-@@ -336,6 +337,7 @@ private fun AdvancedPrivacySettingsScreenPreview() {
+@@ -328,6 +329,7 @@ private fun AdvancedPrivacySettingsScreenPreview() {
        state = AdvancedPrivacySettingsState(
          isPushEnabled = true,
          alwaysRelayCalls = false,
@@ -3909,7 +3734,7 @@ index 0000000000000000000000000000000000000000..cac1b8b68953285321316036a4873a05
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTableCursorUtil.kt b/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTableCursorUtil.kt
-index 5e1b03bf8d9339b539d79e352cbfb32b84945c29..6249051695e7af5a2bdfb7d28cb3d2e8b40ee31e 100644
+index aa7b3e8dd58e39bfa9f37bc13b9d13b9cddb99c6..7709f64e773d21aa8920ac965caf9148349242f2 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTableCursorUtil.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTableCursorUtil.kt
 @@ -7,7 +7,6 @@ package org.thoughtcrime.securesms.database
@@ -3918,8 +3743,8 @@ index 5e1b03bf8d9339b539d79e352cbfb32b84945c29..6249051695e7af5a2bdfb7d28cb3d2e8
  import android.database.Cursor
 -import com.google.protobuf.InvalidProtocolBufferException
  import org.signal.core.models.ServiceId
- import org.signal.core.util.Base64
- import org.signal.core.util.Bitmask
+ import org.signal.core.models.badges.Badge
+ import org.signal.core.models.recipients.RecipientId
 @@ -91,7 +90,7 @@ object RecipientTableCursorUtil {
      val chatWallpaper: ChatWallpaper? = if (serializedWallpaper != null) {
        try {
@@ -3938,7 +3763,7 @@ index 5e1b03bf8d9339b539d79e352cbfb32b84945c29..6249051695e7af5a2bdfb7d28cb3d2e8
          Log.w(TAG, "Failed to parse chat colors.", e)
          null
        }
-@@ -185,7 +184,7 @@ object RecipientTableCursorUtil {
+@@ -189,7 +188,7 @@ object RecipientTableCursorUtil {
      if (serializedBadgeList != null) {
        try {
          badgeList = BadgeList.ADAPTER.decode(serializedBadgeList)
@@ -3947,7 +3772,7 @@ index 5e1b03bf8d9339b539d79e352cbfb32b84945c29..6249051695e7af5a2bdfb7d28cb3d2e8
          Log.w(TAG, e)
        }
      }
-@@ -226,7 +225,7 @@ object RecipientTableCursorUtil {
+@@ -230,7 +229,7 @@ object RecipientTableCursorUtil {
      return cursor.optionalBlob(RecipientTable.EXTRAS).map { b: ByteArray ->
        try {
          RecipientExtras.ADAPTER.decode(b)
@@ -3998,361 +3823,700 @@ index bbc3baccd3d06e1bd7566213c7e63a2c908d6b3e..118cbc875a0ebe4250bd815cd3c1a936
      }
    }
  
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextSharedPrefsDataStore.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextSharedPrefsDataStore.kt
-index b9093d8883b7b90bd46d1330d89b10ae3ab21854..e2840c23da0eeab5194a59a7d04cb6aef2ae2dae 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextSharedPrefsDataStore.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextSharedPrefsDataStore.kt
-@@ -2,7 +2,7 @@ package org.thoughtcrime.securesms.keyvalue
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/LegacySharedPrefs.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/LegacySharedPrefs.kt
+index 909dc748687866c558edc7668d1e411ae2a4de51..dea4fc8191e233ccafd6d0bfe6cd95032ee7f6ca 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/LegacySharedPrefs.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/LegacySharedPrefs.kt
+@@ -7,10 +7,13 @@ package org.thoughtcrime.securesms.keyvalue
  
- import android.annotation.SuppressLint
  import android.content.Context
+ import android.net.Uri
 -import androidx.preference.PreferenceManager
++import org.thoughtcrime.securesms.util.SecurePreferenceManager
++import org.thoughtcrime.securesms.util.Environment
++import org.thoughtcrime.securesms.service.KeyCachingService
+ 
+ /**
+- * Read-only access to the app's default [android.content.SharedPreferences] for the purpose of easing migration to [SignalStore].
++ * Read-only access to Molly's original preferences, after the master secret has been cached.
++ * Never use the compatibility facade here: it reads the destination rather than the migration source.
+  */
+ object LegacySharedPrefs {
+ 
+@@ -40,13 +43,13 @@ object LegacySharedPrefs {
+ 
+   /** Some values were stored as strings, but some installs ended up with ints. */
+   fun getIntegerFromString(context: Context, key: String, defaultValue: Int): Int {
+-    return try {
+-      getString(context, key, defaultValue.toString()).toInt()
++    val stringValue = try {
++      // EncryptedPreferences returns the default (rather than throwing) on a type mismatch.
++      prefs(context).getString(key, null)
+     } catch (e: ClassCastException) {
+-      getInteger(context, key, defaultValue)
+-    } catch (e: NumberFormatException) {
+-      defaultValue
++      null
+     }
++    return if (stringValue != null) stringValue.toIntOrNull() ?: defaultValue else getInteger(context, key, defaultValue)
+   }
+ 
+   /** Mirrors the URI fixup the old ringtone getters did. */
+@@ -68,5 +71,10 @@ object LegacySharedPrefs {
+     }
+   }
+ 
+-  private fun prefs(context: Context) = PreferenceManager.getDefaultSharedPreferences(context)
++  private fun prefs(context: Context): android.content.SharedPreferences {
++    if (!Environment.IS_INSTRUMENTATION) {
++      checkNotNull(KeyCachingService.getMasterSecret()) { "Legacy settings migration requires an unlocked master secret" }
++    }
++    return SecurePreferenceManager.getSecurePreferences(context)
++  }
+ }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MollySettingsPreferences.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MollySettingsPreferences.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e815dd7dc16e083e5606f033ae9d35bb1eec5e2
+--- /dev/null
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MollySettingsPreferences.kt
+@@ -0,0 +1,159 @@
++package org.thoughtcrime.securesms.keyvalue
++
++import android.content.SharedPreferences
++import org.thoughtcrime.securesms.database.model.databaseprotos.SignalStoreList
++
++/**
++ * Compatibility view for legacy preference consumers. Migration and backup import must use the
++ * original SecurePreferenceManager preferences, not this view, to avoid reading back migrated values.
++ * Only the explicitly non-secret bootstrap getters may be used before SignalStore is unlocked.
++ */
++class MollySettingsPreferences(
++  private val legacy: SharedPreferences,
++  private val settings: () -> SettingsValues = { SignalStore.settings }
++) : SharedPreferences by legacy {
++
++  companion object {
++    internal val booleanKeys = mapOf(
++      "pref_system_emoji" to SettingsValues.PREFER_SYSTEM_EMOJI,
++      "pref_enter_sends" to SettingsValues.ENTER_KEY_SENDS,
++      "pref_backup_enabled" to SettingsValues.BACKUPS_ENABLED,
++      "pref_delivery_report_sms" to SettingsValues.SMS_DELIVERY_REPORTS_ENABLED,
++      "pref_wifi_sms" to SettingsValues.WIFI_CALLING_COMPATIBILITY_MODE_ENABLED,
++      "pref_key_enable_notifications" to SettingsValues.MESSAGE_NOTIFICATIONS_ENABLED,
++      "pref_key_vibrate" to SettingsValues.MESSAGE_VIBRATE_ENABLED,
++      "pref_key_inthread_notifications" to SettingsValues.MESSAGE_IN_CHAT_SOUNDS_ENABLED,
++      "pref_call_notifications" to SettingsValues.CALL_NOTIFICATIONS_ENABLED,
++      "pref_call_vibrate" to SettingsValues.CALL_VIBRATE_ENABLED,
++      "pref_enable_new_contacts_notifications" to SettingsValues.NOTIFY_WHEN_CONTACT_JOINS_SIGNAL,
++      "pref_screen_security" to SettingsValues.SCREEN_SECURITY_ENABLED,
++      "pref_incognito_keyboard" to SettingsValues.INCOGNITO_KEYBOARD_ENABLED,
++      "pref_read_receipts" to SettingsValues.READ_RECEIPTS_ENABLED,
++      "pref_typing_indicators" to SettingsValues.TYPING_INDICATORS_ENABLED,
++      "pref_show_unidentifed_delivery_indicators" to SettingsValues.SHOW_UNIDENTIFIED_DELIVERY_INDICATORS,
++      "pref_universal_unidentified_access" to SettingsValues.UNIVERSAL_UNIDENTIFIED_ACCESS,
++      "pref_turn_only" to SettingsValues.ALWAYS_RELAY_CALLS,
++      "pref_disable_passphrase" to "settings.passphrase.disabled",
++      "pref_timeout_passphrase" to "settings.passphrase.timeout.enabled",
++      "pref_android_screen_lock" to "settings.screen.lock.enabled",
++      "pref_successful_directory" to "misc.has_successfully_retrieved_directory",
++      "pref_needs_full_contact_sync" to "misc.needs_full_contact_sync",
++      "pref_service_outage" to "misc.service_outage",
++      "pref_prompted_push_registration" to "registration.has_prompted_push_registration"
++    )
++    internal val stringKeys = mapOf(
++      "pref_theme" to SettingsValues.THEME,
++      "pref_key_ringtone" to SettingsValues.MESSAGE_NOTIFICATION_SOUND,
++      "pref_led_color" to SettingsValues.MESSAGE_LED_COLOR,
++      "pref_led_blink" to SettingsValues.MESSAGE_LED_BLINK_PATTERN,
++      "pref_led_blink_custom" to "settings.message.led.blink.custom",
++      "pref_notification_privacy" to SettingsValues.MESSAGE_NOTIFICATION_PRIVACY,
++      "pref_call_ringtone" to SettingsValues.CALL_RINGTONE,
++      "pref_media_keyboard_mode" to "settings.media.keyboard.mode"
++    )
++    internal val integerKeys = mapOf(
++      "pref_message_body_text_size" to SettingsValues.MESSAGE_FONT_SIZE,
++      "pref_repeat_alerts" to SettingsValues.MESSAGE_REPEAT_ALERTS,
++      "pref_notification_priority" to "settings.message.notification.priority",
++      "pref_timeout_interval" to "settings.passphrase.timeout",
++      "pref_job_manager_version" to "misc.job_manager_version",
++      "pref_notification_channel_version" to "misc.notification_channel_version",
++      "pref_notification_messages_channel_version" to "misc.notification_messages_channel_version"
++    )
++    internal val longKeys = mapOf(
++      "pref_backup_next_time" to "settings.backups.next.time",
++      "pref_android_screen_lock_timeout" to "settings.screen.lock.timeout",
++      "pref_last_full_contact_sync_time" to "misc.last_full_contact_sync_time",
++      "pref_last_outage_check_time" to "misc.last_outage_check_time",
++      "pref_signed_pre_key_rotation_time" to "misc.signed_prekey_rotation_time",
++      "pref_registration_lock_last_reminder_time_post_kbs" to "pin.last_successful_entry",
++      "pref_registration_lock_next_reminder_interval" to "pin.interval_index",
++      "pref_update_apk_refresh_time" to "apk_update.refresh_time"
++    )
++    internal val stringSetKeys = mapOf(
++      "pref_media_download_mobile" to "settings.media.download.mobile",
++      "pref_media_download_wifi" to "settings.media.download.wifi",
++      "pref_media_download_roaming" to "settings.media.download.roaming"
++    )
++    internal val migratedKeys = booleanKeys + stringKeys + integerKeys + longKeys + stringSetKeys
++  }
++
++  override fun contains(key: String): Boolean =
++    migratedKeys[key]?.let { settings().store.containsKey(it) } ?: legacy.contains(key)
++
++  override fun getBoolean(key: String, defValue: Boolean): Boolean =
++    booleanKeys[key]?.let { settings().store.getBoolean(it, defValue) } ?: legacy.getBoolean(key, defValue)
++
++  override fun getInt(key: String, defValue: Int): Int =
++    integerKeys[key]?.let { settings().store.getInteger(it, defValue) } ?: legacy.getInt(key, defValue)
++
++  override fun getLong(key: String, defValue: Long): Long =
++    longKeys[key]?.let { settings().store.getLong(it, defValue) } ?: legacy.getLong(key, defValue)
++
++  override fun getString(key: String, defValue: String?): String? {
++    integerKeys[key]?.let { return settings().store.getInteger(it, defValue?.toIntOrNull() ?: 0).toString() }
++    val target = stringKeys[key] ?: return legacy.getString(key, defValue)
++    return settings().store.getString(target, defValue)
++  }
++
++  override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
++    val target = stringSetKeys[key] ?: return legacy.getStringSet(key, defValues)
++    val value = settings().store.getBlob(target, null) ?: return defValues
++    return SignalStoreList.ADAPTER.decode(value).contents.toSet()
++  }
++
++  override fun edit(): SharedPreferences.Editor = Editor()
++
++  private inner class Editor : SharedPreferences.Editor {
++    private val raw = legacy.edit()
++    private val changes = linkedMapOf<String, Any?>()
++
++    private fun put(key: String, value: Any?, writeLegacy: () -> Unit): SharedPreferences.Editor {
++      if (key in migratedKeys) changes[key] = value else writeLegacy()
++      return this
++    }
++
++    override fun putBoolean(key: String, value: Boolean) = put(key, value) { raw.putBoolean(key, value) }
++    override fun putInt(key: String, value: Int) = put(key, value) { raw.putInt(key, value) }
++    override fun putLong(key: String, value: Long) = put(key, value) { raw.putLong(key, value) }
++    override fun putFloat(key: String, value: Float) = put(key, value) { raw.putFloat(key, value) }
++    override fun putString(key: String, value: String?) = put(key, value) { raw.putString(key, value) }
++    override fun putStringSet(key: String, values: Set<String>?) = put(key, values?.toSet()) { raw.putStringSet(key, values) }
++    override fun remove(key: String) = put(key, null) { raw.remove(key) }
++    override fun clear(): SharedPreferences.Editor = throw UnsupportedOperationException("Clearing legacy preferences is not supported")
++
++    private fun writeSettings(blocking: Boolean) {
++      if (changes.isEmpty()) return
++      val values = settings()
++      val writer = values.store.beginWrite()
++      for ((key, value) in changes) {
++        val target = migratedKeys.getValue(key)
++        when {
++          key == "pref_theme" -> values.theme = if (value == null) SettingsValues.Theme.SYSTEM else SettingsValues.Theme.deserialize(value as String)
++          key == "pref_system_emoji" -> values.isPreferSystemEmoji = value as? Boolean ?: false
++          value == null -> writer.remove(target)
++          key in booleanKeys -> writer.putBoolean(target, value as Boolean)
++          key in integerKeys -> writer.putInteger(target, if (value is String) value.toInt() else value as Int)
++          key in longKeys -> writer.putLong(target, (value as Number).toLong())
++          key in stringSetKeys -> {
++            @Suppress("UNCHECKED_CAST")
++            writer.putBlob(target, SignalStoreList(contents = (value as Set<String>).toList()).encode())
++          }
++          else -> writer.putString(target, value as String)
++        }
++      }
++      if (blocking) writer.commit() else writer.apply()
++      changes.clear()
++    }
++
++    override fun commit(): Boolean {
++      writeSettings(blocking = true)
++      return raw.commit()
++    }
++
++    override fun apply() {
++      writeSettings(blocking = false)
++      raw.apply()
++    }
++  }
++}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextKeyValueStore.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextKeyValueStore.kt
+index 26511277b7a582b0f294b9ba1c42ecabac378eeb..e4cd59db90a8f0f6bc631112dcea0f914d11fa95 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextKeyValueStore.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/PlainTextKeyValueStore.kt
+@@ -3,14 +3,13 @@ package org.thoughtcrime.securesms.keyvalue
+ import android.content.Context
+ import android.content.SharedPreferences
+ import androidx.core.content.edit
+-import androidx.preference.PreferenceManager
+ import org.thoughtcrime.securesms.BuildConfig
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
  
  /**
-  * There are some values that you can't, for whatever reason, store in the normal encrypted [KeyValueStore].
-@@ -18,7 +18,7 @@ class PlainTextSharedPrefsDataStore(private val context: Context) {
-     const val SMS_MIGRATION_ID_OFFSET = "sms_migration_id_offset"
+- * There are some values that you can't store in the normal encrypted [KeyValueStore].
+- * Usually, it's because the value you're storing is needed to *open* the database that backs [SignalStore],
+- * or is otherwise related to the state of the database itself. Regardless, this is just a normal
+- * shared-prefs-backed class.
++ * Legacy-named facade for values needed before the database-backed [SignalStore] can open.
++ * Molly keeps these in its original preferences file, with master-secret protection except
++ * for the existing bootstrap exemptions enforced by [SecurePreferenceManager].
+  */
+ object PlainTextKeyValueStore {
+ 
+@@ -32,7 +31,7 @@ object PlainTextKeyValueStore {
+    */
+   @JvmStatic
+   fun init(context: Context) {
+-    sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
++    sharedPrefs = SecurePreferenceManager.getSecurePreferences(context)
    }
  
--  private val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
-+  private val sharedPrefs = SecurePreferenceManager.getSecurePreferences(context)
+   /** Stores the ID offset that was determined during the big migration that moved all SMS messages into the MMS table. */
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
+index a9158ca265c25284d372d184bc7bf53f467eb5ed..8d96662840c8b7e1796bfb2e8dd049ede641436c 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.kt
+@@ -4,6 +4,7 @@ import android.content.Context
+ import android.net.Uri
+ import android.provider.Settings
+ import androidx.annotation.ArrayRes
++import androidx.annotation.StringRes
+ import androidx.core.app.NotificationCompat
+ import androidx.lifecycle.LiveData
+ import org.signal.core.models.calls.CallDataMode
+@@ -16,6 +17,8 @@ import org.thoughtcrime.securesms.preferences.widgets.NotificationPrivacyPrefere
+ import org.thoughtcrime.securesms.util.DynamicTheme
+ import org.thoughtcrime.securesms.util.Environment
+ import org.thoughtcrime.securesms.util.SingleLiveEvent
++import org.thoughtcrime.securesms.util.SecurePreferenceManager
++import org.thoughtcrime.securesms.util.TextSecurePreferences
+ import java.util.Arrays
+ import java.util.Random
+ import kotlin.math.abs
+@@ -40,6 +43,7 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     const val THREAD_TRIM_ENABLED = "pref_trim_threads"
+ 
+     const val THEME = "settings.theme"
++    const val LANGUAGE = "settings.language"
+     const val MESSAGE_FONT_SIZE = "settings.message.font.size"
+     const val PREFER_SYSTEM_EMOJI = "settings.use.system.emoji"
+     const val ENTER_KEY_SENDS = "settings.enter.key.sends"
+@@ -92,6 +96,8 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     private const val MEDIA_DOWNLOAD_ROAMING = "settings.media.download.roaming"
+     private const val AUTOPLAY_STICKERS_AND_GIFS = "settings.chats.autoplayStickersAndGifs"
+     private const val ASSISTANT_SCREEN_SECURITY_DECLINED_AT = "settings.assistant.screen.security.declined.at"
++    private const val MOLLY_NOTIFICATION_METHOD = "molly.notificationMethod"
++    private const val MOLLY_LEGACY_MIGRATION_COMPLETE = "molly.settings.legacyMigrationComplete"
+ 
+     const val SCREEN_SECURITY_ENABLED = "settings.screen.security.enabled"
+     const val INCOGNITO_KEYBOARD_ENABLED = "settings.incognito.keyboard.enabled"
+@@ -108,12 +114,13 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+   private val configurationSettingChanged = SingleLiveEvent<String>()
+ 
+   init {
+-    if (!store.containsKey(SCREEN_LOCK_ENABLED) && !Environment.IS_INSTRUMENTATION) {
++    if (!store.containsKey(MOLLY_LEGACY_MIGRATION_COMPLETE) && !Environment.IS_INSTRUMENTATION) {
+       migrateFromSharedPrefsV1(context)
+-    }
+-
+-    if (!store.containsKey(SCREEN_SECURITY_ENABLED) && !Environment.IS_INSTRUMENTATION) {
+       migrateFromSharedPrefsV2(context)
++      store.beginWrite().putBoolean(MOLLY_LEGACY_MIGRATION_COMPLETE, true).commit()
++    }
++    if (!Environment.IS_INSTRUMENTATION) {
++      syncBootstrapPreferences()
+     }
+   }
+ 
+@@ -232,9 +239,25 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     get() = Theme.deserialize(getString(THEME, if (DynamicTheme.systemThemeAvailable()) "system" else "light"))
+     set(value) {
+       putString(THEME, value.serialize())
++      SecurePreferenceManager.getSecurePreferences(context).edit().putString(TextSecurePreferences.THEME_PREF, value.serialize()).commit()
+       configurationSettingChanged.postValue(THEME)
+     }
+ 
++  fun setTheme(theme: Theme, useDynamicColors: Boolean) {
++    this.theme = theme
++    TextSecurePreferences.setDynamicColorsEnabled(context, useDynamicColors)
++  }
++
++  val isDynamicColorsEnabled: Boolean
++    get() = TextSecurePreferences.isDynamicColorsEnabled(context)
++
++  var language: String
++    get() = TextSecurePreferences.getLanguage(context)
++    set(value) {
++      TextSecurePreferences.setLanguage(context, value)
++      configurationSettingChanged.postValue(LANGUAGE)
++    }
++
+   var messageFontSize: Int by integerValue(MESSAGE_FONT_SIZE, 16)
+ 
+   fun getMessageQuoteFontSize(context: Context): Int {
+@@ -254,7 +277,12 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     return possibleQuoteSizes[sizeIndex]
+   }
+ 
+-  var isPreferSystemEmoji: Boolean by booleanValue(PREFER_SYSTEM_EMOJI, false)
++  var isPreferSystemEmoji: Boolean
++    get() = getBoolean(PREFER_SYSTEM_EMOJI, false)
++    set(value) {
++      putBoolean(PREFER_SYSTEM_EMOJI, value)
++      SecurePreferenceManager.getSecurePreferences(context).edit().putBoolean(TextSecurePreferences.SYSTEM_EMOJI_PREF, value).commit()
++    }
+ 
+   var isEnterKeySends: Boolean by booleanValue(ENTER_KEY_SENDS, false)
+ 
+@@ -330,8 +358,7 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+ 
+   var messageLedBlinkPattern: String by stringValue(MESSAGE_LED_BLINK_PATTERN, "500,2000")
+ 
+-  val messageLedBlinkPatternCustom: String
+-    get() = getString(MESSAGE_LED_BLINK_PATTERN_CUSTOM, "500,2000")
++  var messageLedBlinkPatternCustom: String by stringValue(MESSAGE_LED_BLINK_PATTERN_CUSTOM, "500,2000")
+ 
+   var isMessageNotificationsInChatSoundsEnabled: Boolean by booleanValue(MESSAGE_IN_CHAT_SOUNDS_ENABLED, true)
+ 
+@@ -414,6 +441,34 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+ 
+   var useCompactNavigationBar: Boolean by booleanValue(USE_COMPACT_NAVIGATION_BAR, false)
+ 
++  var preferredNotificationMethod: NotificationDeliveryMethod
++    get() = if (store.containsKey(MOLLY_NOTIFICATION_METHOD)) {
++      NotificationDeliveryMethod.deserialize(getString(MOLLY_NOTIFICATION_METHOD, NotificationDeliveryMethod.FCM.serialize()))
++    } else if (SignalStore.account.isFcmEnabled) {
++      NotificationDeliveryMethod.FCM
++    } else {
++      NotificationDeliveryMethod.WEBSOCKET
++    }
++    set(value) {
++      putString(MOLLY_NOTIFICATION_METHOD, value.serialize())
++    }
++
++  fun setKeepMessagesForDuration(duration: KeepMessagesDuration) {
++    keepMessagesDuration = duration
++  }
++
++  fun setThreadTrimByLengthEnabled(enabled: Boolean) {
++    isTrimByLengthEnabled = enabled
++  }
++
++  fun shouldSyncThreadTrimDeletes(): Boolean = syncThreadTrimDeletes
++
++  fun shouldKeepMutedChatsArchived(): Boolean = keepMutedChatsArchived
++
++  fun clearSignalBackupDirectory() {
++    signalBackupDirectory = null
++  }
++
+   var passphraseDisabled: Boolean by booleanValue(PASSPHRASE_DISABLED, true)
+ 
+   var passphraseTimeoutEnabled: Boolean by booleanValue(PASSPHRASE_TIMEOUT_ENABLED, false)
+@@ -509,46 +564,69 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+   }
  
    /**
-    * Stores the ID offset that was determined during the big migration that moved all SMS messages into the MMS table.
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
-index 125cc28a327c6b90bf0ea5db7e18de8438c4c3b3..0adc438957e8eba5e45ca06ffa3156b1cac6ae1d 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
-@@ -7,6 +7,7 @@ import android.text.TextUtils;
+-   * V1 backups made before these settings moved into this store carry them as shared prefs rather than key-values. The shared-prefs
+-   * migration has already run by the time a restore happens, so the restored prefs need to be re-read afterwards or the user silently
+-   * loses their privacy and security choices.
++   * Without provenance, do not read legacy values or update bootstrap mirrors: either direction
++   * could overwrite a value just imported from the archive. The importer must call the overload.
+    */
+-  fun restoreLegacySharedPrefsAfterBackupRestore() {
+-    Log.i(TAG, "Restoring legacy privacy settings from shared prefs.")
++  fun restoreLegacySharedPrefsAfterBackupRestore() = Unit
  
- import androidx.annotation.NonNull;
- import androidx.annotation.Nullable;
-+import androidx.annotation.StringRes;
- import androidx.lifecycle.LiveData;
- 
- import org.signal.core.util.logging.Log;
-@@ -14,7 +15,6 @@ import org.thoughtcrime.securesms.R;
- import org.thoughtcrime.securesms.dependencies.AppDependencies;
- import org.signal.mediasend.SentMediaQuality;
- import org.thoughtcrime.securesms.preferences.widgets.NotificationPrivacyPreference;
--import org.thoughtcrime.securesms.util.Environment;
- import org.thoughtcrime.securesms.util.SingleLiveEvent;
- import org.thoughtcrime.securesms.util.TextSecurePreferences;
- import org.thoughtcrime.securesms.webrtc.CallDataMode;
-@@ -70,13 +70,9 @@ public final class SettingsValues extends SignalStoreValues {
-   private static final String KEEP_MUTED_CHATS_ARCHIVED               = "settings.keepMutedChatsArchived";
-   private static final String USE_COMPACT_NAVIGATION_BAR              = "settings.useCompactNavigationBar";
-   private static final String THREAD_TRIM_SYNC_TO_LINKED_DEVICES      = "settings.storage.syncThreadTrimDeletes";
--  private static final String PASSPHRASE_DISABLED                     = "settings.passphrase.disabled";
--  private static final String PASSPHRASE_TIMEOUT_ENABLED              = "settings.passphrase.timeout.enabled";
--  private static final String PASSPHRASE_TIMEOUT                      = "settings.passphrase.timeout";
--  private static final String SCREEN_LOCK_ENABLED                     = "settings.screen.lock.enabled";
--  private static final String SCREEN_LOCK_TIMEOUT                     = "settings.screen.lock.timeout";
-   private static final String AUTOMATIC_VERIFICATION_ENABLED          = "settings.automatic.verification.enabled";
-   private static final String FORCE_WEBSOCKET_MODE                    = "settings.force.websocket.mode.2";
-+  private static final String MOLLY_NOTIFICATION_METHOD               = "molly.notificationMethod";
- 
-   public static final int BACKUP_DEFAULT_HOUR   = 2;
-   public static final int BACKUP_DEFAULT_MINUTE = 0;
-@@ -85,20 +81,6 @@ public final class SettingsValues extends SignalStoreValues {
- 
-   SettingsValues(@NonNull KeyValueStore store, Context context) {
-     super(store);
++  /**
++   * Importers must pass only keys actually read from this backup and the key-values in the same
++   * archive, after resetting the KV cache. Defaults from before the restore may be replaced; an
++   * explicit key-value in the archive always wins over a legacy copy.
++   */
++  fun restoreLegacySharedPrefsAfterBackupRestore(importedLegacyKeys: Set<String>, restoredKeyValueKeys: Set<String>) {
+     val writer = store.beginWrite()
 -
--    if (!store.containsKey(SCREEN_LOCK_ENABLED) && !Environment.IS_INSTRUMENTATION) {
--      migrateFromSharedPrefsV1(context);
--    }
--  }
+-    val booleanKeys = mapOf(
+-      "pref_screen_security" to SCREEN_SECURITY_ENABLED,
+-      "pref_incognito_keyboard" to INCOGNITO_KEYBOARD_ENABLED,
+-      "pref_read_receipts" to READ_RECEIPTS_ENABLED,
+-      "pref_typing_indicators" to TYPING_INDICATORS_ENABLED,
+-      "pref_show_unidentifed_delivery_indicators" to SHOW_UNIDENTIFIED_DELIVERY_INDICATORS,
+-      "pref_universal_unidentified_access" to UNIVERSAL_UNIDENTIFIED_ACCESS,
+-      "pref_turn_only" to ALWAYS_RELAY_CALLS
+-    )
 -
--  private void migrateFromSharedPrefsV1(@NonNull Context context) {
--    Log.i(TAG, "[V1] Migrating screen lock values from shared prefs.");
--
--    putBoolean(PASSPHRASE_DISABLED, TextSecurePreferences.getBooleanPreference(context, "pref_disable_passphrase", true));
--    putBoolean(PASSPHRASE_TIMEOUT_ENABLED, TextSecurePreferences.getBooleanPreference(context, "pref_timeout_passphrase", false));
--    putInteger(PASSPHRASE_TIMEOUT, TextSecurePreferences.getIntegerPreference(context, "pref_timeout_interval", 5 * 60));
--    putBoolean(SCREEN_LOCK_ENABLED, TextSecurePreferences.getBooleanPreference(context, "pref_android_screen_lock", false));
--    putLong(SCREEN_LOCK_TIMEOUT, TextSecurePreferences.getLongPreference(context, "pref_android_screen_lock_timeout", 0));
-   }
- 
-   @Override
-@@ -116,6 +98,16 @@ public final class SettingsValues extends SignalStoreValues {
-     if (!store.containsKey(SIGNAL_BACKUPS_SCHEDULE_HOUR)) {
-       initSignalBackupsSchedule();
-     }
-+    // MOLLY: These settings are saved in shared prefs too. Sync with the stored values.
-+    if (getStore().containsKey(THEME)) {
-+      setTheme(Theme.deserialize(getStore().getString(THEME, null)), isDynamicColorsEnabled());
-+    }
-+    if (getStore().containsKey(PREFER_SYSTEM_EMOJI)) {
-+      setPreferSystemEmoji(getStore().getBoolean(PREFER_SYSTEM_EMOJI, false));
-+    }
-+    if (getStore().containsKey(LANGUAGE)) {
-+      setLanguage(getStore().getString(LANGUAGE, null));
-+    }
-   }
- 
-   @Override
-@@ -148,12 +140,7 @@ public final class SettingsValues extends SignalStoreValues {
-                          SENT_MEDIA_QUALITY,
-                          KEEP_MUTED_CHATS_ARCHIVED,
-                          USE_COMPACT_NAVIGATION_BAR,
--                         THREAD_TRIM_SYNC_TO_LINKED_DEVICES,
--                         PASSPHRASE_DISABLED,
--                         PASSPHRASE_TIMEOUT_ENABLED,
--                         PASSPHRASE_TIMEOUT,
--                         SCREEN_LOCK_ENABLED,
--                         SCREEN_LOCK_TIMEOUT);
-+                         THREAD_TRIM_SYNC_TO_LINKED_DEVICES);
-   }
- 
-   public @NonNull LiveData<String> getOnConfigurationSettingChanged() {
-@@ -238,14 +225,23 @@ public final class SettingsValues extends SignalStoreValues {
-   }
- 
-   public @NonNull Theme getTheme() {
--    return Theme.deserialize(getString(THEME, TextSecurePreferences.getTheme(AppDependencies.getApplication())));
-+    return Theme.deserialize(TextSecurePreferences.getTheme(AppDependencies.getApplication()));
-   }
- 
--  public void setTheme(@NonNull Theme theme) {
--    putString(THEME, theme.serialize());
-+  public void setTheme(@NonNull Theme theme, boolean useDynamicColors) {
-+    final Context context = AppDependencies.getApplication();
-+    String serializedTheme = theme.serialize();
-+    putString(THEME,serializedTheme);
-+    // MOLLY: Store the value unencrypted to be able to read it back when app is locked
-+    TextSecurePreferences.setTheme(context, serializedTheme);
-+    TextSecurePreferences.setDynamicColorsEnabled(context, useDynamicColors);
-     onConfigurationSettingChanged.postValue(THEME);
-   }
- 
-+  public boolean isDynamicColorsEnabled() {
-+    return TextSecurePreferences.isDynamicColorsEnabled(AppDependencies.getApplication());
-+  }
-+
-   public int getMessageFontSize() {
-     return getInteger(MESSAGE_FONT_SIZE, TextSecurePreferences.getMessageBodyTextSize(AppDependencies.getApplication()));
-   }
-@@ -287,16 +283,19 @@ public final class SettingsValues extends SignalStoreValues {
-   }
- 
-   public void setLanguage(@NonNull String language) {
-+    // MOLLY: Keep language setting in SharedPreferences
-     TextSecurePreferences.setLanguage(AppDependencies.getApplication(), language);
-     onConfigurationSettingChanged.postValue(LANGUAGE);
-   }
- 
-   public boolean isPreferSystemEmoji() {
--    return getBoolean(PREFER_SYSTEM_EMOJI, TextSecurePreferences.isSystemEmojiPreferred(AppDependencies.getApplication()));
-+    return TextSecurePreferences.isSystemEmojiPreferred(AppDependencies.getApplication());
-   }
- 
-   public void setPreferSystemEmoji(boolean useSystemEmoji) {
-     putBoolean(PREFER_SYSTEM_EMOJI, useSystemEmoji);
-+    // MOLLY: Store the value unencrypted to be able to read it back when app is locked
-+    TextSecurePreferences.setSystemEmojiPreferred(AppDependencies.getApplication(), useSystemEmoji);
-   }
- 
-   public boolean isEnterKeySends() {
-@@ -358,7 +357,7 @@ public final class SettingsValues extends SignalStoreValues {
-   }
- 
-   public boolean isSmsDeliveryReportsEnabled() {
--    return getBoolean(SMS_DELIVERY_REPORTS_ENABLED, TextSecurePreferences.isSmsDeliveryReportsEnabled(AppDependencies.getApplication()));
-+    return getBoolean(SMS_DELIVERY_REPORTS_ENABLED, false);
-   }
- 
-   public void setSmsDeliveryReportsEnabled(boolean smsDeliveryReportsEnabled) {
-@@ -366,7 +365,7 @@ public final class SettingsValues extends SignalStoreValues {
-   }
- 
-   public boolean isWifiCallingCompatibilityModeEnabled() {
--    return getBoolean(WIFI_CALLING_COMPATIBILITY_MODE_ENABLED, TextSecurePreferences.isWifiSmsEnabled(AppDependencies.getApplication()));
-+    return getBoolean(WIFI_CALLING_COMPATIBILITY_MODE_ENABLED, false);
-   }
- 
-   public void setWifiCallingCompatibilityModeEnabled(boolean wifiCallingCompatibilityModeEnabled) {
-@@ -522,44 +521,22 @@ public final class SettingsValues extends SignalStoreValues {
-     return getBoolean(USE_COMPACT_NAVIGATION_BAR, false);
-   }
- 
--  public void setPassphraseDisabled(boolean disabled) {
--    putBoolean(PASSPHRASE_DISABLED, disabled);
--  }
--
--  public boolean getPassphraseDisabled() {
--    return getBoolean(PASSPHRASE_DISABLED, true);
--  }
--
--  public void setPassphraseTimeoutEnabled(boolean enabled) {
--    putBoolean(PASSPHRASE_TIMEOUT_ENABLED, enabled);
--  }
--
--  public boolean getPassphraseTimeoutEnabled() {
--    return getBoolean(PASSPHRASE_TIMEOUT_ENABLED, false);
--  }
--
--  public void setPassphraseTimeout(int minutes) {
--    putLong(PASSPHRASE_TIMEOUT, minutes);
--  }
--
--  public int getPassphraseTimeout() {
--    return getInteger(PASSPHRASE_TIMEOUT, 0);
--  }
--
--  public void setScreenLockEnabled(boolean enabled) {
--    putBoolean(SCREEN_LOCK_ENABLED, enabled);
--  }
--
--  public boolean getScreenLockEnabled() {
--    return getBoolean(SCREEN_LOCK_ENABLED, false);
--  }
--
--  public void setScreenLockTimeout(long seconds) {
--    putLong(SCREEN_LOCK_TIMEOUT, seconds);
-+  public NotificationDeliveryMethod getPreferredNotificationMethod() {
-+    final NotificationDeliveryMethod method;
-+    if (getStore().containsKey(MOLLY_NOTIFICATION_METHOD)) {
-+      method = NotificationDeliveryMethod.deserialize(
-+          getString(MOLLY_NOTIFICATION_METHOD, NotificationDeliveryMethod.FCM.serialize())
-+      );
-+    } else {
-+      boolean fcmEnabled = SignalStore.account().isFcmEnabled();
-+      method = fcmEnabled ? NotificationDeliveryMethod.FCM
-+                          : NotificationDeliveryMethod.WEBSOCKET;
-+    }
-+    return method;
-   }
- 
--  public long getScreenLockTimeout() {
--    return getLong(SCREEN_LOCK_TIMEOUT, 0);
-+  public void setPreferredNotificationMethod(NotificationDeliveryMethod method) {
-+    putString(MOLLY_NOTIFICATION_METHOD, method.serialize());
-   }
- 
-   public boolean getAutomaticVerificationEnabled() {
-@@ -676,4 +653,24 @@ public final class SettingsValues extends SignalStoreValues {
+-    for ((legacyKey, key) in booleanKeys) {
+-      if (LegacySharedPrefs.contains(context, legacyKey)) {
+-        writer.putBoolean(key, LegacySharedPrefs.getBoolean(context, legacyKey, false))
++    for ((legacyKey, key) in MollySettingsPreferences.migratedKeys) {
++      if (legacyKey !in importedLegacyKeys || key in restoredKeyValueKeys || !LegacySharedPrefs.contains(context, legacyKey)) continue
++      when (legacyKey) {
++        in MollySettingsPreferences.booleanKeys ->
++          writer.putBoolean(key, LegacySharedPrefs.getBoolean(context, legacyKey, false))
++        in MollySettingsPreferences.integerKeys ->
++          writer.putInteger(key, LegacySharedPrefs.getIntegerFromString(context, legacyKey, 0))
++        in MollySettingsPreferences.longKeys ->
++          writer.putLong(key, LegacySharedPrefs.getLong(context, legacyKey, 0))
++        in MollySettingsPreferences.stringSetKeys -> {
++          val value = LegacySharedPrefs.getStringSet(context, legacyKey, emptySet()) ?: emptySet()
++          writer.putBlob(key, SignalStoreList(contents = value.toList()).encode())
++        }
++        "pref_key_ringtone" ->
++          writer.putString(key, LegacySharedPrefs.getRingtone(context, legacyKey, Settings.System.DEFAULT_NOTIFICATION_URI))
++        "pref_call_ringtone" ->
++          writer.putString(key, LegacySharedPrefs.getRingtone(context, legacyKey, Settings.System.DEFAULT_RINGTONE_URI))
++        else -> writer.putString(key, LegacySharedPrefs.getString(context, legacyKey, ""))
        }
      }
++    writer.commit()
++    syncBootstrapPreferences()
++  }
+ 
+-    if (LegacySharedPrefs.contains(context, "pref_notification_privacy")) {
+-      writer.putString(MESSAGE_NOTIFICATION_PRIVACY, LegacySharedPrefs.getString(context, "pref_notification_privacy", "all"))
+-    }
+-
++  private fun syncBootstrapPreferences() {
++    val writer = SecurePreferenceManager.getSecurePreferences(context).edit()
++    if (store.containsKey(THEME)) writer.putString(TextSecurePreferences.THEME_PREF, getString(THEME, "system"))
++    if (store.containsKey(PREFER_SYSTEM_EMOJI)) writer.putBoolean(TextSecurePreferences.SYSTEM_EMOJI_PREF, isPreferSystemEmoji)
+     writer.commit()
    }
-+
-+  public enum NotificationDeliveryMethod {
-+    FCM, WEBSOCKET, UNIFIEDPUSH;
-+
-+    public @NonNull String serialize() {
-+      return name();
+ 
+   private fun migrateFromSharedPrefsV1(context: Context) {
+     Log.i(TAG, "[V1] Migrating screen lock values from shared prefs.")
+ 
+-    putBoolean(PASSPHRASE_DISABLED, LegacySharedPrefs.getBoolean(context, "pref_disable_passphrase", true))
+-    putBoolean(PASSPHRASE_TIMEOUT_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_timeout_passphrase", false))
+-    putInteger(PASSPHRASE_TIMEOUT, LegacySharedPrefs.getInteger(context, "pref_timeout_interval", 5 * 60))
+-    putBoolean(SCREEN_LOCK_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_android_screen_lock", false))
+-    putLong(SCREEN_LOCK_TIMEOUT, LegacySharedPrefs.getLong(context, "pref_android_screen_lock_timeout", 0))
++    val writer = store.beginWrite()
++    if (!store.containsKey(PASSPHRASE_DISABLED)) {
++      writer.putBoolean(PASSPHRASE_DISABLED, LegacySharedPrefs.getBoolean(context, "pref_disable_passphrase", true))
 +    }
-+
-+    public static @NonNull NotificationDeliveryMethod deserialize(@NonNull String value) {
-+      return NotificationDeliveryMethod.valueOf(value);
++    if (!store.containsKey(PASSPHRASE_TIMEOUT_ENABLED)) {
++      writer.putBoolean(PASSPHRASE_TIMEOUT_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_timeout_passphrase", false))
 +    }
++    if (!store.containsKey(PASSPHRASE_TIMEOUT)) {
++      writer.putInteger(PASSPHRASE_TIMEOUT, LegacySharedPrefs.getInteger(context, "pref_timeout_interval", 5 * 60))
++    }
++    if (!store.containsKey(SCREEN_LOCK_ENABLED)) {
++      writer.putBoolean(SCREEN_LOCK_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_android_screen_lock", false))
++    }
++    if (!store.containsKey(SCREEN_LOCK_TIMEOUT)) {
++      writer.putLong(SCREEN_LOCK_TIMEOUT, LegacySharedPrefs.getLong(context, "pref_android_screen_lock_timeout", 0))
++    }
++    writer.commit()
+   }
+ 
+   /**
+@@ -603,7 +681,7 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+       writer.putInteger(MESSAGE_REPEAT_ALERTS, LegacySharedPrefs.getIntegerFromString(context, "pref_repeat_alerts", 0))
+     }
+     if (!store.containsKey(MESSAGE_NOTIFICATION_PRIVACY)) {
+-      writer.putString(MESSAGE_NOTIFICATION_PRIVACY, LegacySharedPrefs.getString(context, "pref_notification_privacy", "all"))
++      writer.putString(MESSAGE_NOTIFICATION_PRIVACY, LegacySharedPrefs.getString(context, "pref_notification_privacy", "none"))
+     }
+     if (!store.containsKey(CALL_NOTIFICATIONS_ENABLED)) {
+       writer.putBoolean(CALL_NOTIFICATIONS_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_call_notifications", true))
+@@ -619,16 +697,36 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+       writer.putBoolean(NOTIFY_WHEN_CONTACT_JOINS_SIGNAL, LegacySharedPrefs.getBoolean(context, "pref_enable_new_contacts_notifications", false))
+     }
+ 
+-    writer.putString(MESSAGE_LED_BLINK_PATTERN_CUSTOM, LegacySharedPrefs.getString(context, "pref_led_blink_custom", "500,2000"))
+-    writer.putInteger(MESSAGE_NOTIFICATION_PRIORITY, LegacySharedPrefs.getIntegerFromString(context, "pref_notification_priority", NotificationCompat.PRIORITY_HIGH))
+-    writer.putString(MEDIA_KEYBOARD_MODE, LegacySharedPrefs.getString(context, "pref_media_keyboard_mode", MediaKeyboardMode.EMOJI.name))
+-    writer.putLong(LOCAL_BACKUP_NEXT_TIME, LegacySharedPrefs.getLong(context, "pref_backup_next_time", -1))
+-    writer.putBoolean(INCOGNITO_KEYBOARD_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_incognito_keyboard", false))
+-    writer.putBoolean(READ_RECEIPTS_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_read_receipts", false))
+-    writer.putBoolean(TYPING_INDICATORS_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_typing_indicators", false))
+-    writer.putBoolean(SHOW_UNIDENTIFIED_DELIVERY_INDICATORS, LegacySharedPrefs.getBoolean(context, "pref_show_unidentifed_delivery_indicators", false))
+-    writer.putBoolean(UNIVERSAL_UNIDENTIFIED_ACCESS, LegacySharedPrefs.getBoolean(context, "pref_universal_unidentified_access", false))
+-    writer.putBoolean(ALWAYS_RELAY_CALLS, LegacySharedPrefs.getBoolean(context, "pref_turn_only", false))
++    if (!store.containsKey(MESSAGE_LED_BLINK_PATTERN_CUSTOM)) {
++      writer.putString(MESSAGE_LED_BLINK_PATTERN_CUSTOM, LegacySharedPrefs.getString(context, "pref_led_blink_custom", "500,2000"))
++    }
++    if (!store.containsKey(MESSAGE_NOTIFICATION_PRIORITY)) {
++      writer.putInteger(MESSAGE_NOTIFICATION_PRIORITY, LegacySharedPrefs.getIntegerFromString(context, "pref_notification_priority", NotificationCompat.PRIORITY_HIGH))
++    }
++    if (!store.containsKey(MEDIA_KEYBOARD_MODE)) {
++      writer.putString(MEDIA_KEYBOARD_MODE, LegacySharedPrefs.getString(context, "pref_media_keyboard_mode", MediaKeyboardMode.EMOJI.name))
++    }
++    if (!store.containsKey(LOCAL_BACKUP_NEXT_TIME)) {
++      writer.putLong(LOCAL_BACKUP_NEXT_TIME, LegacySharedPrefs.getLong(context, "pref_backup_next_time", -1))
++    }
++    if (!store.containsKey(INCOGNITO_KEYBOARD_ENABLED)) {
++      writer.putBoolean(INCOGNITO_KEYBOARD_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_incognito_keyboard", true))
++    }
++    if (!store.containsKey(READ_RECEIPTS_ENABLED)) {
++      writer.putBoolean(READ_RECEIPTS_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_read_receipts", true))
++    }
++    if (!store.containsKey(TYPING_INDICATORS_ENABLED)) {
++      writer.putBoolean(TYPING_INDICATORS_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_typing_indicators", true))
++    }
++    if (!store.containsKey(SHOW_UNIDENTIFIED_DELIVERY_INDICATORS)) {
++      writer.putBoolean(SHOW_UNIDENTIFIED_DELIVERY_INDICATORS, LegacySharedPrefs.getBoolean(context, "pref_show_unidentifed_delivery_indicators", false))
++    }
++    if (!store.containsKey(UNIVERSAL_UNIDENTIFIED_ACCESS)) {
++      writer.putBoolean(UNIVERSAL_UNIDENTIFIED_ACCESS, LegacySharedPrefs.getBoolean(context, "pref_universal_unidentified_access", false))
++    }
++    if (!store.containsKey(ALWAYS_RELAY_CALLS)) {
++      writer.putBoolean(ALWAYS_RELAY_CALLS, LegacySharedPrefs.getBoolean(context, "pref_turn_only", false))
++    }
+ 
+     // Only migrate an explicit choice -- when there was none, the getters fall back to the same resource defaults shared prefs used to.
+     val mediaDownloadKeys = mapOf(
+@@ -638,6 +736,7 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     )
+ 
+     for ((legacyKey, key) in mediaDownloadKeys) {
++      if (store.containsKey(key)) continue
+       val legacyValue = LegacySharedPrefs.getStringSet(context, legacyKey, null)
+ 
+       if (legacyValue != null) {
+@@ -645,8 +744,9 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+       }
+     }
+ 
+-    // Written last so that it acts as the marker for this migration having run.
+-    writer.putBoolean(SCREEN_SECURITY_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_screen_security", false))
++    if (!store.containsKey(SCREEN_SECURITY_ENABLED)) {
++      writer.putBoolean(SCREEN_SECURITY_ENABLED, LegacySharedPrefs.getBoolean(context, "pref_screen_security", true))
++    }
+ 
+     writer.commit()
+   }
+@@ -678,6 +778,9 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     fun serialize(): Int = value
+ 
+     companion object {
++      @JvmField
++      val DISABLED = DISABLED_AUTOMATICALLY
 +
-+    public @StringRes int getStringId() {
-+      return switch (this) {
-+        case FCM -> R.string.NotificationDeliveryMethod__fcm;
-+        case WEBSOCKET -> R.string.NotificationDeliveryMethod__websocket;
-+        case UNIFIEDPUSH -> R.string.NotificationDeliveryMethod__unifiedpush;
-+      };
+       @JvmStatic
+       fun deserialize(value: Int): ForceWebsocketMode {
+         return entries.firstOrNull { it.value == value } ?: throw IllegalArgumentException("Bad value: $value")
+@@ -685,6 +788,27 @@ class SettingsValues internal constructor(store: KeyValueStore, private val cont
+     }
+   }
+ 
++  enum class NotificationDeliveryMethod {
++    FCM,
++    WEBSOCKET,
++    UNIFIEDPUSH;
++
++    fun serialize(): String = name
++
++    @get:StringRes
++    val stringId: Int
++      get() = when (this) {
++        FCM -> R.string.NotificationDeliveryMethod__fcm
++        WEBSOCKET -> R.string.NotificationDeliveryMethod__websocket
++        UNIFIEDPUSH -> R.string.NotificationDeliveryMethod__unifiedpush
++      }
++
++    companion object {
++      @JvmStatic
++      fun deserialize(value: String): NotificationDeliveryMethod = valueOf(value)
 +    }
 +  }
- }
++
+   /** NEVER rename these -- they're persisted by name. */
+   enum class MediaKeyboardMode {
+     EMOJI,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java b/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java
-index 1afe896023fc583f6e673e545eac8bc4aa4cd19f..6bb8f910f4a7d81cf53d566ee42c081bb17abdd4 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e7b3691b23db6b0d4098f026a04fe95709990f7
+--- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java
-@@ -4,20 +4,24 @@ package org.thoughtcrime.securesms.preferences;
- import android.annotation.SuppressLint;
- import android.os.Bundle;
- import android.view.View;
--import android.view.ViewGroup;
- 
--import androidx.core.view.ViewCompat;
+@@ -0,0 +1,87 @@
++package org.thoughtcrime.securesms.preferences;
++
++
++import android.annotation.SuppressLint;
++import android.os.Bundle;
++import android.view.View;
++
 +import androidx.annotation.NonNull;
 +import androidx.annotation.Nullable;
 +import androidx.appcompat.app.ActionBar;
 +import androidx.appcompat.app.AppCompatActivity;
- import androidx.fragment.app.DialogFragment;
- import androidx.preference.Preference;
--import androidx.preference.PreferenceCategory;
++import androidx.fragment.app.DialogFragment;
++import androidx.preference.Preference;
 +import androidx.preference.PreferenceDataStore;
- import androidx.preference.PreferenceFragmentCompat;
- import androidx.preference.PreferenceGroupAdapter;
- import androidx.preference.PreferenceScreen;
- import androidx.preference.PreferenceViewHolder;
- import androidx.recyclerview.widget.RecyclerView;
- 
--import org.thoughtcrime.securesms.R;
- import org.thoughtcrime.securesms.components.CustomDefaultPreference;
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager;
++import androidx.preference.PreferenceFragmentCompat;
++import androidx.preference.PreferenceGroupAdapter;
++import androidx.preference.PreferenceScreen;
++import androidx.preference.PreferenceViewHolder;
++import androidx.recyclerview.widget.RecyclerView;
++
++import org.thoughtcrime.securesms.components.CustomDefaultPreference;
++import org.thoughtcrime.securesms.util.TextSecurePreferences;
 +
 +import java.util.Objects;
- 
- public abstract class CorrectedPreferenceFragment extends PreferenceFragmentCompat {
- 
-@@ -27,13 +31,15 @@ public abstract class CorrectedPreferenceFragment extends PreferenceFragmentComp
-   }
- 
-   @Override
--  public void onActivityCreated(Bundle savedInstanceState) {
--    super.onActivityCreated(savedInstanceState);
--
--    View lv = getView().findViewById(android.R.id.list);
--    if (lv != null) lv.setPadding(0, 0, 0, 0);
++
++public abstract class CorrectedPreferenceFragment extends PreferenceFragmentCompat {
++
++  @Override
++  public void onCreate(Bundle icicle) {
++    super.onCreate(icicle);
++  }
++
++  @Override
 +  public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
 +    PreferenceDataStore dataStore = new SharedPreferencesDataStore(
-+            SecurePreferenceManager.getSecurePreferences(getContext()));
++            TextSecurePreferences.getSharedPreferences(requireContext()));
 +    getPreferenceManager().setPreferenceDataStore(dataStore);
 +    onCreateEncryptedPreferences(savedInstanceState, rootKey);
-   }
- 
++  }
++
 +  protected abstract void onCreateEncryptedPreferences(Bundle savedInstanceState, String rootKey);
 +
-   @Override
-   public void onDisplayPreferenceDialog(Preference preference) {
-     DialogFragment dialogFragment = null;
-@@ -55,28 +61,27 @@ public abstract class CorrectedPreferenceFragment extends PreferenceFragmentComp
-   protected RecyclerView.Adapter onCreateAdapter(PreferenceScreen preferenceScreen) {
-     return new PreferenceGroupAdapter(preferenceScreen) {
-       @Override
--      public void onBindViewHolder(PreferenceViewHolder holder, int position) {
++  @Override
++  public void onDisplayPreferenceDialog(Preference preference) {
++    DialogFragment dialogFragment = null;
++
++    if (preference instanceof CustomDefaultPreference) {
++      dialogFragment = CustomDefaultPreference.CustomDefaultPreferenceDialogFragmentCompat.newInstance(preference.getKey());
++    }
++
++    if (dialogFragment != null) {
++      dialogFragment.setTargetFragment(this, 0);
++      dialogFragment.show(getFragmentManager(), "android.support.v7.preference.PreferenceFragment.DIALOG");
++    } else {
++      super.onDisplayPreferenceDialog(preference);
++    }
++  }
++
++  @Override
++  @SuppressLint("RestrictedApi")
++  protected RecyclerView.Adapter onCreateAdapter(PreferenceScreen preferenceScreen) {
++    return new PreferenceGroupAdapter(preferenceScreen) {
++      @Override
 +      public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
-         super.onBindViewHolder(holder, position);
-         Preference preference = getItem(position);
--        if (preference instanceof PreferenceCategory) {
--          setZeroPaddingToLayoutChildren(holder.itemView);
--        } else {
--          View iconFrame = holder.itemView.findViewById(androidx.preference.R.id.icon_frame);
--          if (iconFrame != null) {
--            iconFrame.setVisibility(preference.getIcon() == null ? View.GONE : View.VISIBLE);
--          }
++        super.onBindViewHolder(holder, position);
++        Preference preference = getItem(position);
 +        View iconFrame = holder.itemView.findViewById(androidx.preference.R.id.icon_frame);
 +        if (iconFrame != null) {
 +          iconFrame.setVisibility(preference.getIcon() == null ? View.GONE : View.VISIBLE);
-         }
-       }
-     };
-   }
- 
--  private void setZeroPaddingToLayoutChildren(View view) {
--    if (!(view instanceof ViewGroup)) return;
++        }
++      }
++    };
++  }
++
 +  public <T extends Preference> T requirePreference(@NonNull CharSequence key) {
 +    return Objects.requireNonNull(super.findPreference(key));
 +  }
- 
--    ViewGroup viewGroup = (ViewGroup) view;
--    for (int i = 0; i < viewGroup.getChildCount(); i++) {
--      setZeroPaddingToLayoutChildren(viewGroup.getChildAt(i));
--      ViewCompat.setPaddingRelative(viewGroup, 0, viewGroup.getPaddingTop(), ViewCompat.getPaddingEnd(viewGroup), viewGroup.getPaddingBottom());
++
 +  @Nullable
 +  protected ActionBar getSupportActionBar() {
 +    if (getActivity() instanceof AppCompatActivity) {
 +      return ((AppCompatActivity) getActivity()).getSupportActionBar();
 +    } else {
 +      return null;
-     }
-   }
- }
++    }
++  }
++}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/preferences/SharedPreferencesDataStore.java b/app/src/main/java/org/thoughtcrime/securesms/preferences/SharedPreferencesDataStore.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..2cb72be639f3709c356ae33bc9e61000f3cdd770
@@ -5049,93 +5213,118 @@ index 0000000000000000000000000000000000000000..f985d6b573d0509f2e920e4f8d3a15d6
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
-index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3575e2e6d 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c2e07c3a600cb85f8881eb2c6bb9c963de7fd41
+--- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
-@@ -15,14 +15,13 @@ import androidx.annotation.Nullable;
- import androidx.core.app.NotificationCompat;
- import androidx.core.app.NotificationManagerCompat;
- import androidx.core.content.ContextCompat;
--import androidx.preference.PreferenceManager;
- 
--import org.greenrobot.eventbus.EventBus;
- import org.signal.core.util.PendingIntentFlags;
- import org.signal.core.util.logging.Log;
- import org.signal.libsignal.zkgroup.profiles.ProfileKey;
- import org.thoughtcrime.securesms.BuildConfig;
- import org.thoughtcrime.securesms.R;
+@@ -0,0 +1,1080 @@
++package org.thoughtcrime.securesms.util;
++
++import android.Manifest;
++import android.app.PendingIntent;
++import android.content.Context;
++import android.content.Intent;
++import android.content.SharedPreferences;
++import android.content.pm.PackageManager;
++import android.net.Uri;
++import android.provider.Settings;
++
++import androidx.annotation.ArrayRes;
++import androidx.annotation.NonNull;
++import androidx.annotation.Nullable;
++import androidx.core.app.NotificationCompat;
++import androidx.core.app.NotificationManagerCompat;
++import androidx.core.content.ContextCompat;
++
++import org.signal.core.util.PendingIntentFlags;
++import org.signal.core.util.logging.Log;
++import org.signal.libsignal.zkgroup.profiles.ProfileKey;
++import org.thoughtcrime.securesms.BuildConfig;
++import org.thoughtcrime.securesms.R;
 +import org.thoughtcrime.securesms.apkupdate.ApkUpdateRefreshListener;
- import org.thoughtcrime.securesms.backup.proto.SharedPreference;
- import org.thoughtcrime.securesms.crypto.ProfileKeyUtil;
- import org.thoughtcrime.securesms.database.SignalDatabase;
-@@ -30,9 +29,11 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies;
- import org.thoughtcrime.securesms.keyvalue.SettingsValues;
- import org.thoughtcrime.securesms.keyvalue.SignalStore;
- import org.thoughtcrime.securesms.lock.RegistrationLockReminders;
++import org.thoughtcrime.securesms.backup.proto.SharedPreference;
++import org.thoughtcrime.securesms.crypto.ProfileKeyUtil;
++import org.thoughtcrime.securesms.database.SignalDatabase;
++import org.thoughtcrime.securesms.dependencies.AppDependencies;
++import org.thoughtcrime.securesms.keyvalue.SettingsValues;
++import org.thoughtcrime.securesms.keyvalue.MollySettingsPreferences;
++import org.thoughtcrime.securesms.keyvalue.SignalStore;
++import org.thoughtcrime.securesms.lock.RegistrationLockReminders;
 +import org.thoughtcrime.securesms.net.ProxyType;
- import org.thoughtcrime.securesms.notifications.NotificationChannels;
- import org.thoughtcrime.securesms.notifications.NotificationIds;
- import org.thoughtcrime.securesms.preferences.widgets.NotificationPrivacyPreference;
++import org.thoughtcrime.securesms.notifications.NotificationChannels;
++import org.thoughtcrime.securesms.notifications.NotificationIds;
++import org.thoughtcrime.securesms.preferences.widgets.NotificationPrivacyPreference;
 +import org.thoughtcrime.securesms.preferences.widgets.PassphraseLockTriggerPreference;
- import org.thoughtcrime.securesms.recipients.Recipient;
- import org.thoughtcrime.securesms.registration.ui.RegistrationActivity;
- 
-@@ -42,14 +43,15 @@ import java.util.Collections;
- import java.util.HashSet;
- import java.util.List;
- import java.util.Set;
++import org.thoughtcrime.securesms.recipients.Recipient;
++import org.thoughtcrime.securesms.registration.ui.RegistrationActivity;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
 +import java.util.concurrent.TimeUnit;
- 
- public class TextSecurePreferences {
- 
-   private static final String TAG = Log.tag(TextSecurePreferences.class);
- 
-   public  static final String THEME_PREF                       = "pref_theme";
++
++public class TextSecurePreferences {
++
++  private static final String TAG = Log.tag(TextSecurePreferences.class);
++
++  public  static final String THEME_PREF                       = "pref_theme";
 +  public  static final String DYNAMIC_COLORS_ENABLED           = "pref_dynamic_colors";
-   public  static final String LANGUAGE_PREF                    = "pref_language";
--  public  static final String ENABLE_MANUAL_MMS_PREF           = "pref_enable_manual_mms";
- 
-   private static final String LAST_VERSION_CODE_PREF           = "last_version_code";
-   public  static final String RINGTONE_PREF                    = "pref_key_ringtone";
-@@ -60,22 +62,18 @@ public class TextSecurePreferences {
-   private static final String LED_BLINK_PREF_CUSTOM            = "pref_led_blink_custom";
-   public  static final String SCREEN_SECURITY_PREF             = "pref_screen_security";
-   private static final String ENTER_SENDS_PREF                 = "pref_enter_sends";
--  private static final String SMS_DELIVERY_REPORT_PREF         = "pref_delivery_report_sms";
-   private static final String PROMPTED_PUSH_REGISTRATION_PREF  = "pref_prompted_push_registration";
-   private static final String PROMPTED_OPTIMIZE_DOZE_PREF      = "pref_prompted_optimize_doze";
--  private static final String DIRECTORY_FRESH_TIME_PREF        = "pref_directory_refresh_time";
++  public  static final String LANGUAGE_PREF                    = "pref_language";
++
++  private static final String LAST_VERSION_CODE_PREF           = "last_version_code";
++  public  static final String RINGTONE_PREF                    = "pref_key_ringtone";
++  public  static final String VIBRATE_PREF                     = "pref_key_vibrate";
++  private static final String NOTIFICATION_PREF                = "pref_key_enable_notifications";
++  public  static final String LED_COLOR_PREF                   = "pref_led_color";
++  public  static final String LED_BLINK_PREF                   = "pref_led_blink";
++  private static final String LED_BLINK_PREF_CUSTOM            = "pref_led_blink_custom";
++  public  static final String SCREEN_SECURITY_PREF             = "pref_screen_security";
++  private static final String ENTER_SENDS_PREF                 = "pref_enter_sends";
++  private static final String PROMPTED_PUSH_REGISTRATION_PREF  = "pref_prompted_push_registration";
++  private static final String PROMPTED_OPTIMIZE_DOZE_PREF      = "pref_prompted_optimize_doze";
 +  public  static final String DIRECTORY_FRESH_TIME_PREF        = "pref_directory_refresh_time";
 +  public  static final String REFRESH_FCM_TOKEN_PREF           = "pref_refresh_fcm_token";
 +  public  static final String UPDATE_APK_ENABLED               = "pref_update_apk_enabled";
 +  public  static final String UPDATE_APK_INCLUDE_BETA          = "pref_update_apk_include_beta";
-   private static final String UPDATE_APK_REFRESH_TIME_PREF     = "pref_update_apk_refresh_time";
-   private static final String SIGNED_PREKEY_ROTATION_TIME_PREF = "pref_signed_pre_key_rotation_time";
- 
-   private static final String IN_THREAD_NOTIFICATION_PREF      = "pref_key_inthread_notifications";
--  private static final String SHOW_INVITE_REMINDER_PREF        = "pref_show_invite_reminder";
-   public  static final String MESSAGE_BODY_TEXT_SIZE_PREF      = "pref_message_body_text_size";
- 
--  private static final String WIFI_SMS_PREF                    = "pref_wifi_sms";
--
--  private static final String RATING_LATER_PREF                = "pref_rating_later";
--  private static final String RATING_ENABLED_PREF              = "pref_rating_enabled";
--
-   public  static final String REPEAT_ALERTS_PREF               = "pref_repeat_alerts";
-   public  static final String NOTIFICATION_PRIVACY_PREF        = "pref_notification_privacy";
-   public  static final String NOTIFICATION_PRIORITY_PREF       = "pref_notification_priority";
-@@ -86,7 +84,6 @@ public class TextSecurePreferences {
-   public  static final String MEDIA_DOWNLOAD_ROAMING_PREF      = "pref_media_download_roaming";
- 
-   public  static final String SYSTEM_EMOJI_PREF                = "pref_system_emoji";
--  private static final String MULTI_DEVICE_PROVISIONED_PREF    = "pref_multi_device";
-   public  static final String ALWAYS_RELAY_CALLS_PREF          = "pref_turn_only";
-   public  static final String READ_RECEIPTS_PREF               = "pref_read_receipts";
-   public  static final String INCOGNITO_KEYBOARD_PREF          = "pref_incognito_keyboard";
-@@ -107,6 +104,20 @@ public class TextSecurePreferences {
-   private static final String BACKUP_PASSPHRASE           = "pref_backup_passphrase";
-   private static final String ENCRYPTED_BACKUP_PASSPHRASE = "pref_encrypted_backup_passphrase";
-   private static final String BACKUP_TIME                 = "pref_backup_next_time";
++  private static final String UPDATE_APK_REFRESH_TIME_PREF     = "pref_update_apk_refresh_time";
++  private static final String SIGNED_PREKEY_ROTATION_TIME_PREF = "pref_signed_pre_key_rotation_time";
++
++  private static final String IN_THREAD_NOTIFICATION_PREF      = "pref_key_inthread_notifications";
++  public  static final String MESSAGE_BODY_TEXT_SIZE_PREF      = "pref_message_body_text_size";
++
++  public  static final String REPEAT_ALERTS_PREF               = "pref_repeat_alerts";
++  public  static final String NOTIFICATION_PRIVACY_PREF        = "pref_notification_privacy";
++  public  static final String NOTIFICATION_PRIORITY_PREF       = "pref_notification_priority";
++  public  static final String NEW_CONTACTS_NOTIFICATIONS       = "pref_enable_new_contacts_notifications";
++
++  public  static final String MEDIA_DOWNLOAD_MOBILE_PREF       = "pref_media_download_mobile";
++  public  static final String MEDIA_DOWNLOAD_WIFI_PREF         = "pref_media_download_wifi";
++  public  static final String MEDIA_DOWNLOAD_ROAMING_PREF      = "pref_media_download_roaming";
++
++  public  static final String SYSTEM_EMOJI_PREF                = "pref_system_emoji";
++  public  static final String ALWAYS_RELAY_CALLS_PREF          = "pref_turn_only";
++  public  static final String READ_RECEIPTS_PREF               = "pref_read_receipts";
++  public  static final String INCOGNITO_KEYBOARD_PREF          = "pref_incognito_keyboard";
++  public  static final String UNAUTHORIZED_RECEIVED            = "pref_unauthorized_received";
++  private static final String SUCCESSFUL_DIRECTORY_PREF        = "pref_successful_directory";
++
++  private static final String DATABASE_ENCRYPTED_SECRET     = "pref_database_encrypted_secret";
++  private static final String DATABASE_UNENCRYPTED_SECRET   = "pref_database_unencrypted_secret";
++  private static final String ATTACHMENT_ENCRYPTED_SECRET   = "pref_attachment_encrypted_secret";
++  private static final String ATTACHMENT_UNENCRYPTED_SECRET = "pref_attachment_unencrypted_secret";
++
++  public static final String CALL_NOTIFICATIONS_PREF = "pref_call_notifications";
++  public static final String CALL_RINGTONE_PREF      = "pref_call_ringtone";
++  public static final String CALL_VIBRATE_PREF       = "pref_call_vibrate";
++
++  public  static final String BACKUP                      = "pref_backup";
++  public  static final String BACKUP_ENABLED              = "pref_backup_enabled";
++  private static final String BACKUP_PASSPHRASE           = "pref_backup_passphrase";
++  private static final String ENCRYPTED_BACKUP_PASSPHRASE = "pref_encrypted_backup_passphrase";
++  private static final String BACKUP_TIME                 = "pref_backup_next_time";
 +  private static final String BACKUP_INTERVAL             = "pref_backup_interval";
 +  private static final String BACKUP_MAX_FILES            = "pref_backup_max_files";
 +
@@ -5150,44 +5339,53 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +  public  static final String PROXY_TYPE       = "pref_proxy_type";
 +  public  static final String PROXY_SOCKS_HOST = "pref_proxy_socks_host";
 +  public  static final String PROXY_SOCKS_PORT = "pref_proxy_socks_port";
- 
-   @Deprecated
-   public static final  String REGISTRATION_LOCK_PREF_V1                = "pref_registration_lock";
-@@ -122,6 +133,7 @@ public class TextSecurePreferences {
-   private static final String LAST_FULL_CONTACT_SYNC_TIME = "pref_last_full_contact_sync_time";
-   private static final String NEEDS_FULL_CONTACT_SYNC     = "pref_needs_full_contact_sync";
- 
++
++  @Deprecated
++  public static final  String REGISTRATION_LOCK_PREF_V1                = "pref_registration_lock";
++  @Deprecated
++  private static final String REGISTRATION_LOCK_PIN_PREF_V1            = "pref_registration_lock_pin";
++
++  private static final String REGISTRATION_LOCK_LAST_REMINDER_TIME_POST_KBS = "pref_registration_lock_last_reminder_time_post_kbs";
++  private static final String REGISTRATION_LOCK_NEXT_REMINDER_INTERVAL      = "pref_registration_lock_next_reminder_interval";
++
++  public  static final String SERVICE_OUTAGE         = "pref_service_outage";
++  private static final String LAST_OUTAGE_CHECK_TIME = "pref_last_outage_check_time";
++
++  private static final String LAST_FULL_CONTACT_SYNC_TIME = "pref_last_full_contact_sync_time";
++  private static final String NEEDS_FULL_CONTACT_SYNC     = "pref_needs_full_contact_sync";
++
 +  public  static final String LOG_ENABLED            = "pref_log_enabled";
-   private static final String LOG_ENCRYPTED_SECRET   = "pref_log_encrypted_secret";
-   private static final String LOG_UNENCRYPTED_SECRET = "pref_log_unencrypted_secret";
- 
-@@ -133,13 +145,12 @@ public class TextSecurePreferences {
-   private static final String UNIDENTIFIED_ACCESS_CERTIFICATE_ROTATION_TIME_PREF = "pref_unidentified_access_certificate_rotation_time";
-   public  static final String UNIVERSAL_UNIDENTIFIED_ACCESS                      = "pref_universal_unidentified_access";
-   public  static final String SHOW_UNIDENTIFIED_DELIVERY_INDICATORS              = "pref_show_unidentifed_delivery_indicators";
--  private static final String UNIDENTIFIED_DELIVERY_ENABLED                      = "pref_unidentified_delivery_enabled";
- 
-   public static final String TYPING_INDICATORS = "pref_typing_indicators";
- 
--  public static final String LINK_PREVIEWS = "pref_link_previews";
++  private static final String LOG_ENCRYPTED_SECRET   = "pref_log_encrypted_secret";
++  private static final String LOG_UNENCRYPTED_SECRET = "pref_log_unencrypted_secret";
++
++  private static final String NOTIFICATION_CHANNEL_VERSION          = "pref_notification_channel_version";
++  private static final String NOTIFICATION_MESSAGES_CHANNEL_VERSION = "pref_notification_messages_channel_version";
++
++  private static final String NEEDS_MESSAGE_PULL = "pref_needs_message_pull";
++
++  private static final String UNIDENTIFIED_ACCESS_CERTIFICATE_ROTATION_TIME_PREF = "pref_unidentified_access_certificate_rotation_time";
++  public  static final String UNIVERSAL_UNIDENTIFIED_ACCESS                      = "pref_universal_unidentified_access";
++  public  static final String SHOW_UNIDENTIFIED_DELIVERY_INDICATORS              = "pref_show_unidentifed_delivery_indicators";
++
++  public static final String TYPING_INDICATORS = "pref_typing_indicators";
++
 +  private static final String BLOCK_UNKNOWN = "pref_block_unknown";
- 
--  private static final String SEEN_STICKER_INTRO_TOOLTIP = "pref_seen_sticker_intro_tooltip";
++
 +  public static final String LINK_PREVIEWS = "pref_link_previews";
- 
-   private static final String MEDIA_KEYBOARD_MODE = "pref_media_keyboard_mode";
-   public  static final String RECENT_STORAGE_KEY  = "pref_recent_emoji2";
-@@ -148,12 +159,22 @@ public class TextSecurePreferences {
- 
-   private static final String APP_MIGRATION_VERSION = "pref_app_migration_version";
- 
--  private static final String FIRST_INSTALL_VERSION = "pref_first_install_version";
++
++  private static final String MEDIA_KEYBOARD_MODE = "pref_media_keyboard_mode";
++  public  static final String RECENT_STORAGE_KEY  = "pref_recent_emoji2";
++
++  private static final String JOB_MANAGER_VERSION = "pref_job_manager_version";
++
++  private static final String APP_MIGRATION_VERSION = "pref_app_migration_version";
++
 +  public  static final String FIRST_INSTALL_VERSION = "pref_first_install_version";
- 
-   private static final String HAS_SEEN_SWIPE_TO_REPLY = "pref_has_seen_swipe_to_reply";
- 
-   private static final String HAS_SEEN_VIDEO_RECORDING_TOOLTIP = "camerax.fragment.has.dismissed.video.recording.tooltip";
- 
++
++  private static final String HAS_SEEN_SWIPE_TO_REPLY = "pref_has_seen_swipe_to_reply";
++
++  private static final String HAS_SEEN_VIDEO_RECORDING_TOOLTIP = "camerax.fragment.has.dismissed.video.recording.tooltip";
++
 +  private static final String GOOGLE_MAP_TYPE = "pref_google_map_type";
 +
 +  public static String getGoogleMapType(Context context) {
@@ -5198,22 +5396,34 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    setStringPreference(context, GOOGLE_MAP_TYPE, value);
 +  }
 +
-   private static final String[] booleanPreferencesToBackup = {SCREEN_SECURITY_PREF,
-                                                               INCOGNITO_KEYBOARD_PREF,
-                                                               ALWAYS_RELAY_CALLS_PREF,
-@@ -167,7 +188,6 @@ public class TextSecurePreferences {
-                                                               CALL_NOTIFICATIONS_PREF,
-                                                               CALL_VIBRATE_PREF,
-                                                               NEW_CONTACTS_NOTIFICATIONS,
--                                                              SHOW_INVITE_REMINDER_PREF,
-                                                               SYSTEM_EMOJI_PREF,
-                                                               ENTER_SENDS_PREF};
- 
-@@ -183,7 +203,19 @@ public class TextSecurePreferences {
-                                                                 MEDIA_DOWNLOAD_WIFI_PREF,
-                                                                 MEDIA_DOWNLOAD_ROAMING_PREF};
- 
--  private static volatile SharedPreferences preferences = null;
++  private static final String[] booleanPreferencesToBackup = {SCREEN_SECURITY_PREF,
++                                                              INCOGNITO_KEYBOARD_PREF,
++                                                              ALWAYS_RELAY_CALLS_PREF,
++                                                              READ_RECEIPTS_PREF,
++                                                              TYPING_INDICATORS,
++                                                              SHOW_UNIDENTIFIED_DELIVERY_INDICATORS,
++                                                              UNIVERSAL_UNIDENTIFIED_ACCESS,
++                                                              NOTIFICATION_PREF,
++                                                              VIBRATE_PREF,
++                                                              IN_THREAD_NOTIFICATION_PREF,
++                                                              CALL_NOTIFICATIONS_PREF,
++                                                              CALL_VIBRATE_PREF,
++                                                              NEW_CONTACTS_NOTIFICATIONS,
++                                                              SYSTEM_EMOJI_PREF,
++                                                              ENTER_SENDS_PREF};
++
++  private static final String[] stringPreferencesToBackup = {LED_COLOR_PREF,
++                                                             LED_BLINK_PREF,
++                                                             REPEAT_ALERTS_PREF,
++                                                             NOTIFICATION_PRIVACY_PREF,
++                                                             THEME_PREF,
++                                                             LANGUAGE_PREF,
++                                                             MESSAGE_BODY_TEXT_SIZE_PREF};
++
++  private static final String[] stringSetPreferencesToBackup = {MEDIA_DOWNLOAD_MOBILE_PREF,
++                                                                MEDIA_DOWNLOAD_WIFI_PREF,
++                                                                MEDIA_DOWNLOAD_ROAMING_PREF};
++
 +  private static final String[] booleanPreferencesToBackupMolly = {
 +      LOG_ENABLED,
 +      UPDATE_APK_ENABLED,
@@ -5227,13 +5437,29 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +  private static final String[] stringSetPreferencesToBackupMolly = {PASSPHRASE_LOCK_TRIGGER};
 +
 +  private static final String[] integerPreferencesToBackupMolly = {PASSPHRASE_LOCK_TIMEOUT};
- 
-   public static long getPreferencesToSaveToBackupCount(@NonNull Context context) {
-     SharedPreferences preferences = getSharedPreferences(context);
-@@ -207,13 +239,31 @@ public class TextSecurePreferences {
-       }
-     }
- 
++
++  public static long getPreferencesToSaveToBackupCount(@NonNull Context context) {
++    SharedPreferences preferences = getSharedPreferences(context);
++    long              count       = 0;
++
++    for (String booleanPreference : booleanPreferencesToBackup) {
++      if (preferences.contains(booleanPreference)) {
++        count++;
++      }
++    }
++
++    for (String stringPreference : stringPreferencesToBackup) {
++      if (preferences.contains(stringPreference)) {
++        count++;
++      }
++    }
++
++    for (String stringSetPreference : stringSetPreferencesToBackup) {
++      if (preferences.contains(stringSetPreference)) {
++        count++;
++      }
++    }
++
 +    for (String booleanPreference : booleanPreferencesToBackupMolly) {
 +      if (preferences.contains(booleanPreference)) {
 +        count++;
@@ -5252,21 +5478,45 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +      }
 +    }
 +
-     return count;
-   }
- 
-   public static List<SharedPreference> getPreferencesToSaveToBackup(@NonNull Context context) {
-     SharedPreferences      preferences  = getSharedPreferences(context);
-     List<SharedPreference> backupProtos = new ArrayList<>();
--    String                 defaultFile  = context.getPackageName() + "_preferences";
++    return count;
++  }
++
++  public static List<SharedPreference> getPreferencesToSaveToBackup(@NonNull Context context) {
++    SharedPreferences      preferences  = getSharedPreferences(context);
++    List<SharedPreference> backupProtos = new ArrayList<>();
 +    String                 defaultFile  = BuildConfig.SIGNAL_PACKAGE_NAME + "_preferences";
- 
-     for (String booleanPreference : booleanPreferencesToBackup) {
-       if (preferences.contains(booleanPreference)) {
-@@ -246,6 +296,37 @@ public class TextSecurePreferences {
-       }
-     }
- 
++
++    for (String booleanPreference : booleanPreferencesToBackup) {
++      if (preferences.contains(booleanPreference)) {
++        backupProtos.add(new SharedPreference.Builder()
++                                             .file_(defaultFile)
++                                             .key(booleanPreference)
++                                             .booleanValue(preferences.getBoolean(booleanPreference, false))
++                                             .build());
++      }
++    }
++
++    for (String stringPreference : stringPreferencesToBackup) {
++      if (preferences.contains(stringPreference)) {
++        backupProtos.add(new SharedPreference.Builder()
++                                             .file_(defaultFile)
++                                             .key(stringPreference)
++                                             .value_(preferences.getString(stringPreference, null))
++                                             .build());
++      }
++    }
++
++    for (String stringSetPreference : stringSetPreferencesToBackup) {
++      if (preferences.contains(stringSetPreference)) {
++        backupProtos.add(new SharedPreference.Builder()
++                                             .file_(defaultFile)
++                                             .key(stringSetPreference)
++                                             .isStringSetValue(true)
++                                             .stringSetValue(new ArrayList<>(preferences.getStringSet(stringSetPreference, Collections.emptySet())))
++                                             .build());
++      }
++    }
++
 +    for (String booleanPreference : booleanPreferencesToBackupMolly) {
 +      if (preferences.contains(booleanPreference)) {
 +        backupProtos.add(new SharedPreference.Builder()
@@ -5298,13 +5548,13 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +      }
 +    }
 +
-     return backupProtos;
-   }
- 
-@@ -253,6 +334,41 @@ public class TextSecurePreferences {
-     if (NotificationChannels.supported()) {
-       NotificationChannels.getInstance().updateMessageVibrate(SignalStore.settings().isMessageVibrateEnabled());
-     }
++    return backupProtos;
++  }
++
++  public static void onPostBackupRestore(@NonNull Context context) {
++    if (NotificationChannels.supported()) {
++      NotificationChannels.getInstance().updateMessageVibrate(SignalStore.settings().isMessageVibrateEnabled());
++    }
 +
 +    if (!isLogEnabled(context)) {
 +      Log.setLogging(false);
@@ -5340,13 +5590,16 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +
 +  public static void setPassphraseLockNotificationsEnabled(@NonNull Context context, boolean value) {
 +    setBooleanPreference(context, PASSPHRASE_LOCK_NOTIFICATIONS, value);
-   }
- 
-   public static void registerListener(@NonNull Context context, SharedPreferences.OnSharedPreferenceChangeListener listener) {
-@@ -263,6 +379,34 @@ public class TextSecurePreferences {
-     getSharedPreferences(context).unregisterOnSharedPreferenceChangeListener(listener);
-   }
- 
++  }
++
++  public static void registerListener(@NonNull Context context, SharedPreferences.OnSharedPreferenceChangeListener listener) {
++    getSharedPreferences(context).registerOnSharedPreferenceChangeListener(listener);
++  }
++
++  public static void unregisterListener(@NonNull Context context, SharedPreferences.OnSharedPreferenceChangeListener listener) {
++    getSharedPreferences(context).unregisterOnSharedPreferenceChangeListener(listener);
++  }
++
 +  public static void setHasSeenNetworkConfig(Context context, boolean value) {
 +    setBooleanPreference(context, NETWORK_CONFIG_SEEN, value);
 +  }
@@ -5375,13 +5628,81 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    setBooleanPreference(context, BIOMETRIC_SCREEN_LOCK, value);
 +  }
 +
-   /**
-    * @deprecated Use only during re-reg where user had pinV1.
-    */
-@@ -335,6 +479,26 @@ public class TextSecurePreferences {
-     return getLongPreference(context, BACKUP_TIME, -1);
-   }
- 
++  /**
++   * @deprecated Use only during re-reg where user had pinV1.
++   */
++  @Deprecated
++  public static void setV1RegistrationLockEnabled(@NonNull Context context, boolean value) {
++    //noinspection deprecation
++    setBooleanPreference(context, REGISTRATION_LOCK_PREF_V1, value);
++  }
++
++  /**
++   * @deprecated Use only for migrations to the Key Backup Store registration pinV2.
++   */
++  @Deprecated
++  public static @Nullable String getDeprecatedV1RegistrationLockPin(@NonNull Context context) {
++    //noinspection deprecation
++    return getStringPreference(context, REGISTRATION_LOCK_PIN_PREF_V1, null);
++  }
++
++  /**
++   * @deprecated Use only for migrations to the Key Backup Store registration pinV2.
++   */
++  @Deprecated
++  public static void setV1RegistrationLockPin(@NonNull Context context, String pin) {
++    //noinspection deprecation
++    setStringPreference(context, REGISTRATION_LOCK_PIN_PREF_V1, pin);
++  }
++
++  public static long getRegistrationLockLastReminderTime(@NonNull Context context) {
++    return getLongPreference(context, REGISTRATION_LOCK_LAST_REMINDER_TIME_POST_KBS, 0);
++  }
++
++  public static void setRegistrationLockLastReminderTime(@NonNull Context context, long time) {
++    setLongPreference(context, REGISTRATION_LOCK_LAST_REMINDER_TIME_POST_KBS, time);
++  }
++
++  public static long getRegistrationLockNextReminderInterval(@NonNull Context context) {
++    return getLongPreference(context, REGISTRATION_LOCK_NEXT_REMINDER_INTERVAL, RegistrationLockReminders.INITIAL_INTERVAL);
++  }
++
++  public static void setRegistrationLockNextReminderInterval(@NonNull Context context, long value) {
++    setLongPreference(context, REGISTRATION_LOCK_NEXT_REMINDER_INTERVAL, value);
++  }
++
++  /** Legacy serialized-source access only; normal backup consumers use SignalStore.backup().v1BackupPassphrase. */
++  public static void setBackupPassphrase(@NonNull Context context, @Nullable String passphrase) {
++    setStringPreference(context, BACKUP_PASSPHRASE, passphrase);
++  }
++
++  /** Legacy serialized-source access only; normal backup consumers use SignalStore.backup().v1BackupPassphrase. */
++  public static @Nullable String getBackupPassphrase(@NonNull Context context) {
++    return getStringPreference(context, BACKUP_PASSPHRASE, null);
++  }
++
++  /** Legacy keystore-sealed format, not a second live backup-passphrase setting. */
++  public static void setEncryptedBackupPassphrase(@NonNull Context context, @Nullable String encryptedPassphrase) {
++    setStringPreference(context, ENCRYPTED_BACKUP_PASSPHRASE, encryptedPassphrase);
++  }
++
++  public static @Nullable String getEncryptedBackupPassphrase(@NonNull Context context) {
++    return getStringPreference(context, ENCRYPTED_BACKUP_PASSPHRASE, null);
++  }
++
++  @Deprecated
++  public static boolean isBackupEnabled(@NonNull Context context) {
++    return getBooleanPreference(context, BACKUP_ENABLED, false);
++  }
++
++  public static void setNextBackupTime(@NonNull Context context, long time) {
++    setLongPreference(context, BACKUP_TIME, time);
++  }
++
++  public static long getNextBackupTime(@NonNull Context context) {
++    return getLongPreference(context, BACKUP_TIME, -1);
++  }
++
 +  public static void setBackupInternal(@NonNull Context context, long value) {
 +    setLongPreference(context, BACKUP_INTERVAL, value);
 +  }
@@ -5402,35 +5723,74 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    return true;
 +  }
 +
-   public static void setAttachmentEncryptedSecret(@NonNull Context context, @NonNull String secret) {
-     setStringPreference(context, ATTACHMENT_ENCRYPTED_SECRET, secret);
-   }
-@@ -394,11 +558,11 @@ public class TextSecurePreferences {
-   }
- 
-   public static boolean isIncognitoKeyboardEnabled(Context context) {
--    return getBooleanPreference(context, INCOGNITO_KEYBOARD_PREF, false);
++  public static void setAttachmentEncryptedSecret(@NonNull Context context, @NonNull String secret) {
++    setStringPreference(context, ATTACHMENT_ENCRYPTED_SECRET, secret);
++  }
++
++  public static void setAttachmentUnencryptedSecret(@NonNull Context context, @Nullable String secret) {
++    setStringPreference(context, ATTACHMENT_UNENCRYPTED_SECRET, secret);
++  }
++
++  public static @Nullable String getAttachmentEncryptedSecret(@NonNull Context context) {
++    return getStringPreference(context, ATTACHMENT_ENCRYPTED_SECRET, null);
++  }
++
++  public static @Nullable String getAttachmentUnencryptedSecret(@NonNull Context context) {
++    return getStringPreference(context, ATTACHMENT_UNENCRYPTED_SECRET, null);
++  }
++
++  public static void setDatabaseEncryptedSecret(@NonNull Context context, @NonNull String secret) {
++    setStringPreference(context, DATABASE_ENCRYPTED_SECRET, secret);
++  }
++
++  public static void setDatabaseUnencryptedSecret(@NonNull Context context, @Nullable String secret) {
++    setStringPreference(context, DATABASE_UNENCRYPTED_SECRET, secret);
++  }
++
++  public static @Nullable String getDatabaseUnencryptedSecret(@NonNull Context context) {
++    return getStringPreference(context, DATABASE_UNENCRYPTED_SECRET, null);
++  }
++
++  public static @Nullable String getDatabaseEncryptedSecret(@NonNull Context context) {
++    return getStringPreference(context, DATABASE_ENCRYPTED_SECRET, null);
++  }
++
++  public static void setHasSuccessfullyRetrievedDirectory(Context context, boolean value) {
++    setBooleanPreference(context, SUCCESSFUL_DIRECTORY_PREF, value);
++  }
++
++  public static boolean hasSuccessfullyRetrievedDirectory(Context context) {
++    return getBooleanPreference(context, SUCCESSFUL_DIRECTORY_PREF, false);
++  }
++
++  public static void setUnauthorizedReceived(Context context, boolean value) {
++    SignalStore.account().setUnauthorizedReceived(value);
++  }
++
++  public static boolean isUnauthorizedReceived(Context context) {
++    return SignalStore.account().isUnauthorizedReceived();
++  }
++
++  public static boolean isIncognitoKeyboardEnabled(Context context) {
 +    return getBooleanPreference(context, INCOGNITO_KEYBOARD_PREF, true);
-   }
- 
-   public static boolean isReadReceiptsEnabled(Context context) {
--    return getBooleanPreference(context, READ_RECEIPTS_PREF, false);
++  }
++
++  public static boolean isReadReceiptsEnabled(Context context) {
 +    return getBooleanPreference(context, READ_RECEIPTS_PREF, true);
-   }
- 
-   public static void setReadReceiptsEnabled(Context context, boolean enabled) {
-@@ -406,13 +570,30 @@ public class TextSecurePreferences {
-   }
- 
-   public static boolean isTypingIndicatorsEnabled(Context context) {
--    return getBooleanPreference(context, TYPING_INDICATORS, false);
++  }
++
++  public static void setReadReceiptsEnabled(Context context, boolean enabled) {
++    setBooleanPreference(context, READ_RECEIPTS_PREF, enabled);
++  }
++
++  public static boolean isTypingIndicatorsEnabled(Context context) {
 +    return getBooleanPreference(context, TYPING_INDICATORS, true);
-   }
- 
-   public static void setTypingIndicatorsEnabled(Context context, boolean enabled) {
-     setBooleanPreference(context, TYPING_INDICATORS, enabled);
-   }
- 
++  }
++
++  public static void setTypingIndicatorsEnabled(Context context, boolean enabled) {
++    setBooleanPreference(context, TYPING_INDICATORS, enabled);
++  }
++
 +  public static boolean isBlockUnknownEnabled(@NonNull Context context) {
 +    return getBooleanPreference(context, BLOCK_UNKNOWN, false);
 +  }
@@ -5448,60 +5808,91 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    return getBooleanPreference(context, LINK_PREVIEWS, true);
 +  }
 +
-   public static int getNotificationPriority(Context context) {
-     try {
-       return Integer.parseInt(getStringPreference(context, NOTIFICATION_PRIORITY_PREF, String.valueOf(NotificationCompat.PRIORITY_HIGH)));
-@@ -435,34 +616,13 @@ public class TextSecurePreferences {
- 
-   @Deprecated
-   public static NotificationPrivacyPreference getNotificationPrivacy(Context context) {
--    return new NotificationPrivacyPreference(getStringPreference(context, NOTIFICATION_PRIVACY_PREF, "all"));
++  public static int getNotificationPriority(Context context) {
++    try {
++      return Integer.parseInt(getStringPreference(context, NOTIFICATION_PRIORITY_PREF, String.valueOf(NotificationCompat.PRIORITY_HIGH)));
++    } catch (ClassCastException e) {
++      return getIntegerPreference(context, NOTIFICATION_PRIORITY_PREF, NotificationCompat.PRIORITY_HIGH);
++    }
++  }
++
++  /**
++   * @deprecated Use {@link SettingsValues#getMessageFontSize()} via {@link org.thoughtcrime.securesms.keyvalue.SignalStore} instead.
++   */
++  @Deprecated
++  public static int getMessageBodyTextSize(Context context) {
++    return Integer.parseInt(getStringPreference(context, MESSAGE_BODY_TEXT_SIZE_PREF, "16"));
++  }
++
++  public static boolean isTurnOnly(Context context) {
++    return getBooleanPreference(context, ALWAYS_RELAY_CALLS_PREF, false);
++  }
++
++  @Deprecated
++  public static NotificationPrivacyPreference getNotificationPrivacy(Context context) {
 +    return new NotificationPrivacyPreference(getStringPreference(context, NOTIFICATION_PRIVACY_PREF, "none"));
-   }
- 
-   public static boolean isNewContactsNotificationEnabled(Context context) {
-     return getBooleanPreference(context, NEW_CONTACTS_NOTIFICATIONS, false);
-   }
- 
--  public static long getRatingLaterTimestamp(Context context) {
--    return getLongPreference(context, RATING_LATER_PREF, 0);
--  }
--
--  public static void setRatingLaterTimestamp(Context context, long timestamp) {
--    setLongPreference(context, RATING_LATER_PREF, timestamp);
--  }
--
--  public static boolean isRatingEnabled(Context context) {
--    return getBooleanPreference(context, RATING_ENABLED_PREF, true);
--  }
--
--  public static void setRatingEnabled(Context context, boolean enabled) {
--    setBooleanPreference(context, RATING_ENABLED_PREF, enabled);
--  }
--
--  @Deprecated
--  public static boolean isWifiSmsEnabled(Context context) {
--    return getBooleanPreference(context, WIFI_SMS_PREF, false);
--  }
--
-   @Deprecated
-   public static int getRepeatAlertsCount(Context context) {
-     try {
-@@ -502,10 +662,6 @@ public class TextSecurePreferences {
-     return getBooleanPreference(context, SHOW_UNIDENTIFIED_DELIVERY_INDICATORS, false);
-   }
- 
--  public static void setIsUnidentifiedDeliveryEnabled(Context context, boolean enabled) {
--    setBooleanPreference(context, UNIDENTIFIED_DELIVERY_ENABLED, enabled);
--  }
--
-   public static long getSignedPreKeyRotationTime(Context context) {
-     return getLongPreference(context, SIGNED_PREKEY_ROTATION_TIME_PREF, 0L);
-   }
-@@ -522,6 +678,18 @@ public class TextSecurePreferences {
-     setLongPreference(context, DIRECTORY_FRESH_TIME_PREF, value);
-   }
- 
++  }
++
++  public static boolean isNewContactsNotificationEnabled(Context context) {
++    return getBooleanPreference(context, NEW_CONTACTS_NOTIFICATIONS, false);
++  }
++
++  @Deprecated
++  public static int getRepeatAlertsCount(Context context) {
++    try {
++      return Integer.parseInt(getStringPreference(context, REPEAT_ALERTS_PREF, "0"));
++    } catch (NumberFormatException e) {
++      Log.w(TAG, e);
++      return 0;
++    }
++  }
++
++  @Deprecated
++  public static boolean isInThreadNotifications(Context context) {
++    return getBooleanPreference(context, IN_THREAD_NOTIFICATION_PREF, true);
++  }
++
++  public static long getUnidentifiedAccessCertificateRotationTime(Context context) {
++    long lastRotation = SignalStore.certificate().getLastRotationTime();
++    return lastRotation < 0 ? 0 : lastRotation + TimeUnit.DAYS.toMillis(1);
++  }
++
++  public static void setUnidentifiedAccessCertificateRotationTime(Context context, long value) {
++    SignalStore.certificate().setLastRotationTime(value > 0 ? value - TimeUnit.DAYS.toMillis(1) : -1);
++  }
++
++  public static boolean isUniversalUnidentifiedAccess(Context context) {
++    return getBooleanPreference(context, UNIVERSAL_UNIDENTIFIED_ACCESS, false);
++  }
++
++  public static void setIsUniversalUnidentifiedAccess(Context context, boolean enabled) {
++    setBooleanPreference(context, UNIVERSAL_UNIDENTIFIED_ACCESS, enabled);
++  }
++
++  public static void setShowUnidentifiedDeliveryIndicatorsEnabled(Context context, boolean enabled) {
++    setBooleanPreference(context, SHOW_UNIDENTIFIED_DELIVERY_INDICATORS, enabled);
++  }
++
++  public static boolean isShowUnidentifiedDeliveryIndicatorsEnabled(Context context) {
++    return getBooleanPreference(context, SHOW_UNIDENTIFIED_DELIVERY_INDICATORS, false);
++  }
++
++  public static long getSignedPreKeyRotationTime(Context context) {
++    return getLongPreference(context, SIGNED_PREKEY_ROTATION_TIME_PREF, 0L);
++  }
++
++  public static void setSignedPreKeyRotationTime(Context context, long value) {
++    setLongPreference(context, SIGNED_PREKEY_ROTATION_TIME_PREF, value);
++  }
++
++  public static long getDirectoryRefreshTime(Context context) {
++    return getLongPreference(context, DIRECTORY_FRESH_TIME_PREF, 0L);
++  }
++
++  public static void setDirectoryRefreshTime(Context context, long value) {
++    setLongPreference(context, DIRECTORY_FRESH_TIME_PREF, value);
++  }
++
 +  public static boolean shouldRefreshFcmToken(Context context) {
 +    return getBooleanPreference(context, REFRESH_FCM_TOKEN_PREF, false);
 +  }
@@ -5514,13 +5905,14 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    removePreference(context, DIRECTORY_FRESH_TIME_PREF);
 +  }
 +
-   public static long getUpdateApkRefreshTime(Context context) {
-     return getLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, 0L);
-   }
-@@ -530,6 +698,22 @@ public class TextSecurePreferences {
-     setLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, value);
-   }
- 
++  public static long getUpdateApkRefreshTime(Context context) {
++    return getLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, 0L);
++  }
++
++  public static void setUpdateApkRefreshTime(Context context, long value) {
++    setLongPreference(context, UPDATE_APK_REFRESH_TIME_PREF, value);
++  }
++
 +  public static boolean isUpdateApkEnabled(@NonNull Context context) {
 +    return getBooleanPreference(context, UPDATE_APK_ENABLED, false);
 +  }
@@ -5537,45 +5929,33 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    setBooleanPreference(context, UPDATE_APK_INCLUDE_BETA, value);
 +  }
 +
-   @Deprecated
-   public static boolean isEnterSendsEnabled(Context context) {
-     return getBooleanPreference(context, ENTER_SENDS_PREF, false);
-@@ -540,52 +724,43 @@ public class TextSecurePreferences {
-   }
- 
-   public static boolean isScreenSecurityEnabled(Context context) {
--    return getBooleanPreference(context, SCREEN_SECURITY_PREF, false);
++  @Deprecated
++  public static boolean isEnterSendsEnabled(Context context) {
++    return getBooleanPreference(context, ENTER_SENDS_PREF, false);
++  }
++
++  public static void setScreenSecurityEnabled(Context context, boolean value) {
++    setBooleanPreference(context, SCREEN_SECURITY_PREF, value);
++  }
++
++  public static boolean isScreenSecurityEnabled(Context context) {
 +    return getBooleanPreference(context, SCREEN_SECURITY_PREF, true);
-   }
- 
--  public static boolean isLegacyUseLocalApnsEnabled(Context context) {
--    return getBooleanPreference(context, ENABLE_MANUAL_MMS_PREF, false);
--  }
--
--  public static int getLastVersionCode(Context context) {
++  }
++
 +  public static int getLastVersionCodeForMolly(Context context) {
-     return getIntegerPreference(context, LAST_VERSION_CODE_PREF, BuildConfig.VERSION_CODE);
-   }
- 
--  public static void setLastVersionCode(Context context, int versionCode) {
++    return getIntegerPreference(context, LAST_VERSION_CODE_PREF, BuildConfig.VERSION_CODE);
++  }
++
 +  public static void setLastVersionCodeForMolly(Context context, int versionCode) {
-     if (!setIntegerPrefrenceBlocking(context, LAST_VERSION_CODE_PREF, versionCode)) {
-       throw new AssertionError("couldn't write version code to sharedpreferences");
-     }
-   }
- 
--  /**
--   * @deprecated Use {@link SettingsValues#getTheme()} via {@link org.thoughtcrime.securesms.keyvalue.SignalStore} instead.
--   */
--  @Deprecated
-   public static String getTheme(Context context) {
-     return getStringPreference(context, THEME_PREF, DynamicTheme.systemThemeAvailable() ? "system" : "light");
-   }
- 
--  /**
--   * @deprecated Use {@link SettingsValues#getLanguage()} via {@link org.thoughtcrime.securesms.keyvalue.SignalStore} instead.
--   */
--  @Deprecated
++    if (!setIntegerPrefrenceBlocking(context, LAST_VERSION_CODE_PREF, versionCode)) {
++      throw new AssertionError("couldn't write version code to sharedpreferences");
++    }
++  }
++
++  public static String getTheme(Context context) {
++    return SecurePreferenceManager.getSecurePreferences(context).getString(THEME_PREF, DynamicTheme.systemThemeAvailable() ? "system" : "light");
++  }
++
 +  public static void setTheme(Context context, String theme) {
 +    setStringPreference(context, THEME_PREF, theme);
 +  }
@@ -5588,46 +5968,150 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    setBooleanPreference(context, DYNAMIC_COLORS_ENABLED, enabled);
 +  }
 +
-   public static String getLanguage(Context context) {
-     return getStringPreference(context, LANGUAGE_PREF, "zz");
-   }
- 
--  /**
--   * @deprecated Use {@link SettingsValues#setLanguage(String)} via {@link org.thoughtcrime.securesms.keyvalue.SignalStore} instead.
--   */
--  @Deprecated
-   public static void setLanguage(Context context, String language) {
-     getSharedPreferences(context).edit().putString(LANGUAGE_PREF, language).commit();
-   }
- 
--  @Deprecated
--  public static boolean isSmsDeliveryReportsEnabled(Context context) {
--    return getBooleanPreference(context, SMS_DELIVERY_REPORT_PREF, false);
--  }
--
-   public static boolean hasPromptedPushRegistration(Context context) {
-     return getBooleanPreference(context, PROMPTED_PUSH_REGISTRATION_PREF, false);
-   }
-@@ -664,11 +839,14 @@ public class TextSecurePreferences {
-     setStringPreference(context, LED_BLINK_PREF_CUSTOM, pattern);
-   }
- 
--  @Deprecated
-   public static boolean isSystemEmojiPreferred(Context context) {
-     return getBooleanPreference(context, SYSTEM_EMOJI_PREF, false);
-   }
- 
++  public static String getLanguage(Context context) {
++    return getStringPreference(context, LANGUAGE_PREF, "zz");
++  }
++
++  public static void setLanguage(Context context, String language) {
++    getSharedPreferences(context).edit().putString(LANGUAGE_PREF, language).commit();
++  }
++
++  public static boolean hasPromptedPushRegistration(Context context) {
++    return getBooleanPreference(context, PROMPTED_PUSH_REGISTRATION_PREF, false);
++  }
++
++  public static void setPromptedPushRegistration(Context context, boolean value) {
++    setBooleanPreference(context, PROMPTED_PUSH_REGISTRATION_PREF, value);
++  }
++
++  public static void setPromptedOptimizeDoze(Context context, boolean value) {
++    setBooleanPreference(context, PROMPTED_OPTIMIZE_DOZE_PREF, value);
++  }
++
++  public static boolean hasPromptedOptimizeDoze(Context context) {
++    return getBooleanPreference(context, PROMPTED_OPTIMIZE_DOZE_PREF, false);
++  }
++
++  @Deprecated
++  public static boolean isNotificationsEnabled(Context context) {
++    return getBooleanPreference(context, NOTIFICATION_PREF, true);
++  }
++
++  @Deprecated
++  public static boolean isCallNotificationsEnabled(Context context) {
++    return getBooleanPreference(context, CALL_NOTIFICATIONS_PREF, true);
++  }
++
++  @Deprecated
++  public static @NonNull Uri getNotificationRingtone(Context context) {
++    String result = getStringPreference(context, RINGTONE_PREF, Settings.System.DEFAULT_NOTIFICATION_URI.toString());
++
++    if (result != null && result.startsWith("file:")) {
++      result = Settings.System.DEFAULT_NOTIFICATION_URI.toString();
++    }
++
++    return Uri.parse(result);
++  }
++
++  @Deprecated
++  public static @NonNull Uri getCallNotificationRingtone(Context context) {
++    String result = getStringPreference(context, CALL_RINGTONE_PREF, Settings.System.DEFAULT_RINGTONE_URI.toString());
++
++    if (result != null && result.startsWith("file:")) {
++      result = Settings.System.DEFAULT_RINGTONE_URI.toString();
++    }
++
++    return Uri.parse(result);
++  }
++
++  @Deprecated
++  public static boolean isNotificationVibrateEnabled(Context context) {
++    return getBooleanPreference(context, VIBRATE_PREF, true);
++  }
++
++  @Deprecated
++  public static boolean isCallNotificationVibrateEnabled(Context context) {
++    boolean defaultValue = (Settings.System.getInt(context.getContentResolver(), Settings.System.VIBRATE_WHEN_RINGING, 1) == 1);
++
++    return getBooleanPreference(context, CALL_VIBRATE_PREF, defaultValue);
++  }
++
++  @Deprecated
++  public static String getNotificationLedColor(Context context) {
++    return getStringPreference(context, LED_COLOR_PREF, "blue");
++  }
++
++  @Deprecated
++  public static String getNotificationLedPattern(Context context) {
++    return getStringPreference(context, LED_BLINK_PREF, "500,2000");
++  }
++
++  public static String getNotificationLedPatternCustom(Context context) {
++    return getStringPreference(context, LED_BLINK_PREF_CUSTOM, "500,2000");
++  }
++
++  public static void setNotificationLedPatternCustom(Context context, String pattern) {
++    setStringPreference(context, LED_BLINK_PREF_CUSTOM, pattern);
++  }
++
++  public static boolean isSystemEmojiPreferred(Context context) {
++    return SecurePreferenceManager.getSecurePreferences(context).getBoolean(SYSTEM_EMOJI_PREF, false);
++  }
++
 +  public static void setSystemEmojiPreferred(Context context, boolean useSystemEmoji) {
 +    setBooleanPreference(context, SYSTEM_EMOJI_PREF, useSystemEmoji);
 +  }
 +
-   public static @NonNull Set<String> getMobileMediaDownloadAllowed(Context context) {
-     return getMediaDownloadAllowed(context, MEDIA_DOWNLOAD_MOBILE_PREF, R.array.pref_media_download_mobile_data_default);
-   }
-@@ -719,6 +897,14 @@ public class TextSecurePreferences {
-     setBooleanPreference(context, NEEDS_FULL_CONTACT_SYNC, needsSync);
-   }
- 
++  public static @NonNull Set<String> getMobileMediaDownloadAllowed(Context context) {
++    return getMediaDownloadAllowed(context, MEDIA_DOWNLOAD_MOBILE_PREF, R.array.pref_media_download_mobile_data_default);
++  }
++
++  public static @NonNull Set<String> getWifiMediaDownloadAllowed(Context context) {
++    return getMediaDownloadAllowed(context, MEDIA_DOWNLOAD_WIFI_PREF, R.array.pref_media_download_wifi_default);
++  }
++
++  public static @NonNull Set<String> getRoamingMediaDownloadAllowed(Context context) {
++    return getMediaDownloadAllowed(context, MEDIA_DOWNLOAD_ROAMING_PREF, R.array.pref_media_download_roaming_default);
++  }
++
++  private static @NonNull Set<String> getMediaDownloadAllowed(Context context, String key, @ArrayRes int defaultValuesRes) {
++    return getStringSetPreference(context,
++                                  key,
++                                  new HashSet<>(Arrays.asList(context.getResources().getStringArray(defaultValuesRes))));
++  }
++
++  public static void setLastOutageCheckTime(Context context, long timestamp) {
++    setLongPreference(context, LAST_OUTAGE_CHECK_TIME, timestamp);
++  }
++
++  public static long getLastOutageCheckTime(Context context) {
++    return getLongPreference(context, LAST_OUTAGE_CHECK_TIME, 0);
++  }
++
++  public static void setServiceOutage(Context context, boolean isOutage) {
++    setBooleanPreference(context, SERVICE_OUTAGE, isOutage);
++  }
++
++  public static boolean getServiceOutage(Context context) {
++    return getBooleanPreference(context, SERVICE_OUTAGE, false);
++  }
++
++  public static long getLastFullContactSyncTime(Context context) {
++    return getLongPreference(context, LAST_FULL_CONTACT_SYNC_TIME, 0);
++  }
++
++  public static void setLastFullContactSyncTime(Context context, long timestamp) {
++    setLongPreference(context, LAST_FULL_CONTACT_SYNC_TIME, timestamp);
++  }
++
++  public static boolean needsFullContactSync(Context context) {
++    return getBooleanPreference(context, NEEDS_FULL_CONTACT_SYNC, false);
++  }
++
++  public static void setNeedsFullContactSync(Context context, boolean needsSync) {
++    setBooleanPreference(context, NEEDS_FULL_CONTACT_SYNC, needsSync);
++  }
++
 +  public static void setLogEnabled(Context context, boolean enabled) {
 +    setBooleanPreference(context, LOG_ENABLED, enabled);
 +  }
@@ -5636,45 +6120,184 @@ index 2b04af571fa78a66bbd5b6a23db1cf8475ad41d7..2ed2538c66767352c8f6c5d4b49d1ec3
 +    return getBooleanPreference(context, LOG_ENABLED, true);
 +  }
 +
-   public static void setLogEncryptedSecret(Context context, String base64Secret) {
-     setStringPreference(context, LOG_ENCRYPTED_SECRET, base64Secret);
-   }
-@@ -759,14 +945,6 @@ public class TextSecurePreferences {
-     setBooleanPreference(context, NEEDS_MESSAGE_PULL, needsMessagePull);
-   }
- 
--  public static boolean hasSeenStickerIntroTooltip(Context context) {
--    return getBooleanPreference(context, SEEN_STICKER_INTRO_TOOLTIP, false);
--  }
--
--  public static void setHasSeenStickerIntroTooltip(Context context, boolean seenStickerTooltip) {
--    setBooleanPreference(context, SEEN_STICKER_INTRO_TOOLTIP, seenStickerTooltip);
--  }
--
-   public static void setMediaKeyboardMode(Context context, MediaKeyboardMode mode) {
-     setStringPreference(context, MEDIA_KEYBOARD_MODE, mode.name());
-   }
-@@ -874,10 +1052,7 @@ public class TextSecurePreferences {
-   }
- 
-   public static SharedPreferences getSharedPreferences(Context context) {
--    if (preferences == null) {
--      preferences = PreferenceManager.getDefaultSharedPreferences(context);
--    }
--    return preferences;
-+    return SecurePreferenceManager.getSecurePreferences(context);
-   }
- 
-   private static void notifyUnregisteredReceived(Context context) {
-@@ -895,7 +1070,7 @@ public class TextSecurePreferences {
-                                                                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntentFlags.immutable());
- 
-     final NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NotificationChannels.getInstance().FAILURES)
--        .setSmallIcon(R.drawable.ic_signal_logo_large)
++  public static void setLogEncryptedSecret(Context context, String base64Secret) {
++    setStringPreference(context, LOG_ENCRYPTED_SECRET, base64Secret);
++  }
++
++  public static String getLogEncryptedSecret(Context context) {
++    return getStringPreference(context, LOG_ENCRYPTED_SECRET, null);
++  }
++
++  public static void setLogUnencryptedSecret(Context context, String base64Secret) {
++    setStringPreference(context, LOG_UNENCRYPTED_SECRET, base64Secret);
++  }
++
++  public static String getLogUnencryptedSecret(Context context) {
++    return getStringPreference(context, LOG_UNENCRYPTED_SECRET, null);
++  }
++
++  public static int getNotificationChannelVersion(Context context) {
++    return getIntegerPreference(context, NOTIFICATION_CHANNEL_VERSION, 1);
++  }
++
++  public static void setNotificationChannelVersion(Context context, int version) {
++    setIntegerPrefrence(context, NOTIFICATION_CHANNEL_VERSION, version);
++  }
++
++  public static int getNotificationMessagesChannelVersion(Context context) {
++    return getIntegerPreference(context, NOTIFICATION_MESSAGES_CHANNEL_VERSION, 1);
++  }
++
++  public static void setNotificationMessagesChannelVersion(Context context, int version) {
++    setIntegerPrefrence(context, NOTIFICATION_MESSAGES_CHANNEL_VERSION, version);
++  }
++
++  public static boolean getNeedsMessagePull(Context context) {
++    return getBooleanPreference(context, NEEDS_MESSAGE_PULL, false);
++  }
++
++  public static void setNeedsMessagePull(Context context, boolean needsMessagePull) {
++    setBooleanPreference(context, NEEDS_MESSAGE_PULL, needsMessagePull);
++  }
++
++  public static void setMediaKeyboardMode(Context context, MediaKeyboardMode mode) {
++    setStringPreference(context, MEDIA_KEYBOARD_MODE, mode.name());
++  }
++
++  public static MediaKeyboardMode getMediaKeyboardMode(Context context) {
++    String name = getStringPreference(context, MEDIA_KEYBOARD_MODE, MediaKeyboardMode.EMOJI.name());
++    return MediaKeyboardMode.valueOf(name);
++  }
++
++  public static void setJobManagerVersion(Context context, int version) {
++    setIntegerPrefrence(context, JOB_MANAGER_VERSION, version);
++  }
++
++  public static int getJobManagerVersion(Context contex) {
++    return getIntegerPreference(contex, JOB_MANAGER_VERSION, 1);
++  }
++
++  public static void setAppMigrationVersion(Context context, int version) {
++    setIntegerPrefrence(context, APP_MIGRATION_VERSION, version);
++  }
++
++  public static int getAppMigrationVersion(Context context) {
++    return getIntegerPreference(context, APP_MIGRATION_VERSION, 1);
++  }
++
++  public static void setFirstInstallVersion(Context context, int version) {
++    setIntegerPrefrence(context, FIRST_INSTALL_VERSION, version);
++  }
++
++  public static int getFirstInstallVersion(Context context) {
++    return getIntegerPreference(context, FIRST_INSTALL_VERSION, -1);
++  }
++
++  public static boolean hasSeenSwipeToReplyTooltip(Context context) {
++    return getBooleanPreference(context, HAS_SEEN_SWIPE_TO_REPLY, false);
++  }
++
++  public static void setHasSeenSwipeToReplyTooltip(Context context, boolean value) {
++    setBooleanPreference(context, HAS_SEEN_SWIPE_TO_REPLY, value);
++  }
++
++  public static boolean hasSeenVideoRecordingTooltip(Context context) {
++    return getBooleanPreference(context, HAS_SEEN_VIDEO_RECORDING_TOOLTIP, false);
++  }
++
++  public static void setHasSeenVideoRecordingTooltip(Context context, boolean value) {
++    setBooleanPreference(context, HAS_SEEN_VIDEO_RECORDING_TOOLTIP, value);
++  }
++
++  public static void setBooleanPreference(Context context, String key, boolean value) {
++    getSharedPreferences(context).edit().putBoolean(key, value).apply();
++  }
++
++  public static boolean getBooleanPreference(Context context, String key, boolean defaultValue) {
++    return getSharedPreferences(context).getBoolean(key, defaultValue);
++  }
++
++  public static void setStringPreference(Context context, String key, String value) {
++    getSharedPreferences(context).edit().putString(key, value).apply();
++  }
++
++  public static String getStringPreference(Context context, String key, String defaultValue) {
++    return getSharedPreferences(context).getString(key, defaultValue);
++  }
++
++  public static int getIntegerPreference(Context context, String key, int defaultValue) {
++    return getSharedPreferences(context).getInt(key, defaultValue);
++  }
++
++  private static void setIntegerPrefrence(Context context, String key, int value) {
++    getSharedPreferences(context).edit().putInt(key, value).apply();
++  }
++
++  private static boolean setIntegerPrefrenceBlocking(Context context, String key, int value) {
++    return getSharedPreferences(context).edit().putInt(key, value).commit();
++  }
++
++  public static long getLongPreference(Context context, String key, long defaultValue) {
++    return getSharedPreferences(context).getLong(key, defaultValue);
++  }
++
++  private static void setLongPreference(Context context, String key, long value) {
++    getSharedPreferences(context).edit().putLong(key, value).apply();
++  }
++
++  private static void removePreference(Context context, String key) {
++    getSharedPreferences(context).edit().remove(key).apply();
++  }
++
++  private static Set<String> getStringSetPreference(Context context, String key, Set<String> defaultValues) {
++    final SharedPreferences prefs = getSharedPreferences(context);
++    if (prefs.contains(key)) {
++      return prefs.getStringSet(key, Collections.<String>emptySet());
++    } else {
++      return defaultValues;
++    }
++  }
++
++  private static void clearLocalCredentials(Context context) {
++    ProfileKey newProfileKey = ProfileKeyUtil.createNew();
++    Recipient  self          = Recipient.self();
++    SignalDatabase.recipients().setProfileKey(self.getId(), newProfileKey);
++
++    AppDependencies.getGroupsV2Authorization().clear();
++  }
++
++  public static SharedPreferences getSharedPreferences(Context context) {
++    return new MollySettingsPreferences(SecurePreferenceManager.getSecurePreferences(context), () -> SignalStore.settings());
++  }
++
++  private static void notifyUnregisteredReceived(Context context) {
++    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
++      Log.w(TAG, "notifyUnregisteredReceived: Notification permission is not granted.");
++      return;
++    }
++
++    Intent registrationIntent = SignalStore.account().isLinkedDevice() ? RegistrationActivity.newIntentForReLinkDevice(context)
++                                                                       : RegistrationActivity.newIntentForReRegistration(context);
++
++    PendingIntent reRegistrationIntent = PendingIntent.getActivity(context,
++                                                                   0,
++                                                                   registrationIntent,
++                                                                   PendingIntent.FLAG_UPDATE_CURRENT | PendingIntentFlags.immutable());
++
++    final NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NotificationChannels.getInstance().FAILURES)
 +        .setSmallIcon(R.drawable.ic_notification)
-         .setContentText(context.getString(R.string.LoggedOutNotification_you_have_been_logged_out))
-         .setContentIntent(reRegistrationIntent)
-         .setOnlyAlertOnce(true)
++        .setContentText(context.getString(R.string.LoggedOutNotification_you_have_been_logged_out))
++        .setContentIntent(reRegistrationIntent)
++        .setOnlyAlertOnce(true)
++        .setAutoCancel(true);
++    NotificationManagerCompat.from(context).notify(NotificationIds.UNREGISTERED_NOTIFICATION_ID, builder.build());
++  }
++
++  // NEVER rename these -- they're persisted by name
++  public enum MediaKeyboardMode {
++    EMOJI, STICKER, GIF
++  }
++}
 diff --git a/app/src/main/res/values-bg/strings2.xml b/app/src/main/res/values-bg/strings2.xml
 new file mode 100644
 index 0000000000000000000000000000000000000000..1313d8ed002df47ac1d4c603f0829bbb0bc484b2
@@ -5788,6 +6411,214 @@ index 0000000000000000000000000000000000000000..935e35cbab55cc2ee12e3030c3383bcf
 +    <string name="BlockUnblockDialog_block_and_delete">封鎖並刪除</string>
 +    <string name="prompt_passphrase_activity__molly_is_locked">Molly 已被鎖定</string>
 +</resources>
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt b/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..e30163127ecc241f8242d6c5d298793c40469a1b
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt
+@@ -0,0 +1,175 @@
++package org.thoughtcrime.securesms.keyvalue
++
++import android.app.Application
++import android.content.Context
++import android.content.SharedPreferences
++import androidx.preference.PreferenceManager
++import androidx.test.core.app.ApplicationProvider
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkStatic
++import io.mockk.unmockkAll
++import org.junit.After
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++import org.thoughtcrime.securesms.crypto.MasterSecret
++import org.thoughtcrime.securesms.service.KeyCachingService
++import org.thoughtcrime.securesms.testutil.DirectExecutor
++import org.thoughtcrime.securesms.util.Environment
++import org.thoughtcrime.securesms.util.SecurePreferenceManager
++import org.thoughtcrime.securesms.util.TextSecurePreferences
++
++@RunWith(RobolectricTestRunner::class)
++@Config(manifest = Config.NONE, application = Application::class)
++class SettingsValuesMigrationTest {
++  private lateinit var context: Context
++  private lateinit var legacy: SharedPreferences
++  private lateinit var store: KeyValueStore
++  private var wasInstrumentation = false
++
++  @Before
++  fun setup() {
++    context = ApplicationProvider.getApplicationContext<Application>()
++    legacy = context.getSharedPreferences("molly-settings-migration-fixture", Context.MODE_PRIVATE)
++    legacy.edit().clear().commit()
++    store = KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor())
++    wasInstrumentation = Environment.IS_INSTRUMENTATION
++    Environment.IS_INSTRUMENTATION = false
++    mockkStatic(SecurePreferenceManager::class)
++    mockkStatic(KeyCachingService::class)
++    every { SecurePreferenceManager.getSecurePreferences(any()) } returns legacy
++    every { KeyCachingService.getMasterSecret() } returns mockk<MasterSecret>()
++  }
++
++  @After
++  fun teardown() {
++    Environment.IS_INSTRUMENTATION = wasInstrumentation
++    unmockkAll()
++  }
++
++  @Test
++  fun `database bootstrap uses original Molly secrets instead of upstream preferences`() {
++    val upstream = PreferenceManager.getDefaultSharedPreferences(context)
++    upstream.edit().putString("pref_database_encrypted_secret", "unrelated-secret").commit()
++    legacy.edit()
++      .putString("pref_database_encrypted_secret", "original-database-secret")
++      .putString("pref_attachment_encrypted_secret", "original-attachment-secret")
++      .putInt("pref_app_migration_version", 17)
++      .commit()
++
++    PlainTextKeyValueStore.init(context)
++
++    assertEquals("original-database-secret", PlainTextKeyValueStore.databaseEncryptedSecret)
++    assertEquals("original-attachment-secret", PlainTextKeyValueStore.attachmentEncryptedSecret)
++    assertEquals(17, PlainTextKeyValueStore.appMigrationVersion)
++    PlainTextKeyValueStore.databaseEncryptedSecret = "rewrapped-database-secret"
++    assertEquals("rewrapped-database-secret", legacy.getString("pref_database_encrypted_secret", null))
++    assertEquals("unrelated-secret", upstream.getString("pref_database_encrypted_secret", null))
++  }
++
++  @Test
++  fun `imports from Molly file and preserves every existing destination`() {
++    PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean("pref_screen_security", false).commit()
++    legacy.edit()
++      .putBoolean("pref_screen_security", true)
++      .putBoolean("pref_read_receipts", false)
++      .putLong("pref_backup_next_time", 1234)
++      .putStringSet("pref_media_download_mobile", setOf("video"))
++      .putString("pref_theme", "dark")
++      .commit()
++    store.beginWrite()
++      .putBoolean(SettingsValues.READ_RECEIPTS_ENABLED, true)
++      .putBoolean("settings.passphrase.disabled", false)
++      .putLong("settings.backups.next.time", 9876)
++      .putBlob("settings.media.download.mobile", org.thoughtcrime.securesms.database.model.databaseprotos.SignalStoreList(contents = listOf("audio")).encode())
++      .commit()
++
++    val settings = SettingsValues(store, context)
++
++    assertTrue(settings.isScreenSecurityEnabled)
++    assertTrue(settings.isReadReceiptsEnabled)
++    assertFalse(settings.passphraseDisabled)
++    assertEquals(9876L, settings.localBackupNextTime)
++    assertEquals(setOf("audio"), settings.mobileMediaDownloadAllowed)
++    assertEquals(SettingsValues.Theme.DARK, settings.theme)
++    assertTrue(legacy.getBoolean("pref_screen_security", false))
++  }
++
++  @Test
++  fun `compatibility writes and subsequent launches use KV without changing legacy secrets`() {
++    legacy.edit().putBoolean("pref_read_receipts", false).putString("pref_repeat_alerts", "3").commit()
++    val settings = SettingsValues(store, context)
++    val prefs = MollySettingsPreferences(legacy) { settings }
++
++    prefs.edit().putBoolean("pref_read_receipts", true).putString("pref_repeat_alerts", "7").commit()
++    assertTrue(settings.isReadReceiptsEnabled)
++    assertEquals(7, settings.messageNotificationsRepeatAlerts)
++    assertEquals("7", prefs.getString("pref_repeat_alerts", null))
++    assertFalse(legacy.getBoolean("pref_read_receipts", true))
++    assertEquals("3", legacy.getString("pref_repeat_alerts", null))
++    assertTrue(SettingsValues(store, context).isReadReceiptsEnabled)
++
++    prefs.edit().putString("pref_theme", "dark").putBoolean("pref_system_emoji", true).commit()
++    assertEquals("dark", TextSecurePreferences.getTheme(context))
++    assertTrue(TextSecurePreferences.isSystemEmojiPreferred(context))
++  }
++
++  @Test
++  fun `restore requires source provenance and restored KV wins over legacy duplicates`() {
++    val settings = SettingsValues(store, context)
++    settings.isReadReceiptsEnabled = true
++    settings.isTypingIndicatorsEnabled = true
++    settings.isTurnOnly = true
++    legacy.edit()
++      .putBoolean("pref_read_receipts", false)
++      .putBoolean("pref_typing_indicators", false)
++      .putBoolean("pref_turn_only", false)
++      .putString("pref_theme", "dark")
++      .commit()
++
++    settings.restoreLegacySharedPrefsAfterBackupRestore()
++    assertTrue(settings.isReadReceiptsEnabled)
++    assertEquals("dark", legacy.getString("pref_theme", null))
++    settings.restoreLegacySharedPrefsAfterBackupRestore(
++      setOf("pref_read_receipts", "pref_typing_indicators", "pref_theme"),
++      setOf(SettingsValues.TYPING_INDICATORS_ENABLED)
++    )
++    assertFalse(settings.isReadReceiptsEnabled)
++    assertTrue(settings.isTypingIndicatorsEnabled)
++    assertTrue(settings.isTurnOnly)
++    assertEquals(SettingsValues.Theme.DARK, settings.theme)
++  }
++
++  @Test
++  fun `numeric legacy settings support strings ints and encrypted type mismatch defaults`() {
++    legacy.edit().putString("pref_repeat_alerts", "4").putInt("pref_message_body_text_size", 21).commit()
++    assertEquals(4, LegacySharedPrefs.getIntegerFromString(context, "pref_repeat_alerts", 0))
++    assertEquals(21, LegacySharedPrefs.getIntegerFromString(context, "pref_message_body_text_size", 16))
++    legacy.edit().putString("pref_repeat_alerts", "invalid").commit()
++    assertEquals(0, LegacySharedPrefs.getIntegerFromString(context, "pref_repeat_alerts", 0))
++
++    val encrypted = mockk<SharedPreferences>()
++    every { encrypted.getString("font", null) } returns null
++    every { encrypted.getInt("font", 16) } returns 23
++    every { SecurePreferenceManager.getSecurePreferences(any()) } returns encrypted
++    assertEquals(23, LegacySharedPrefs.getIntegerFromString(context, "font", 16))
++  }
++
++  @Test
++  fun `bootstrap reads work while migration refuses a missing master secret`() {
++    legacy.edit().putString("pref_theme", "dark").putBoolean("pref_passphrase_lock", true).commit()
++    every { KeyCachingService.getMasterSecret() } returns null
++    assertEquals("dark", TextSecurePreferences.getTheme(context))
++    assertTrue(TextSecurePreferences.isPassphraseLockEnabled(context))
++    org.junit.Assert.assertThrows(IllegalStateException::class.java) {
++      SettingsValues(store, context)
++    }
++    assertFalse(store.containsKey("molly.settings.legacyMigrationComplete"))
++  }
++}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/testutil/SignalStoreRule.kt b/app/src/test/java/org/thoughtcrime/securesms/testutil/SignalStoreRule.kt
+index e437d8e43eef409e08352267d99704e24cf49122..6739d6fe03172ddb8a2820b9b6f0a34755dbd434 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/testutil/SignalStoreRule.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/testutil/SignalStoreRule.kt
+@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.keyvalue.KeyValueDataSet
+ import org.thoughtcrime.securesms.keyvalue.KeyValueStore
+ import org.thoughtcrime.securesms.keyvalue.MockKeyValuePersistentStorage
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.util.Environment
+ 
+ /**
+  * Installs a real [SignalStore] backed by in-memory storage, letting tests arrange and assert on actual
+@@ -22,7 +23,13 @@ class SignalStoreRule : ExternalResource() {
+ 
+   override fun before() {
+     val application = ApplicationProvider.getApplicationContext<Application>()
+-    SignalStore.testInject(SignalStore(application, KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor())))
++    val wasInstrumentation = Environment.IS_INSTRUMENTATION
++    Environment.IS_INSTRUMENTATION = true
++    try {
++      SignalStore.testInject(SignalStore(application, KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor())))
++    } finally {
++      Environment.IS_INSTRUMENTATION = wasInstrumentation
++    }
+   }
+ 
+   override fun after() {
 diff --git a/core/util-jvm/src/main/java/org/signal/core/util/concurrent/FilteredExecutor.java b/core/util-jvm/src/main/java/org/signal/core/util/concurrent/FilteredExecutor.java
 index ae81fe02266a06b19a3c0112d7e7742a968f37b0..d0ddb51b311d00829f5f73c1fba4ed4813adfbdd 100644
 --- a/core/util-jvm/src/main/java/org/signal/core/util/concurrent/FilteredExecutor.java

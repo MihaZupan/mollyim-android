@@ -4,21 +4,19 @@ Date: Wed, 4 Nov 2026 08:09:47 +0100
 Subject: [PATCH] storage: retain Molly migration dispatch and persisted
  version semantics
 
-Keep database version321 and actual Molly migration implementations, including payment-table compatibility and placeholder-self repair; no old-data reinterpretation or upstream replacement.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-MIG-001, MOL-VERSION-STATE-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 382fa630fbdb5d0ec981109a2a52c98de06dc56e
+Semantic-boundary: 04/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTable.kt
-index 807f5bd6916c950a775fed38f9f1c4984c6d5093..50137318ab70ff42482f60f7ecc2d8ae30408a4e 100644
+index afd723290f07a172a61d5baf165139df63fc2be5..74df102c946c97f8ecfb1196d68fd5f45f3d7ecd 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/RecipientTable.kt
-@@ -418,7 +418,7 @@ open class RecipientTable(context: Context, databaseHelper: SignalDatabase) : Da
+@@ -437,7 +437,7 @@ open class RecipientTable(context: Context, databaseHelper: SignalDatabase) : Da
      )
  
      /** Used as a placeholder recipient for self during migrations when self isn't yet available. */
@@ -28,7 +26,7 @@ index 807f5bd6916c950a775fed38f9f1c4984c6d5093..50137318ab70ff42482f60f7ecc2d8ae
      @JvmStatic
      fun maskCapabilitiesToLong(capabilities: SignalServiceProfile.Capabilities): Long {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/SearchTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/SearchTable.kt
-index b1de7e946f37133d70470fb1ea6bd184ea45a2ce..c87d68041bdbc56b189a3887c875d70aa1b9999d 100644
+index 2cefce2f6d94ef009dc3c103f5e7ee29a7379425..7da56d4a794238abcaf3689c77662b94a4158c10 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/SearchTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/SearchTable.kt
 @@ -373,7 +373,7 @@ class SearchTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTa
@@ -41,10 +39,10 @@ index b1de7e946f37133d70470fb1ea6bd184ea45a2ce..c87d68041bdbc56b189a3887c875d70a
  
        RebuildMessageSearchIndexJob.enqueue()
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/ThreadTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/ThreadTable.kt
-index 04b49acdbfc434aeb3ea19a595592df6afd2ae38..9fc182a4ef688956696a6a7fc969cea10a63d7e4 100644
+index 1767bcb9e5ca461c1aa74d098b74f40364d137d5..2e1cee0e487df96f6f0256a37cf6f6ab30c8116c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/ThreadTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/ThreadTable.kt
-@@ -2489,7 +2489,7 @@ class ThreadTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTa
+@@ -2568,7 +2568,7 @@ class ThreadTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTa
      val groupAddedBy: String? = null,
      @field:JsonProperty
      @param:JsonProperty("individualRecipientId")
@@ -53,7 +51,7 @@ index 04b49acdbfc434aeb3ea19a595592df6afd2ae38..9fc182a4ef688956696a6a7fc969cea1
      @field:JsonProperty
      @param:JsonProperty("bodyRanges")
      val bodyRanges: String? = null,
-@@ -2504,10 +2504,6 @@ class ThreadTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTa
+@@ -2583,10 +2583,6 @@ class ThreadTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTa
      val isPoll: Boolean = false
    ) {
  
@@ -65,7 +63,7 @@ index 04b49acdbfc434aeb3ea19a595592df6afd2ae38..9fc182a4ef688956696a6a7fc969cea1
        fun forViewOnce(individualRecipient: RecipientId): Extra {
          return Extra(isViewOnce = true, individualRecipientId = individualRecipient.serialize())
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/SignalDatabaseMigrations.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/SignalDatabaseMigrations.kt
-index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b44677f41b0ff 100644
+index a3b74eb142dde813cdf05351a22f549ebff16d22..c8e4dc9cdd70770f8ef9e3c3df050ca3ad78f879 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/SignalDatabaseMigrations.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/SignalDatabaseMigrations.kt
 @@ -48,7 +48,7 @@ import org.thoughtcrime.securesms.database.helpers.migration.V186_ForeignKeyIndi
@@ -93,7 +91,7 @@ index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b4467
  import org.thoughtcrime.securesms.database.helpers.migration.V269_BackupMediaSnapshotChanges
  import org.thoughtcrime.securesms.database.helpers.migration.V270_FixChatFolderColumnsForStorageSync
  import org.thoughtcrime.securesms.database.helpers.migration.V271_AddNotificationProfileIdColumn
-@@ -183,7 +185,7 @@ object SignalDatabaseMigrations {
+@@ -192,7 +194,7 @@ object SignalDatabaseMigrations {
  
    val TAG: String = Log.tag(SignalDatabaseMigrations.javaClass)
  
@@ -102,7 +100,7 @@ index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b4467
      149 to V149_LegacyMigrations,
      150 to V150_UrgentMslFlagMigration,
      151 to V151_MyStoryMigration,
-@@ -225,7 +227,6 @@ object SignalDatabaseMigrations {
+@@ -234,7 +236,6 @@ object SignalDatabaseMigrations {
      187 to V187_MoreForeignKeyIndexesMigration,
      188 to V188_FixMessageRecipientsAndEditMessageMigration,
      189 to V189_CreateCallLinkTableColumnsAndRebuildFKReference,
@@ -110,9 +108,9 @@ index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b4467
      191 to V191_UniqueMessageMigrationV2,
      192 to V192_CallLinkTableNullableRootKeys,
      193 to V193_BackCallLinksWithRecipient,
-@@ -360,10 +361,38 @@ object SignalDatabaseMigrations {
+@@ -378,10 +379,38 @@ object SignalDatabaseMigrations {
  
-   const val DATABASE_VERSION = 321
+   const val DATABASE_VERSION = 330
  
 +  // MOLLY: Optional additional migrations specific to Molly
 +  private val extraMigrations: List<Pair<Int, SignalDatabaseMigration>> = listOf(
@@ -149,7 +147,7 @@ index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b4467
      val eligibleMigrations = if (newVersion < 0) {
        migrations.filter { (version, _) -> version > oldVersion }
      } else {
-@@ -371,17 +400,21 @@ object SignalDatabaseMigrations {
+@@ -389,17 +418,21 @@ object SignalDatabaseMigrations {
      }
  
      for (migrationData in eligibleMigrations) {
@@ -176,7 +174,7 @@ index ef31bfa0a5163b05fbba8fce31a5538b539d9b06..7114995d6fd758142c7b7de7696b4467
          db.setTransactionSuccessful()
        } catch (e: SQLiteException) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V149_LegacyMigrations.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V149_LegacyMigrations.kt
-index 51afc3a19bcee0c5b89106d2f5724e35a3c1e5ec..ebdf142a9085c361db7ff040a7a8bdba49b6f2d5 100644
+index e2cad011501604af462188132771c45df130b6b1..061c7d98c020bdf60dac4c7e826e6ae5186996bb 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V149_LegacyMigrations.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V149_LegacyMigrations.kt
 @@ -3,14 +3,9 @@
@@ -193,7 +191,7 @@ index 51afc3a19bcee0c5b89106d2f5724e35a3c1e5ec..ebdf142a9085c361db7ff040a7a8bdba
 -import android.preference.PreferenceManager
  import android.text.TextUtils
  import androidx.core.content.contentValuesOf
- import org.signal.core.models.ServiceId.ACI
+ import org.signal.core.database.SqlUtil
 @@ -29,18 +24,14 @@ import org.thoughtcrime.securesms.conversation.colors.AvatarColor
  import org.thoughtcrime.securesms.conversation.colors.ChatColors
  import org.thoughtcrime.securesms.conversation.colors.ChatColorsMapper
@@ -859,7 +857,7 @@ index 51afc3a19bcee0c5b89106d2f5724e35a3c1e5ec..ebdf142a9085c361db7ff040a7a8bdba
    }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V185_MessageRecipientsAndEditMessageMigration.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V185_MessageRecipientsAndEditMessageMigration.kt
-index 459a03f7dd68f5aecb16342405272a0a756032cf..a5c3af14c77fa00be7f3792ed9e388dead424eb5 100644
+index b08a8d3195bc4c06fab55a80929bc642db4f47ff..5e0dc5e11423b871871ebd5fa7a1b860679cc853 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V185_MessageRecipientsAndEditMessageMigration.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V185_MessageRecipientsAndEditMessageMigration.kt
 @@ -1,7 +1,6 @@
@@ -868,12 +866,12 @@ index 459a03f7dd68f5aecb16342405272a0a756032cf..a5c3af14c77fa00be7f3792ed9e388de
  import android.app.Application
 -import android.preference.PreferenceManager
  import androidx.core.content.contentValuesOf
+ import org.signal.core.database.SqlUtil
  import org.signal.core.models.ServiceId.ACI
- import org.signal.core.util.SqlUtil
-@@ -17,6 +16,7 @@ import org.thoughtcrime.securesms.database.KeyValueDatabase
+@@ -17,6 +16,7 @@ import org.signal.core.util.requireString
+ import org.thoughtcrime.securesms.database.KeyValueDatabase
  import org.thoughtcrime.securesms.database.SQLiteDatabase
  import org.thoughtcrime.securesms.dependencies.AppDependencies
- import org.thoughtcrime.securesms.recipients.RecipientId
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
  
  /**
@@ -914,7 +912,7 @@ index 459a03f7dd68f5aecb16342405272a0a756032cf..a5c3af14c77fa00be7f3792ed9e388de
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V188_FixMessageRecipientsAndEditMessageMigration.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V188_FixMessageRecipientsAndEditMessageMigration.kt
-index fc865195bfd32286b89633013ce1f2b0f32cd266..66ddedad18424595718d358daf7ef823ffa548dc 100644
+index 2d3beedf560fb50aac702e4d2e34418c8973e96f..2e8b8eedb0fc3581cbf96b03abcdddef7b508b10 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V188_FixMessageRecipientsAndEditMessageMigration.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V188_FixMessageRecipientsAndEditMessageMigration.kt
 @@ -1,7 +1,6 @@
@@ -923,12 +921,12 @@ index fc865195bfd32286b89633013ce1f2b0f32cd266..66ddedad18424595718d358daf7ef823
  import android.app.Application
 -import android.preference.PreferenceManager
  import androidx.core.content.contentValuesOf
+ import org.signal.core.database.SqlUtil
  import org.signal.core.models.ServiceId.ACI
- import org.signal.core.util.SqlUtil
-@@ -17,6 +16,7 @@ import org.thoughtcrime.securesms.database.KeyValueDatabase
+@@ -17,6 +16,7 @@ import org.signal.core.util.requireString
+ import org.thoughtcrime.securesms.database.KeyValueDatabase
  import org.thoughtcrime.securesms.database.SQLiteDatabase
  import org.thoughtcrime.securesms.dependencies.AppDependencies
- import org.thoughtcrime.securesms.recipients.RecipientId
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
  
  /**
@@ -1140,7 +1138,7 @@ index 0000000000000000000000000000000000000000..b701cba220f2e4cf4ab9e074dfa4e0ca
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V210_FixPniPossibleColumns.kt b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V210_FixPniPossibleColumns.kt
-index 69ffe579e8c9489ddc86252bc57bcb4844b75753..a6510d6cdbe44a3232ddb11d0e914ccb14adbba6 100644
+index f9e496695498aa81db202e2e68310d59e6d17a71..4030fe5e66b888b364f45e88594a51f6234e80e9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V210_FixPniPossibleColumns.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/helpers/migration/V210_FixPniPossibleColumns.kt
 @@ -46,7 +46,7 @@ object V210_FixPniPossibleColumns : SignalDatabaseMigration {
@@ -1313,7 +1311,7 @@ index 12aac96af81f86d54ee08c92fcb90ebce8adf2fc..59021e8282548c70ffae0513f1bd6095
  
    public PushDecryptMessageJobEnvelopeMigration() {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
-index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a4214650b9e090 100644
+index f8109facece561748883418f56848646833b94c4..d161cb259cc361aa771b6dba422b145c7ca19c71 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
 @@ -1,9 +1,7 @@
@@ -1327,25 +1325,23 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
  import kotlinx.coroutines.flow.Flow
  import org.signal.core.models.AccountEntropyPool
  import org.signal.core.models.ServiceId.ACI
-@@ -18,7 +16,6 @@ import org.signal.libsignal.protocol.IdentityKey
- import org.signal.libsignal.protocol.IdentityKeyPair
+@@ -19,7 +17,6 @@ import org.signal.libsignal.protocol.IdentityKeyPair
  import org.signal.libsignal.protocol.ecc.ECPrivateKey
  import org.signal.libsignal.protocol.util.Medium
+ import org.thoughtcrime.securesms.backup.v2.BackupRepository
 -import org.thoughtcrime.securesms.crypto.MasterCipher
  import org.thoughtcrime.securesms.crypto.ProfileKeyUtil
  import org.thoughtcrime.securesms.crypto.storage.PreKeyMetadataStore
  import org.thoughtcrime.securesms.database.SignalDatabase
-@@ -26,8 +23,7 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies
- import org.thoughtcrime.securesms.jobmanager.impl.RegisteredConstraint
+@@ -28,7 +25,6 @@ import org.thoughtcrime.securesms.jobmanager.impl.RegisteredConstraint
  import org.thoughtcrime.securesms.jobs.PreKeysSyncJob
+ import org.thoughtcrime.securesms.notifications.UnregisteredNotifier
  import org.thoughtcrime.securesms.recipients.Recipient
 -import org.thoughtcrime.securesms.service.KeyCachingService
--import org.thoughtcrime.securesms.util.TextSecurePreferences
-+import org.thoughtcrime.securesms.util.SecurePreferenceManager
  import org.whispersystems.signalservice.api.push.ServiceIds
  import org.whispersystems.signalservice.api.push.SignalServiceAddress
  import org.whispersystems.signalservice.api.push.UsernameLinkComponents
-@@ -98,13 +94,11 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+@@ -103,13 +99,11 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
    }
  
    init {
@@ -1362,7 +1358,7 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
  
      if (!store.containsKey(KEY_HAS_LINKED_DEVICES)) {
        migrateFromSharedPrefsV3(context)
-@@ -422,11 +416,22 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+@@ -465,11 +459,22 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
    @get:JvmName("isFcmEnabled")
    var fcmEnabled: Boolean by booleanValue(KEY_FCM_ENABLED, false)
  
@@ -1386,7 +1382,7 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
          getString(KEY_FCM_TOKEN, null)
        } else {
          null
-@@ -435,8 +440,8 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+@@ -478,8 +483,8 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
      set(value) {
        store.beginWrite()
          .putString(KEY_FCM_TOKEN, value)
@@ -1397,7 +1393,7 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
          .apply()
      }
  
-@@ -585,98 +590,59 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+@@ -668,87 +673,51 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
    var verificationCodeRequestedAtMs: Long by verificationCodeRequestedAtMsValue
    val verificationCodeRequestedAtMsFlow: Flow<Long> by lazy { verificationCodeRequestedAtMsValue.toFlow() }
  
@@ -1405,15 +1401,15 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
 -  private fun migrateFromSharedPrefsV1(context: Context) {
 -    Log.i(TAG, "[V1] Migrating account values from shared prefs.")
 -
--    putString(KEY_ACI, TextSecurePreferences.getStringPreference(context, "pref_local_uuid", null))
--    putString(KEY_E164, TextSecurePreferences.getStringPreference(context, "pref_local_number", null))
--    putString(KEY_SERVICE_PASSWORD, TextSecurePreferences.getStringPreference(context, "pref_gcm_password", null))
--    putBoolean(KEY_IS_REGISTERED, TextSecurePreferences.getBooleanPreference(context, "pref_gcm_registered", false))
--    putInteger(KEY_REGISTRATION_ID, TextSecurePreferences.getIntegerPreference(context, "pref_local_registration_id", 0))
--    putBoolean(KEY_FCM_ENABLED, !TextSecurePreferences.getBooleanPreference(context, "pref_gcm_disabled", false))
--    putString(KEY_FCM_TOKEN, TextSecurePreferences.getStringPreference(context, "pref_gcm_registration_id", null))
--    putInteger(KEY_FCM_TOKEN_VERSION, TextSecurePreferences.getIntegerPreference(context, "pref_gcm_registration_id_version", 0))
--    putLong(KEY_FCM_TOKEN_LAST_SET_TIME, TextSecurePreferences.getLongPreference(context, "pref_gcm_registration_id_last_set_time", 0))
+-    putString(KEY_ACI, LegacySharedPrefs.getStringOrNull(context, "pref_local_uuid"))
+-    putString(KEY_E164, LegacySharedPrefs.getStringOrNull(context, "pref_local_number"))
+-    putString(KEY_SERVICE_PASSWORD, LegacySharedPrefs.getStringOrNull(context, "pref_gcm_password"))
+-    putBoolean(KEY_IS_REGISTERED, LegacySharedPrefs.getBoolean(context, "pref_gcm_registered", false))
+-    putInteger(KEY_REGISTRATION_ID, LegacySharedPrefs.getInteger(context, "pref_local_registration_id", 0))
+-    putBoolean(KEY_FCM_ENABLED, !LegacySharedPrefs.getBoolean(context, "pref_gcm_disabled", false))
+-    putString(KEY_FCM_TOKEN, LegacySharedPrefs.getStringOrNull(context, "pref_gcm_registration_id"))
+-    putInteger(KEY_FCM_TOKEN_VERSION, LegacySharedPrefs.getInteger(context, "pref_gcm_registration_id_version", 0))
+-    putLong(KEY_FCM_TOKEN_LAST_SET_TIME, LegacySharedPrefs.getLong(context, "pref_gcm_registration_id_last_set_time", 0))
 -  }
 -
 -  /** Do not alter. If you need to migrate more stuff, create a new method. */
@@ -1448,40 +1444,6 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
 -        .putBlob(KEY_ACI_IDENTITY_PRIVATE_KEY, identityPrivate)
 -    } else {
 -      Log.w(TAG, "No pre-existing identity key! No migration.")
--    }
--
--    storeWriter
--      .putInteger(KEY_ACI_NEXT_SIGNED_PREKEY_ID, defaultPrefs.getInt("pref_next_signed_pre_key_id", SecureRandom().nextInt(Medium.MAX_VALUE)))
--      .putInteger(KEY_ACI_ACTIVE_SIGNED_PREKEY_ID, defaultPrefs.getInt("pref_active_signed_pre_key_id", -1))
--      .putInteger(KEY_ACI_NEXT_ONE_TIME_PREKEY_ID, defaultPrefs.getInt("pref_next_pre_key_id", SecureRandom().nextInt(Medium.MAX_VALUE)))
--      .putBoolean(KEY_ACI_SIGNED_PREKEY_REGISTERED, defaultPrefs.getBoolean("pref_signed_prekey_registered", false))
--      .commit()
--
--    masterSecretPrefs
--      .edit()
--      .remove("pref_identity_public_v3")
--      .remove("pref_identity_private_v3")
--      .remove("pref_identity_public_curve25519")
--      .remove("pref_identity_private_curve25519")
--      .commit()
--
--    defaultPrefs
--      .edit()
--      .remove("pref_local_uuid")
--      .remove("pref_identity_public_v3")
--      .remove("pref_next_signed_pre_key_id")
--      .remove("pref_active_signed_pre_key_id")
--      .remove("pref_signed_prekey_failure_count")
--      .remove("pref_signed_prekey_registered")
--      .remove("pref_next_pre_key_id")
--      .remove("pref_gcm_password")
--      .remove("pref_gcm_registered")
--      .remove("pref_local_registration_id")
--      .remove("pref_gcm_disabled")
--      .remove("pref_gcm_registration_id")
--      .remove("pref_gcm_registration_id_version")
--      .remove("pref_gcm_registration_id_last_set_time")
--      .commit()
 +  // MOLLY: Keys were parametrized with the account number until 7.23.1
 +  private fun migrateLegacyAccountKeys() {
 +    Log.i(TAG, "Migrating legacy account values.")
@@ -1526,36 +1488,68 @@ index 8998dfff906d9af22c9effce1f3c25bdf220f8d3..5d9a0517553d1e7e3a238ab0a4a42146
 +        }
 +      }
 +      apply()
-+    }
+     }
+-
+-    storeWriter
+-      .putInteger(KEY_ACI_NEXT_SIGNED_PREKEY_ID, defaultPrefs.getInt("pref_next_signed_pre_key_id", SecureRandom().nextInt(Medium.MAX_VALUE)))
+-      .putInteger(KEY_ACI_ACTIVE_SIGNED_PREKEY_ID, defaultPrefs.getInt("pref_active_signed_pre_key_id", -1))
+-      .putInteger(KEY_ACI_NEXT_ONE_TIME_PREKEY_ID, defaultPrefs.getInt("pref_next_pre_key_id", SecureRandom().nextInt(Medium.MAX_VALUE)))
+-      .putBoolean(KEY_ACI_SIGNED_PREKEY_REGISTERED, defaultPrefs.getBoolean("pref_signed_prekey_registered", false))
+-      .commit()
+-
+-    masterSecretPrefs
+-      .edit()
+-      .remove("pref_identity_public_v3")
+-      .remove("pref_identity_private_v3")
+-      .remove("pref_identity_public_curve25519")
+-      .remove("pref_identity_private_curve25519")
+-      .commit()
+-
+-    defaultPrefs
+-      .edit()
+-      .remove("pref_local_uuid")
+-      .remove("pref_identity_public_v3")
+-      .remove("pref_next_signed_pre_key_id")
+-      .remove("pref_active_signed_pre_key_id")
+-      .remove("pref_signed_prekey_failure_count")
+-      .remove("pref_signed_prekey_registered")
+-      .remove("pref_next_pre_key_id")
+-      .remove("pref_gcm_password")
+-      .remove("pref_gcm_registered")
+-      .remove("pref_local_registration_id")
+-      .remove("pref_gcm_disabled")
+-      .remove("pref_gcm_registration_id")
+-      .remove("pref_gcm_registration_id_version")
+-      .remove("pref_gcm_registration_id_last_set_time")
+-      .commit()
    }
  
    /** Do not alter. If you need to migrate more stuff, create a new method. */
-   private fun migrateFromSharedPrefsV3(context: Context) {
-     Log.i(TAG, "[V3] Migrating account values from shared prefs.")
- 
--    putBoolean(KEY_HAS_LINKED_DEVICES, TextSecurePreferences.getBooleanPreference(context, "pref_multi_device", false))
--  }
--
--  private fun SharedPreferences.hasStringData(key: String): Boolean {
--    return this.getString(key, null) != null
-+    val sharedPrefs = SecurePreferenceManager.getSecurePreferences(context)
-+    putBoolean(KEY_HAS_LINKED_DEVICES, sharedPrefs.getBoolean("pref_multi_device", false))
+@@ -765,10 +734,6 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+     putBoolean(KEY_IS_UNAUTHORIZED_RECEIVED, LegacySharedPrefs.getBoolean(context, "pref_unauthorized_received", false))
    }
  
+-  private fun SharedPreferences.hasStringData(key: String): Boolean {
+-    return this.getString(key, null) != null
+-  }
+-
    enum class UsernameSyncState(private val value: Long) {
+     /** Our username data is in sync with the service */
+     IN_SYNC(1),
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrationActivity.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrationActivity.java
-index a7889cfb0d3a4e9aef740f2620e5aa06efcb32c4..b2eb40ea759f7237d5fa93edf53dd141ebadddd0 100644
+index f1f6f21cd423d0c09eb8bf0a0bd6365016875a99..d99ffbdd9e8b012d112a2643435291a2eeeba65c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrationActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrationActivity.java
-@@ -20,20 +20,20 @@ package org.thoughtcrime.securesms.migrations;
- import android.os.Bundle;
+@@ -22,7 +22,7 @@ import android.os.Bundle;
+ import androidx.core.view.WindowInsetsCompat;
  
  import org.signal.core.util.logging.Log;
 -import org.thoughtcrime.securesms.BaseActivity;
 +import org.thoughtcrime.securesms.PassphraseRequiredActivity;
  import org.thoughtcrime.securesms.R;
+ import org.thoughtcrime.securesms.util.SystemWindowInsetsSetter;
  
- /**
+@@ -30,13 +30,13 @@ import org.thoughtcrime.securesms.util.SystemWindowInsetsSetter;
   * An activity that can be shown to block access to the rest of the app when a long-running or
   * otherwise blocking application-level migration is happening.
   */
@@ -1572,10 +1566,10 @@ index a7889cfb0d3a4e9aef740f2620e5aa06efcb32c4..b2eb40ea759f7237d5fa93edf53dd141
  
      ApplicationMigrations.getUiBlockingMigrationStatus().observe(this, running -> {
        if (running == null) {
-@@ -43,11 +43,16 @@ public class ApplicationMigrationActivity extends BaseActivity {
-       if (running) {
+@@ -47,11 +47,16 @@ public class ApplicationMigrationActivity extends BaseActivity {
          Log.i(TAG, "UI-blocking migration is in progress. Showing spinner.");
          setContentView(R.layout.application_migration_activity);
+         SystemWindowInsetsSetter.attach(findViewById(R.id.application_migration_root), this, WindowInsetsCompat.Type.systemBars());
 -      } else {
 +      } else if (!isFinishing()) {
          Log.i(TAG, "UI-blocking migration is no-longer in progress. Finishing.");
@@ -1591,10 +1585,10 @@ index a7889cfb0d3a4e9aef740f2620e5aa06efcb32c4..b2eb40ea759f7237d5fa93edf53dd141
 +  }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrations.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrations.java
-index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2b3692671 100644
+index e3372bb7a9ac58f4282fe20c15daf754ff5853e7..826f886ca6fd826db251eb8ce3d1aa50bcd0681b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrations.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/migrations/ApplicationMigrations.java
-@@ -25,7 +25,7 @@ import java.util.Map;
+@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
   * Manages application-level migrations.
   *
   * Migrations can be slotted to occur based on changes in the canonical version code
@@ -1603,7 +1597,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
   *
   * Migrations are performed via {@link MigrationJob}s. These jobs are durable and are run before any
   * other job, allowing you to schedule safe migrations. Furthermore, you may specify that a
-@@ -39,19 +39,8 @@ public class ApplicationMigrations {
+@@ -40,19 +40,8 @@ public class ApplicationMigrations {
  
    private static final MutableLiveData<Boolean> UI_BLOCKING_MIGRATION_RUNNING = new MutableLiveData<>();
  
@@ -1623,7 +1617,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int SWOON_STICKERS                = 10;
      static final int STORAGE_SERVICE               = 11;
      //static final int STORAGE_KEY_ROTATE   = 12;
-@@ -93,12 +82,12 @@ public class ApplicationMigrations {
+@@ -94,12 +83,12 @@ public class ApplicationMigrations {
      //static final int CHANGE_NUMBER_CAPABILITY_3  = 49;
      static final int PNI                           = 50;
      static final int FIX_DEPRECATION               = 51; // Only used to trigger clearing the 'client deprecated' flag
@@ -1639,7 +1633,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int PNI_IDENTITY_3                = 58;
      static final int STORY_DISTRIBUTION_LIST_SYNC  = 59;
      static final int EMOJI_VERSION_7               = 60;
-@@ -109,7 +98,7 @@ public class ApplicationMigrations {
+@@ -110,7 +99,7 @@ public class ApplicationMigrations {
      //static final int KBS_MIGRATION_2             = 65;
      static final int PNI_2                         = 66;
      static final int SYSTEM_NAME_SYNC              = 67;
@@ -1648,7 +1642,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
  //    static final int STORY_READ_STATE              = 69;
      static final int THREAD_MESSAGE_SCHEMA_CHANGE  = 70;
      static final int SMS_MMS_MERGE                 = 71;
-@@ -129,7 +118,7 @@ public class ApplicationMigrations {
+@@ -130,7 +119,7 @@ public class ApplicationMigrations {
      static final int ACCOUNT_CONSISTENCY_CHECK     = 85;
      static final int BACKUP_JITTER                 = 86;
      static final int PREKEY_SYNC                   = 87;
@@ -1657,7 +1651,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int DEDUPE_DB_MIGRATION_2         = 89;
      static final int EMOJI_VERSION_8               = 90;
      static final int SVR2_MIRROR                   = 91;
-@@ -137,7 +126,7 @@ public class ApplicationMigrations {
+@@ -138,7 +127,7 @@ public class ApplicationMigrations {
      static final int EMOJI_SEARCH_INDEX_CHECK      = 93;
      static final int IDENTITY_FIX                  = 94;
      static final int COPY_USERNAME_TO_SIGNAL_STORE = 95;
@@ -1666,7 +1660,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int THREAD_COUNT_DB_MIGRATION     = 97;
      static final int SYNC_KEYS_MIGRATION           = 98;
      static final int SELF_REGISTERTED_STATE        = 99;
-@@ -185,7 +174,7 @@ public class ApplicationMigrations {
+@@ -186,7 +175,7 @@ public class ApplicationMigrations {
      static final int E164_FORMATTING_3             = 141;
      static final int STORAGE_LOCAL_UNKNOWNS_FIX_2  = 142;
      static final int SVR2_ENCLAVE_UPDATE_4         = 143;
@@ -1675,7 +1669,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int ARCHIVE_BACKUP_ID             = 145;
      static final int QUOTE_THUMBNAIL_BACKFILL      = 146;
      static final int EMOJI_ENGLISH_SEARCH          = 147;
-@@ -196,7 +185,7 @@ public class ApplicationMigrations {
+@@ -197,7 +186,7 @@ public class ApplicationMigrations {
      static final int DELETED_BY_DB_MIGRATION       = 152;
      static final int RELEASE_CHANNEL_RECIPIENT_FIX = 153;
      static final int EMOJI_VERSION_13              = 154;
@@ -1684,16 +1678,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      static final int COLLAPSED_EVENTS_2            = 156;
      static final int KEY_TRANSPARENCY              = 157;
      static final int RELEASE_NOTES_CHAT_SYNC       = 158;
-@@ -219,7 +208,7 @@ public class ApplicationMigrations {
-    */
-   public static void onApplicationCreate(@NonNull Context context, @NonNull JobManager jobManager) {
-     if (isLegacyUpdate(context)) {
--      Log.i(TAG, "Detected the need for a legacy update. Last seen canonical version: " + VersionTracker.getLastSeenVersion(context));
-+      Log.i(TAG, "Detected the need for a legacy update. Last seen canonical version: " + VersionTracker.getLastSeenVersionForMolly(context));
-       TextSecurePreferences.setAppMigrationVersion(context, 0);
-     }
- 
-@@ -326,43 +315,6 @@ public class ApplicationMigrations {
+@@ -346,43 +335,6 @@ public class ApplicationMigrations {
    private static LinkedHashMap<Integer, MigrationJob> getMigrationJobs(@NonNull Context context, int lastSeenVersion) {
      LinkedHashMap<Integer, MigrationJob> jobs = new LinkedHashMap<>();
  
@@ -1737,7 +1722,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.SWOON_STICKERS) {
        jobs.put(Version.SWOON_STICKERS, new StickerAdditionMigrationJob(BlessedPacks.SWOON_HANDS, BlessedPacks.SWOON_FACES));
      }
-@@ -516,10 +468,6 @@ public class ApplicationMigrations {
+@@ -536,10 +488,6 @@ public class ApplicationMigrations {
        jobs.put(Version.PNI, new PniMigrationJob());
      }
  
@@ -1748,7 +1733,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.FIX_EMOJI_QUALITY) {
        jobs.put(Version.FIX_EMOJI_QUALITY, new EmojiDownloadMigrationJob());
      }
-@@ -532,13 +480,10 @@ public class ApplicationMigrations {
+@@ -552,13 +500,10 @@ public class ApplicationMigrations {
      //   jobs.put(Version.KBS_MIGRATION, new KbsEnclaveMigrationJob());
      // }
  
@@ -1766,7 +1751,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
  
      if (lastSeenVersion < Version.PNI_IDENTITY_3) {
        jobs.put(Version.PNI_IDENTITY_3, new PniAccountInitializationMigrationJob());
-@@ -661,10 +606,6 @@ public class ApplicationMigrations {
+@@ -681,10 +626,6 @@ public class ApplicationMigrations {
        jobs.put(Version.PREKEY_SYNC, new PreKeysSyncMigrationJob());
      }
  
@@ -1777,7 +1762,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.DEDUPE_DB_MIGRATION_2) {
        jobs.put(Version.DEDUPE_DB_MIGRATION_2, new DatabaseMigrationJob());
      }
-@@ -693,10 +634,6 @@ public class ApplicationMigrations {
+@@ -713,10 +654,6 @@ public class ApplicationMigrations {
        jobs.put(Version.COPY_USERNAME_TO_SIGNAL_STORE, new CopyUsernameToSignalStoreMigrationJob());
      }
  
@@ -1788,7 +1773,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.THREAD_COUNT_DB_MIGRATION) {
        jobs.put(Version.THREAD_COUNT_DB_MIGRATION, new DatabaseMigrationJob());
      }
-@@ -881,10 +818,6 @@ public class ApplicationMigrations {
+@@ -901,10 +838,6 @@ public class ApplicationMigrations {
        jobs.put(Version.SVR2_ENCLAVE_UPDATE_4, new Svr2MirrorMigrationJob());
      }
  
@@ -1799,7 +1784,7 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.ARCHIVE_BACKUP_ID) {
        jobs.put(Version.ARCHIVE_BACKUP_ID, new ArchiveBackupIdReservationMigrationJob());
      }
-@@ -925,10 +858,6 @@ public class ApplicationMigrations {
+@@ -945,10 +878,6 @@ public class ApplicationMigrations {
        jobs.put(Version.EMOJI_VERSION_13, new EmojiDownloadMigrationJob());
      }
  
@@ -1810,11 +1795,11 @@ index f31f8b2c7dce12fd1a8906a531a4d8e1dcd5ae51..37f94850a2e6edd642a3b80b5a5b20e2
      if (lastSeenVersion < Version.COLLAPSED_EVENTS_2) {
        jobs.put(Version.COLLAPSED_EVENTS_2, new BackfillCollapsedEventsMigrationJob());
      }
-@@ -969,6 +898,6 @@ public class ApplicationMigrations {
+@@ -1033,6 +962,6 @@ public class ApplicationMigrations {
    }
  
    private static boolean isLegacyUpdate(@NonNull Context context) {
--    return VersionTracker.getLastSeenVersion(context) < LEGACY_CANONICAL_VERSION;
+-    return VersionTracker.getLastSeenVersion() < LEGACY_CANONICAL_VERSION;
 +    return false;
    }
  }
@@ -1991,10 +1976,10 @@ index 988785c37cd8d1c47fc3a52e78a451c1e2acd3b3..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/LegacyMigrationJob.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/LegacyMigrationJob.java
 deleted file mode 100644
-index 06f5709e604227b4dcf22399abe8aff8945ae0e1..0000000000000000000000000000000000000000
+index 2e18fea846e363922d743389cd5e0570d680938d..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/LegacyMigrationJob.java
 +++ /dev/null
-@@ -1,275 +0,0 @@
+@@ -1,274 +0,0 @@
 -package org.thoughtcrime.securesms.migrations;
 -
 -import android.content.Context;
@@ -2021,7 +2006,6 @@ index 06f5709e604227b4dcf22399abe8aff8945ae0e1..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.keyvalue.SignalStore;
 -import org.thoughtcrime.securesms.transport.RetryLaterException;
 -import org.thoughtcrime.securesms.util.FileUtils;
--import org.thoughtcrime.securesms.util.TextSecurePreferences;
 -import org.thoughtcrime.securesms.util.VersionTracker;
 -
 -import java.io.File;
@@ -2092,7 +2076,7 @@ index 06f5709e604227b4dcf22399abe8aff8945ae0e1..00000000000000000000000000000000
 -  @Override
 -  void performMigration() throws RetryLaterException {
 -    Log.i(TAG, "Running background upgrade..");
--    int          lastSeenVersion = VersionTracker.getLastSeenVersion(context);
+-    int          lastSeenVersion = VersionTracker.getLastSeenVersion();
 -
 -    if (lastSeenVersion < NO_V1_VERSION) {
 -      File v1sessions = new File(context.getFilesDir(), "sessions");
@@ -2147,8 +2131,8 @@ index 06f5709e604227b4dcf22399abe8aff8945ae0e1..00000000000000000000000000000000
 -    }
 -
 -    if (lastSeenVersion < SCREENSHOTS) {
--      boolean screenSecurity = PreferenceManager.getDefaultSharedPreferences(context).getBoolean(TextSecurePreferences.SCREEN_SECURITY_PREF, true);
--      TextSecurePreferences.setScreenSecurityEnabled(context, screenSecurity);
+-      boolean screenSecurity = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_screen_security", true);
+-      SignalStore.settings().setScreenSecurityEnabled(screenSecurity);
 -    }
 -
 -    if (lastSeenVersion < PERSISTENT_BLOBS) {
@@ -2163,7 +2147,7 @@ index 06f5709e604227b4dcf22399abe8aff8945ae0e1..00000000000000000000000000000000
 -
 -    if (lastSeenVersion < INTERNALIZE_CONTACTS) {
 -      if (SignalStore.account().isRegistered()) {
--        TextSecurePreferences.setHasSuccessfullyRetrievedDirectory(context, true);
+-        SignalStore.misc().setHasSuccessfullyRetrievedDirectory(true);
 -      }
 -    }
 -
@@ -2462,10 +2446,10 @@ index 9698826b45e76781e78b45f7c365487987431dc5..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/StickerLaunchMigrationJob.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/StickerLaunchMigrationJob.java
 deleted file mode 100644
-index 26aca7c2ef647edbf49d86de634c348d7da0c3ab..0000000000000000000000000000000000000000
+index e23c43f2d77407fa1d67e46d9e9083c83296b5e2..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/StickerLaunchMigrationJob.java
 +++ /dev/null
-@@ -1,74 +0,0 @@
+@@ -1,73 +0,0 @@
 -package org.thoughtcrime.securesms.migrations;
 -
 -import android.content.Context;
@@ -2474,7 +2458,7 @@ index 26aca7c2ef647edbf49d86de634c348d7da0c3ab..00000000000000000000000000000000
 -import androidx.annotation.Nullable;
 -
 -import org.thoughtcrime.securesms.database.SignalDatabase;
--import org.thoughtcrime.securesms.database.StickerTable;
+-import org.thoughtcrime.securesms.database.StickerTables;
 -import org.thoughtcrime.securesms.dependencies.AppDependencies;
 -import org.thoughtcrime.securesms.jobmanager.Job;
 -import org.thoughtcrime.securesms.jobmanager.JobManager;
@@ -2482,7 +2466,6 @@ index 26aca7c2ef647edbf49d86de634c348d7da0c3ab..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.jobs.StickerPackDownloadJob;
 -import org.thoughtcrime.securesms.keyvalue.SignalStore;
 -import org.thoughtcrime.securesms.stickers.BlessedPacks;
--import org.thoughtcrime.securesms.util.TextSecurePreferences;
 -
 -public class StickerLaunchMigrationJob extends MigrationJob {
 -
@@ -2518,8 +2501,8 @@ index 26aca7c2ef647edbf49d86de634c348d7da0c3ab..00000000000000000000000000000000
 -  }
 -
 -  private static void installPack(@NonNull Context context, @NonNull BlessedPacks.Pack pack) {
--    JobManager   jobManager      = AppDependencies.getJobManager();
--    StickerTable stickerDatabase = SignalDatabase.stickers();
+-    JobManager    jobManager      = AppDependencies.getJobManager();
+-    StickerTables stickerDatabase = SignalDatabase.stickers();
 -
 -    if (stickerDatabase.isPackAvailableAsReference(pack.getPackId())) {
 -      stickerDatabase.markPackAsInstalled(pack.getPackId(), false);
@@ -2541,10 +2524,10 @@ index 26aca7c2ef647edbf49d86de634c348d7da0c3ab..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/StoryViewedReceiptsStateMigrationJob.kt b/app/src/main/java/org/thoughtcrime/securesms/migrations/StoryViewedReceiptsStateMigrationJob.kt
-index 30d69b063c2326e6d94d64d5b394580fc84bf75d..43f2ed2cf8826053c1c2f63ba1d3e3475fda40ec 100644
+index 811bcc79d3ea9809147a132c6efe440204e6f602..0f74503bdf4269e9cf216a10142bd473da731735 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/StoryViewedReceiptsStateMigrationJob.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/migrations/StoryViewedReceiptsStateMigrationJob.kt
-@@ -19,9 +19,10 @@ internal class StoryViewedReceiptsStateMigrationJob(
+@@ -18,9 +18,10 @@ internal class StoryViewedReceiptsStateMigrationJob(
  
    override fun getFactoryKey(): String = KEY
  
@@ -2554,10 +2537,10 @@ index 30d69b063c2326e6d94d64d5b394580fc84bf75d..43f2ed2cf8826053c1c2f63ba1d3e347
    override fun performMigration() {
 +    SignalStore.story.isFeatureDisabled = false
      if (!SignalStore.story.isViewedReceiptsStateSet()) {
-       SignalStore.story.viewedReceiptsEnabled = TextSecurePreferences.isReadReceiptsEnabled(context)
+       SignalStore.story.viewedReceiptsEnabled = SignalStore.settings.isReadReceiptsEnabled
        if (SignalStore.account.isRegistered) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/TrimByLengthSettingsMigrationJob.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/TrimByLengthSettingsMigrationJob.java
-index 4f35cffd149a043bbe1293145092679d8932f643..fbdb0a4cd76b1b92dcab476e0eb34180e85bdec7 100644
+index ac7a5453bd30a0e7d5bc3a34f3d2e1107d89442b..c108a502b00206b61f006bbc0ed640830d3b8758 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/TrimByLengthSettingsMigrationJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/migrations/TrimByLengthSettingsMigrationJob.java
 @@ -1,7 +1,6 @@
@@ -2583,11 +2566,11 @@ index 4f35cffd149a043bbe1293145092679d8932f643..fbdb0a4cd76b1b92dcab476e0eb34180
 -    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(AppDependencies.getApplication());
 +    SharedPreferences preferences = SecurePreferenceManager.getSecurePreferences(AppDependencies.getApplication());
      if (preferences.contains(THREAD_TRIM_ENABLED)) {
-       SignalStore.settings().setThreadTrimByLengthEnabled(preferences.getBoolean(THREAD_TRIM_ENABLED, false));
+       SignalStore.settings().setTrimByLengthEnabled(preferences.getBoolean(THREAD_TRIM_ENABLED, false));
        //noinspection ConstantConditions
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/migrations/UuidMigrationJob.java b/app/src/main/java/org/thoughtcrime/securesms/migrations/UuidMigrationJob.java
 deleted file mode 100644
-index 047f7e996730780276f233a0a92605b19bb9d6df..0000000000000000000000000000000000000000
+index f5d46b7222da4d0cb740cdcd8eb98c7893c71f56..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/migrations/UuidMigrationJob.java
 +++ /dev/null
 @@ -1,90 +0,0 @@
@@ -2599,6 +2582,7 @@ index 047f7e996730780276f233a0a92605b19bb9d6df..00000000000000000000000000000000
 -import androidx.annotation.NonNull;
 -import androidx.annotation.Nullable;
 -
+-import org.signal.core.models.recipients.RecipientId;
 -import org.signal.core.util.logging.Log;
 -import org.thoughtcrime.securesms.database.SignalDatabase;
 -import org.thoughtcrime.securesms.dependencies.AppDependencies;
@@ -2606,7 +2590,6 @@ index 047f7e996730780276f233a0a92605b19bb9d6df..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint;
 -import org.thoughtcrime.securesms.keyvalue.SignalStore;
 -import org.thoughtcrime.securesms.recipients.Recipient;
--import org.thoughtcrime.securesms.recipients.RecipientId;
 -import org.signal.core.models.ServiceId.ACI;
 -
 -import java.io.IOException;
@@ -2681,66 +2664,3 @@ index 047f7e996730780276f233a0a92605b19bb9d6df..00000000000000000000000000000000
 -    }
 -  }
 -}
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.java b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.java
-index 39ebbe3a1ef8e3bb796153a822cc6d8047be13e0..ad0f4a25966e755c53f9e41e4de83255988018cb 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.java
-@@ -14,21 +14,21 @@ public final class NotificationIds {
-   public static final int APK_UPDATE_SUCCESSFUL_INSTALL     = 668;
-   public static final int PENDING_MESSAGES                  = 1111;
-   public static final int MESSAGE_SUMMARY                   = 1338;
--  public static final int APPLICATION_MIGRATION             = 4242;
--  public static final int SMS_IMPORT_COMPLETE               = 31337;
-+  //public static final int APPLICATION_MIGRATION           = 4242;
-+  //public static final int SMS_IMPORT_COMPLETE             = 31337;
-   public static final int MAY_HAVE_MESSAGES_NOTIFICATION_ID = 31365;
--  public static final int PRE_REGISTRATION_SMS              = 5050;
-+  //public static final int PRE_REGISTRATION_SMS            = 5050;
-   public static final int THREAD                            = 50000;
-   public static final int MAX_THREAD                        = THREAD + 100_000;
-   public static final int INTERNAL_ERROR                    = 258069;
-   public static final int RECONCILIATION_ERROR              = 258070;
--  public static final int LEGACY_SQLCIPHER_MIGRATION        = 494949;
-+  //public static final int LEGACY_SQLCIPHER_MIGRATION      = 494949;
-   public static final int USER_NOTIFICATION_MIGRATION       = 525600;
-   public static final int DEVICE_TRANSFER                   = 625420;
-   public static final int DONOR_BADGE_FAILURE               = 630001;
-   public static final int FCM_FETCH                         = 630002;
--  public static final int SMS_EXPORT_SERVICE                = 630003;
--  public static final int SMS_EXPORT_COMPLETE               = 630004;
-+  //public static final int SMS_EXPORT_SERVICE              = 630003;
-+  //public static final int SMS_EXPORT_COMPLETE             = 630004;
-   public static final int STORY_THREAD                      = 700000;
-   public static final int MAX_STORY_THREAD                  = STORY_THREAD + 100_000;
-   public static final int MESSAGE_DELIVERY_FAILURE          = 800000;
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/VersionTracker.kt b/app/src/main/java/org/thoughtcrime/securesms/util/VersionTracker.kt
-index 335a65604f6321d12b30463bf1527ff6147df7de..f7fd16b19dccfc3ec37e27b851576ad054e78164 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/util/VersionTracker.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/util/VersionTracker.kt
-@@ -15,14 +15,14 @@ object VersionTracker {
-   private val TAG = Log.tag(VersionTracker::class.java)
- 
-   @JvmStatic
--  fun getLastSeenVersion(context: Context): Int {
--    return TextSecurePreferences.getLastVersionCode(context)
-+  fun getLastSeenVersionForMolly(context: Context): Int {
-+    return TextSecurePreferences.getLastVersionCodeForMolly(context)
-   }
- 
-   @JvmStatic
-   fun updateLastSeenVersion(context: Context) {
-     val currentVersionCode = BuildConfig.VERSION_CODE
--    val lastVersionCode = TextSecurePreferences.getLastVersionCode(context)
-+    val lastVersionCode = TextSecurePreferences.getLastVersionCodeForMolly(context)
- 
-     if (currentVersionCode != lastVersionCode) {
-       Log.i(TAG, "Upgraded from $lastVersionCode to $currentVersionCode. Clearing client deprecation.", true)
-@@ -34,7 +34,7 @@ object VersionTracker {
-       LocalMetrics.getInstance().clear()
-     }
- 
--    TextSecurePreferences.setLastVersionCode(context, currentVersionCode)
-+    TextSecurePreferences.setLastVersionCodeForMolly(context, currentVersionCode)
-   }
- 
-   @JvmStatic

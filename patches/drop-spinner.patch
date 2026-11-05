@@ -3,15 +3,13 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:30 +0100
 Subject: [PATCH] tooling: preserve reference spinner debugger exclusion
 
-Keep the existing debugger exclusion; do not restore build-graph nodes solely to reduce the line delta.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: DROP-SPINNER-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 95795f295adf1ecb9dca3b7fec6af3c5b8c7e9d7
+Semantic-boundary: 32/36
 
 diff --git a/app/src/spinner/AndroidManifest.xml b/app/src/spinner/AndroidManifest.xml
 deleted file mode 100644
@@ -30,10 +28,10 @@ index 40ebd5ba92f971d736e70b9500d682d56be40c71..00000000000000000000000000000000
 -</manifest>
 diff --git a/app/src/spinner/java/org/thoughtcrime/securesms/ApiPlugin.kt b/app/src/spinner/java/org/thoughtcrime/securesms/ApiPlugin.kt
 deleted file mode 100644
-index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..0000000000000000000000000000000000000000
+index ead7d991068c5edd2042d7fed0daf15d523057a2..0000000000000000000000000000000000000000
 --- a/app/src/spinner/java/org/thoughtcrime/securesms/ApiPlugin.kt
 +++ /dev/null
-@@ -1,760 +0,0 @@
+@@ -1,872 +0,0 @@
 -/*
 - * Copyright 2025 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -44,6 +42,7 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -import com.fasterxml.jackson.annotation.JsonCreator
 -import com.fasterxml.jackson.annotation.JsonProperty
 -import org.signal.core.models.ServiceId
+-import org.signal.core.models.recipients.RecipientId
 -import org.signal.core.util.Base64
 -import org.signal.core.util.Hex
 -import org.signal.core.util.Util
@@ -67,13 +66,17 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.database.MegaphoneDatabase
 -import org.thoughtcrime.securesms.database.MessageType
 -import org.thoughtcrime.securesms.database.SignalDatabase
+-import org.thoughtcrime.securesms.database.model.MmsMessageRecord
+-import org.thoughtcrime.securesms.database.withAttachments
 -import org.thoughtcrime.securesms.dependencies.AppDependencies
 -import org.thoughtcrime.securesms.mms.IncomingMessage
 -import org.thoughtcrime.securesms.mms.OutgoingMessage
+-import org.thoughtcrime.securesms.mms.QuoteModel
+-import org.thoughtcrime.securesms.notifications.v2.ConversationId
 -import org.thoughtcrime.securesms.profiles.ProfileName
 -import org.thoughtcrime.securesms.recipients.Recipient
--import org.thoughtcrime.securesms.recipients.RecipientId
 -import org.whispersystems.signalservice.api.profiles.SignalServiceProfile
+-import kotlin.time.Duration.Companion.days
 -
 -class ApiPlugin : Plugin {
 -  companion object {
@@ -136,6 +139,7 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      )
 -    ),
 -    "createThread" to ApiSpec(::createThread, listOf(Param("recipientId", "1"))),
+-    "updateNotification" to ApiSpec(::updateNotification, listOf(Param("threadId", "", placeholder = "blank = all threads"))),
 -    "createMessage" to ApiSpec(
 -      ::createMessage,
 -      listOf(
@@ -145,7 +149,12 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -        Param("body", "Hello"),
 -        Param("outgoing", "false"),
 -        Param("type", "NORMAL", placeholder = "NORMAL|IDENTITY_UPDATE|IDENTITY_VERIFIED|IDENTITY_DEFAULT|CONTACT_JOINED|EXPIRATION_UPDATE"),
--        Param("timestamp", "", placeholder = "blank = now (epoch millis)")
+-        Param("timestamp", "", placeholder = "blank = now (epoch millis)"),
+-        Param("quoteMessageId", "", placeholder = "message row id to quote"),
+-        Param("quoteAuthorId", "", placeholder = "recipient id; quotes a missing original when quoteMessageId is blank"),
+-        Param("quoteBody", "", placeholder = "blank = quoted message body"),
+-        Param("quoteMissing", "false"),
+-        Param("quoteType", "NORMAL", placeholder = "NORMAL|GIFT_BADGE|POLL")
 -      )
 -    ),
 -    "createAttachment" to ApiSpec(
@@ -434,7 +443,7 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      }
 -
 -      SignalDatabase.recipients.setProfileKeyIfAbsent(recipientId, ProfileKeyUtil.createNew())
--      SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true))
+-      SignalDatabase.recipients.setCapabilities(recipientId, SignalServiceProfile.Capabilities(true, true, true, false))
 -      SignalDatabase.recipients.setProfileSharing(recipientId, profileSharing)
 -
 -      if (registered) {
@@ -458,7 +467,7 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      }
 -
 -      if (blocked) {
--        SignalDatabase.recipients.setBlocked(recipientId, true)
+-        SignalDatabase.recipients.setBlocked(recipientId, true, 0)
 -      }
 -
 -      if (hidden) {
@@ -520,7 +529,7 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      val groupRecipientId = SignalDatabase.recipients.getOrInsertFromGroupId(groupId)
 -
 -      if (blocked) {
--        SignalDatabase.recipients.setBlocked(groupRecipientId, true)
+-        SignalDatabase.recipients.setBlocked(groupRecipientId, true, 0)
 -      }
 -      SignalDatabase.recipients.setProfileSharing(groupRecipientId, profileSharing)
 -
@@ -549,6 +558,30 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -    }
 -  }
 -
+-  /**
+-   * Drives a notification pass on demand.
+-   */
+-  private fun updateNotification(parameters: Map<String, List<String>>): PluginResult {
+-    val threadIdParam = parameters["threadId"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+-    val threadId = if (threadIdParam != null) {
+-      threadIdParam.toLongOrNull() ?: return PluginResult.ErrorResult(message = "Invalid 'threadId' parameter")
+-    } else {
+-      null
+-    }
+-
+-    return try {
+-      if (threadId != null) {
+-        AppDependencies.messageNotifier.updateNotification(AppDependencies.application, ConversationId.forConversation(threadId))
+-      } else {
+-        AppDependencies.messageNotifier.updateNotification(AppDependencies.application)
+-      }
+-      UpdateNotificationResponse(threadId ?: -1).toJsonResult()
+-    } catch (e: Exception) {
+-      Log.w(TAG, "Failed to update notification", e)
+-      PluginResult.ErrorResult(message = "Failed: ${e.message}")
+-    }
+-  }
+-
 -  private fun createMessage(parameters: Map<String, List<String>>): PluginResult {
 -    val threadId = parameters["threadId"]?.firstOrNull()?.toLongOrNull()
 -      ?: return PluginResult.ErrorResult(message = "Missing or invalid 'threadId' parameter")
@@ -568,17 +601,27 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      MessageType.NORMAL
 -    }
 -
+-    val quote = when (val result = parseQuote(parameters)) {
+-      is QuoteParseResult.Error -> return PluginResult.ErrorResult(message = result.message)
+-      is QuoteParseResult.Success -> result.quote
+-    }
+-
+-    if (quote != null && messageType != MessageType.NORMAL) {
+-      return PluginResult.ErrorResult(message = "Quotes are only supported on NORMAL messages")
+-    }
+-
 -    return try {
 -      if (outgoing) {
 -        if (messageType != MessageType.NORMAL) {
 -          return PluginResult.ErrorResult(message = "'type' is only supported for incoming messages; outgoing messages are always NORMAL text")
 -        }
 -        val threadRecipient = Recipient.resolved(RecipientId.from(toRecipientId))
--        val outgoingMessage = OutgoingMessage.text(
--          threadRecipient = threadRecipient,
+-        val outgoingMessage = OutgoingMessage(
+-          recipient = threadRecipient,
 -          body = body,
--          expiresIn = 0,
--          sentTimeMillis = timestamp
+-          timestamp = timestamp,
+-          quote = quote,
+-          isSecure = true
 -        )
 -        val result = SignalDatabase.messages.insertMessageOutbox(outgoingMessage, threadId)
 -        CreateMessageResponse(result.messageId).toJsonResult()
@@ -591,7 +634,8 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -            sentTimeMillis = timestamp,
 -            serverTimeMillis = timestamp,
 -            receivedTimeMillis = timestamp,
--            body = body
+-            body = body,
+-            quote = quote
 -          )
 -          MessageType.IDENTITY_UPDATE -> IncomingMessage.identityUpdate(from, timestamp, null)
 -          MessageType.IDENTITY_VERIFIED -> IncomingMessage.identityVerified(from, timestamp, null)
@@ -617,6 +661,68 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -      Log.w(TAG, "Failed to create message", e)
 -      PluginResult.ErrorResult(message = "Failed: ${e.message}")
 -    }
+-  }
+-
+-  /**
+-   * Builds a [QuoteModel] from `quoteMessageId` (quoting an existing message, including its first attachment as the thumbnail)
+-   * or from `quoteAuthorId` alone (quoting an original that isn't on this device).
+-   */
+-  private fun parseQuote(parameters: Map<String, List<String>>): QuoteParseResult {
+-    val quoteMessageId = parameters["quoteMessageId"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+-    val quoteAuthorId = parameters["quoteAuthorId"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+-    val quoteBody = parameters["quoteBody"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+-    val quoteMissing = parameters.boolOrDefault("quoteMissing", false)
+-    val quoteTypeParam = parameters["quoteType"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+-
+-    if (quoteMessageId == null && quoteAuthorId == null) {
+-      return QuoteParseResult.Success(null)
+-    }
+-
+-    val quoteType = if (quoteTypeParam != null) {
+-      QuoteModel.Type.entries.find { it.name.equals(quoteTypeParam, ignoreCase = true) }
+-        ?: return QuoteParseResult.Error("Unknown quote type '$quoteTypeParam'. Supported: ${QuoteModel.Type.entries.joinToString { it.name }}")
+-    } else {
+-      QuoteModel.Type.NORMAL
+-    }
+-
+-    if (quoteMessageId != null) {
+-      val target = quoteMessageId.toLongOrNull()?.let { SignalDatabase.messages.getMessageRecordOrNull(it) }?.withAttachments()
+-        ?: return QuoteParseResult.Error("No message with id $quoteMessageId to quote")
+-      val mmsTarget = target as? MmsMessageRecord
+-
+-      return QuoteParseResult.Success(
+-        QuoteModel(
+-          id = target.dateSent,
+-          author = quoteAuthorId?.toLongOrNull()?.let { RecipientId.from(it) } ?: target.fromRecipient.id,
+-          text = quoteBody ?: target.body,
+-          isOriginalMissing = quoteMissing,
+-          attachment = mmsTarget?.slideDeck?.asAttachments()?.firstOrNull(),
+-          mentions = null,
+-          type = quoteType,
+-          bodyRanges = if (quoteBody == null) mmsTarget?.messageRanges else null
+-        )
+-      )
+-    }
+-
+-    val authorId = quoteAuthorId?.toLongOrNull() ?: return QuoteParseResult.Error("Invalid 'quoteAuthorId' parameter")
+-
+-    return QuoteParseResult.Success(
+-      QuoteModel(
+-        id = System.currentTimeMillis() - 1.days.inWholeMilliseconds,
+-        author = RecipientId.from(authorId),
+-        text = quoteBody ?: "",
+-        isOriginalMissing = true,
+-        attachment = null,
+-        mentions = null,
+-        type = quoteType,
+-        bodyRanges = null
+-      )
+-    )
+-  }
+-
+-  private sealed interface QuoteParseResult {
+-    data class Success(val quote: QuoteModel?) : QuoteParseResult
+-    data class Error(val message: String) : QuoteParseResult
 -  }
 -
 -  /**
@@ -719,6 +825,10 @@ index 9dda65899458ad074e5de6ebbe885c7c6593ec0c..00000000000000000000000000000000
 -  data class CreateGroupResponse @JsonCreator constructor(
 -    @field:JsonProperty val recipientId: Long,
 -    @field:JsonProperty val groupId: String
+-  )
+-
+-  data class UpdateNotificationResponse @JsonCreator constructor(
+-    @JsonProperty("threadId") val threadId: Long
 -  )
 -
 -  data class CreateThreadResponse @JsonCreator constructor(
@@ -859,10 +969,10 @@ index cdf9848d30d85716f70ff72f9f9b7144593dff24..00000000000000000000000000000000
 -}
 diff --git a/app/src/spinner/java/org/thoughtcrime/securesms/BackupPlugin.kt b/app/src/spinner/java/org/thoughtcrime/securesms/BackupPlugin.kt
 deleted file mode 100644
-index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..0000000000000000000000000000000000000000
+index 44e8e68f12eaada819f73eb15edd12751600050e..0000000000000000000000000000000000000000
 --- a/app/src/spinner/java/org/thoughtcrime/securesms/BackupPlugin.kt
 +++ /dev/null
-@@ -1,646 +0,0 @@
+@@ -1,647 +0,0 @@
 -/*
 - * Copyright 2025 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -870,6 +980,8 @@ index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..00000000000000000000000000000000
 -
 -package org.thoughtcrime.securesms
 -
+-import arrow.core.Either
+-import kotlinx.coroutines.runBlocking
 -import okio.ByteString
 -import org.signal.archive.proto.AccountData
 -import org.signal.archive.proto.BackupDebugInfo
@@ -879,7 +991,6 @@ index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..00000000000000000000000000000000
 -import org.signal.core.util.decodeOrNull
 -import org.signal.core.util.logging.Log
 -import org.signal.libsignal.zkgroup.profiles.ProfileKey
--import org.signal.network.NetworkResult
 -import org.signal.network.api.SvrBApi
 -import org.signal.spinner.Plugin
 -import org.signal.spinner.PluginResult
@@ -923,10 +1034,10 @@ index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..00000000000000000000000000000000
 -    val tempBackupFile = AppDependencies.blobs.forNonAutoEncryptingSingleSessionOnDisk(AppDependencies.application)
 -
 -    when (val result = BackupRepository.downloadBackupFile(tempBackupFile)) {
--      is NetworkResult.Success -> Log.i(TAG, "Download successful")
--      else -> {
--        Log.w(TAG, "Failed to download backup file", result.getCause())
--        return result.getCause().toString()
+-      is Either.Right -> Log.i(TAG, "Download successful")
+-      is Either.Left -> {
+-        Log.w(TAG, "Failed to download backup file", result.value.cause)
+-        return result.value.toString()
 -      }
 -    }
 -
@@ -935,18 +1046,18 @@ index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..00000000000000000000000000000000
 -      return "Failed to read forward secrecy metadata!"
 -    }
 -
--    val svrBAuth = when (val result = BackupRepository.getSvrBAuth()) {
--      is NetworkResult.Success -> result.result
--      else -> return "Failed to read forward secrecy metadata!"
+-    val svrBAuth = when (val result = runBlocking { SignalNetwork.archiveService.getSvrBAuth() }) {
+-      is Either.Right -> result.value
+-      is Either.Left -> return "Failed to read forward secrecy metadata!"
 -    }
 -
--    val forwardSecrecyToken = when (val result = SignalNetwork.svrB.restore(svrBAuth, SignalStore.backup.messageBackupKey, forwardSecrecyMetadata)) {
+-    val forwardSecrecyToken = when (val result = SignalNetwork.svrBApi.restore(svrBAuth, SignalStore.backup.messageBackupKey, forwardSecrecyMetadata)) {
 -      is SvrBApi.RestoreResult.Success -> result.data.forwardSecrecyToken
 -      else -> return "Failed to read forward secrecy metadata! $result"
 -    }
 -
 -    val self = Recipient.self()
--    val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.get(), self.e164.get(), ProfileKey(self.profileKey))
+-    val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.orElse(null), self.e164.orElse(null), ProfileKey(self.profileKey))
 -
 -    val backupKey = SignalStore.backup.messageBackupKey
 -
@@ -980,7 +1091,7 @@ index 5f90ab42becdcbf7bf272cd00bcc74db3003d259..00000000000000000000000000000000
 -    val snapshotFS = SnapshotFileSystem(AppDependencies.application, snapshot.file)
 -
 -    val self = Recipient.self()
--    val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.get(), self.e164.get(), ProfileKey(self.profileKey))
+-    val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.orElse(null), self.e164.orElse(null), ProfileKey(self.profileKey))
 -
 -    val backupKey = SignalStore.backup.messageBackupKey
 -
@@ -1675,10 +1786,10 @@ index ef22ec165aef7ed3945d5499639ee467808e5333..00000000000000000000000000000000
 -}
 diff --git a/app/src/spinner/java/org/thoughtcrime/securesms/StorageServicePlugin.kt b/app/src/spinner/java/org/thoughtcrime/securesms/StorageServicePlugin.kt
 deleted file mode 100644
-index 081b0f6ce4dd30bbc51853b2941b3700c486dcd2..0000000000000000000000000000000000000000
+index caf143838cfd0ac7ea56bbf5c329e59430815114..0000000000000000000000000000000000000000
 --- a/app/src/spinner/java/org/thoughtcrime/securesms/StorageServicePlugin.kt
 +++ /dev/null
-@@ -1,139 +0,0 @@
+@@ -1,148 +0,0 @@
 -package org.thoughtcrime.securesms
 -
 -import org.signal.core.util.Base64
@@ -1699,7 +1810,7 @@ index 081b0f6ce4dd30bbc51853b2941b3700c486dcd2..00000000000000000000000000000000
 -    val columns = listOf("Type", "Id", "Data")
 -    val rows = mutableListOf<List<String>>()
 -
--    val repository = StorageServiceService(SignalNetwork.storageService)
+-    val repository = SignalNetwork.storageService
 -    val storageServiceKey = SignalStore.storageService.storageKey
 -
 -    val manifest = when (val result = repository.getStorageManifest(storageServiceKey)) {
@@ -1744,6 +1855,15 @@ index 081b0f6ce4dd30bbc51853b2941b3700c486dcd2..00000000000000000000000000000000
 -      } else if (record.proto.notificationProfile != null) {
 -        row += "Notification Profile"
 -        row += record.proto.notificationProfile.toString().prettyPrintProto()
+-      } else if (record.proto.installedStickerPack != null) {
+-        row += "Installed Sticker Pack"
+-        row += record.proto.installedStickerPack.toString().prettyPrintProto()
+-      } else if (record.proto.hiddenStickerPack != null) {
+-        row += "Hidden Sticker Pack"
+-        row += record.proto.hiddenStickerPack.toString().prettyPrintProto()
+-      } else if (record.proto.favoriteSticker != null) {
+-        row += "Favorite Sticker"
+-        row += record.proto.favoriteSticker.toString().prettyPrintProto()
 -      } else {
 -        row += "Unknown"
 -        row += ""
@@ -2393,7 +2513,7 @@ index 6fb6767cd129e13f1ad17392ca1135acc26c6e00..00000000000000000000000000000000
 -}
 diff --git a/app/src/spinner/java/org/thoughtcrime/securesms/database/ProfileKeyCredentialTransformer.kt b/app/src/spinner/java/org/thoughtcrime/securesms/database/ProfileKeyCredentialTransformer.kt
 deleted file mode 100644
-index 45ecf44e413761ab6b294dfcd16a8b5fb0005661..0000000000000000000000000000000000000000
+index eb686853c21c500980cf2bc340dae3343bc46a83..0000000000000000000000000000000000000000
 --- a/app/src/spinner/java/org/thoughtcrime/securesms/database/ProfileKeyCredentialTransformer.kt
 +++ /dev/null
 @@ -1,33 +0,0 @@
@@ -2403,11 +2523,11 @@ index 45ecf44e413761ab6b294dfcd16a8b5fb0005661..00000000000000000000000000000000
 -import org.signal.core.util.Base64
 -import org.signal.core.util.Hex
 -import org.signal.core.util.requireString
+-import org.signal.core.util.toLocalDateTime
 -import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential
 -import org.signal.spinner.ColumnTransformer
 -import org.signal.spinner.DefaultColumnTransformer
 -import org.thoughtcrime.securesms.database.model.databaseprotos.ExpiringProfileKeyCredentialColumnData
--import org.thoughtcrime.securesms.util.toLocalDateTime
 -import java.security.MessageDigest
 -
 -object ProfileKeyCredentialTransformer : ColumnTransformer {
@@ -2497,7 +2617,7 @@ index 301ba9e4c2159771403e2454d2788373284dea55..00000000000000000000000000000000
 -}
 diff --git a/app/src/spinner/java/org/thoughtcrime/securesms/database/TimestampTransformer.kt b/app/src/spinner/java/org/thoughtcrime/securesms/database/TimestampTransformer.kt
 deleted file mode 100644
-index acaf4f0779280f859c05d6eb0961259d0a19ad31..0000000000000000000000000000000000000000
+index bca7cfc35d3c4f54ec420a8ce7a200c4708bf973..0000000000000000000000000000000000000000
 --- a/app/src/spinner/java/org/thoughtcrime/securesms/database/TimestampTransformer.kt
 +++ /dev/null
 @@ -1,28 +0,0 @@
@@ -2505,10 +2625,10 @@ index acaf4f0779280f859c05d6eb0961259d0a19ad31..00000000000000000000000000000000
 -
 -import android.database.Cursor
 -import org.signal.core.util.requireLong
+-import org.signal.core.util.toLocalDateTime
+-import org.signal.core.util.toMillis
 -import org.signal.spinner.ColumnTransformer
 -import org.signal.spinner.DefaultColumnTransformer
--import org.thoughtcrime.securesms.util.toLocalDateTime
--import org.thoughtcrime.securesms.util.toMillis
 -import java.time.LocalDateTime
 -
 -object TimestampTransformer : ColumnTransformer {
@@ -2531,10 +2651,10 @@ index acaf4f0779280f859c05d6eb0961259d0a19ad31..00000000000000000000000000000000
 -}
 diff --git a/lib/spinner/build.gradle.kts b/lib/spinner/build.gradle.kts
 deleted file mode 100644
-index 53457d9a1c24f98bec7df74f91eeea3c740c0f21..0000000000000000000000000000000000000000
+index ef3aa87f276f1d59e2b3eb843020aca025bee2d3..0000000000000000000000000000000000000000
 --- a/lib/spinner/build.gradle.kts
 +++ /dev/null
-@@ -1,18 +0,0 @@
+@@ -1,19 +0,0 @@
 -plugins {
 -  id("signal-library")
 -}
@@ -2545,6 +2665,7 @@ index 53457d9a1c24f98bec7df74f91eeea3c740c0f21..00000000000000000000000000000000
 -
 -dependencies {
 -  implementation(project(":core:util"))
+-  implementation(project(":core:database"))
 -
 -  implementation(libs.jknack.handlebars)
 -  implementation(libs.nanohttpd.webserver)
@@ -5671,7 +5792,7 @@ index 156a904aceb18d431063998552c7f9bf7a07124c..00000000000000000000000000000000
 -}
 diff --git a/lib/spinner/src/main/java/org/signal/spinner/SpinnerServer.kt b/lib/spinner/src/main/java/org/signal/spinner/SpinnerServer.kt
 deleted file mode 100644
-index 1907062190f2f4b914c2576eb72693ea7d4425ac..0000000000000000000000000000000000000000
+index da94bfc3eb85df36009760d93fb794c0afe97a8f..0000000000000000000000000000000000000000
 --- a/lib/spinner/src/main/java/org/signal/spinner/SpinnerServer.kt
 +++ /dev/null
 @@ -1,611 +0,0 @@
@@ -5685,9 +5806,9 @@ index 1907062190f2f4b914c2576eb72693ea7d4425ac..00000000000000000000000000000000
 -import com.github.jknack.handlebars.helper.ConditionalHelpers
 -import fi.iki.elonen.NanoHTTPD
 -import fi.iki.elonen.NanoWSD
+-import org.signal.core.database.ForeignKeyConstraint
+-import org.signal.core.database.getForeignKeys
 -import org.signal.core.util.ExceptionUtil
--import org.signal.core.util.ForeignKeyConstraint
--import org.signal.core.util.getForeignKeys
 -import org.signal.core.util.logging.Log
 -import org.signal.core.util.tracing.Tracer
 -import org.signal.spinner.Spinner.DatabaseConfig

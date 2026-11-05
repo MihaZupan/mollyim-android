@@ -3,96 +3,329 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:34 +0100
 Subject: [PATCH] lint: retain reference enforcement and existing baseline
 
-Keep existing lint/format enforcement and baseline unchanged; a passing task does not mean zero suppressed defects.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: BUILD-LINT-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 56b69d72ed9e5a6860570aef0273d4e6b8ce25ab
+Semantic-boundary: 35/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java b/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java
-index 046875b7b10820acdd8bf73dcdf3e32bc493fe82..1ddc653b4dbd1989f49de42e36fdf6df37a4d19f 100644
+index 046875b7b10820acdd8bf73dcdf3e32bc493fe82..cb8c36bd237995ab7e2136c74b92c4f1d59db02b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java
-@@ -1,6 +1,7 @@
- package org.thoughtcrime.securesms.profiles.edit;
- 
- 
-+import android.annotation.SuppressLint;
+@@ -4,22 +4,34 @@ package org.thoughtcrime.securesms.profiles.edit;
  import android.content.Context;
  import android.content.Intent;
  import android.os.Bundle;
-@@ -19,6 +20,7 @@ import org.thoughtcrime.securesms.util.DynamicTheme;
++import android.view.WindowManager;
+ 
+ import androidx.activity.OnBackPressedCallback;
+ import androidx.annotation.NonNull;
++import androidx.annotation.Nullable;
++import androidx.core.os.BundleCompat;
++import androidx.fragment.app.Fragment;
+ import androidx.navigation.Navigation;
+ import androidx.navigation.fragment.NavHostFragment;
+ 
+-import org.thoughtcrime.securesms.BaseActivity;
++import org.signal.registration.RegistrationActivityLifecycle;
++import org.thoughtcrime.securesms.PassphraseActivity;
++import org.thoughtcrime.securesms.PassphraseCreateActivity;
++import org.thoughtcrime.securesms.PassphrasePromptActivity;
+ import org.thoughtcrime.securesms.R;
++import org.thoughtcrime.securesms.crypto.MasterSecretUtil;
+ import org.thoughtcrime.securesms.groups.GroupId;
++import org.thoughtcrime.securesms.service.KeyCachingService;
+ import org.thoughtcrime.securesms.util.DynamicRegistrationTheme;
+ import org.thoughtcrime.securesms.util.DynamicTheme;
+ 
  /**
   * Shows editing screen for your profile during registration. Also handles group name editing.
   */
-+@SuppressLint("BaseActivitySubclass")
- public class CreateProfileActivity extends BaseActivity implements CreateProfileFragment.Controller {
+-public class CreateProfileActivity extends BaseActivity implements CreateProfileFragment.Controller {
++public class CreateProfileActivity extends PassphraseActivity implements CreateProfileFragment.Controller {
++
++  private static final String FRAGMENT_STATE = "create_profile_fragment_state";
++  private static final String ACTIVITY_RESULT_STATE = "create_profile_activity_result_state";
  
    public static final String NEXT_INTENT            = "next_intent";
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/RemoteRestoreActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/RemoteRestoreActivity.kt
-index d4bd0475ca0fefddefce2303ce3b1f0a7cd9615a..5f0c81f8c9979f215ea5c9f497ae120172d086fc 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/RemoteRestoreActivity.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/RemoteRestoreActivity.kt
-@@ -5,6 +5,7 @@
+   public static final String EXCLUDE_SYSTEM         = "exclude_system";
+@@ -30,6 +42,10 @@ public class CreateProfileActivity extends BaseActivity implements CreateProfile
  
- package org.thoughtcrime.securesms.registration.ui.restore
+   private final DynamicTheme dynamicTheme = new DynamicRegistrationTheme();
  
-+import android.annotation.SuppressLint
- import android.content.Context
- import android.content.Intent
- import android.os.Bundle
-@@ -93,6 +94,7 @@ import kotlin.time.Duration
- /**
-  * Restore backup from remote source.
-  */
-+@SuppressLint("BaseActivitySubclass")
- class RemoteRestoreActivity : BaseActivity() {
-   companion object {
++  private @Nullable RegistrationActivityLifecycle activityLifecycle;
++  private @Nullable Fragment.SavedState pendingFragmentState;
++  private boolean contentInitialized;
++
+   public static @NonNull Intent getIntentForUserProfile(@NonNull Context context) {
+     Intent intent = new Intent(context, CreateProfileActivity.class);
+     intent.putExtra(CreateProfileActivity.SHOW_TOOLBAR, false);
+@@ -55,19 +71,52 @@ public class CreateProfileActivity extends BaseActivity implements CreateProfile
  
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/local/RestoreLocalBackupActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/local/RestoreLocalBackupActivity.kt
-index 8075ec46e47f9918e26e1d71114d42403d9a177f..3147fb8e46a48b333a4fb04a6edf8a58b138dda4 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/local/RestoreLocalBackupActivity.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/registration/ui/restore/local/RestoreLocalBackupActivity.kt
-@@ -5,6 +5,7 @@
+   @Override
+   public void onCreate(Bundle bundle) {
+-    super.onCreate(bundle);
+-
+     dynamicTheme.onCreate(this);
++    activityLifecycle = RegistrationActivityLifecycle.Companion.create(this);
  
- package org.thoughtcrime.securesms.registration.ui.restore.local
+-    setContentView(R.layout.create_profile_activity);
++    // Framework restoration can instantiate private fragments before onPostResume admission.
++    super.onCreate(null);
++    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
++
++    if (activityLifecycle == null) {
++      finishAndRemoveTask();
++      return;
++    }
++
++    Class<?> destination = !MasterSecretUtil.isPassphraseInitialized(this) ? PassphraseCreateActivity.class
++                           : KeyCachingService.isLocked()                ? PassphrasePromptActivity.class
++                                                                         : null;
++    if (destination != null) {
++      startActivity(new Intent(this, destination).putExtra(NEXT_INTENT, new Intent(getIntent())));
++      finish();
++      return;
++    }
++
++    if (bundle != null) {
++      pendingFragmentState = BundleCompat.getParcelable(bundle, FRAGMENT_STATE, Fragment.SavedState.class);
++      getActivityResultRegistry().onRestoreInstanceState(bundle.getBundle(ACTIVITY_RESULT_STATE));
++    }
++  }
++
++  @Override
++  protected void onPostResume(boolean screenLocked) {
++    super.onPostResume(screenLocked);
  
-+import android.annotation.SuppressLint
- import android.content.Context
- import android.content.Intent
- import android.os.Bundle
-@@ -65,6 +66,7 @@ import kotlin.math.max
-  * Handles the synchronous restoration of the proto files from a V2 backup. Media is
-  * handled by background tasks.
-  */
-+@SuppressLint("BaseActivitySubclass")
- class RestoreLocalBackupActivity : BaseActivity() {
-   companion object {
-     private const val KEY_FINISH = "finish"
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/restore/RestoreActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/restore/RestoreActivity.kt
-index 71f4e5032fc22b9f98a9af3a5e9b213c5e51a4e1..0f8b4a04db7f1de5a09c86959f0830d58af04c79 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/restore/RestoreActivity.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/restore/RestoreActivity.kt
-@@ -5,6 +5,7 @@
+-    if (bundle == null) {
+-      NavHostFragment fragment = NavHostFragment.create(R.navigation.create_profile, getIntent().getExtras());
+-      getSupportFragmentManager().beginTransaction()
+-                                 .add(R.id.fragment_container, fragment)
+-                                 .commit();
++    if (isFinishing() || screenLocked || activityLifecycle == null || !activityLifecycle.isAdmitted() || contentInitialized) {
++      return;
+     }
  
- package org.thoughtcrime.securesms.restore
++    setContentView(R.layout.create_profile_activity);
++    NavHostFragment fragment = NavHostFragment.create(R.navigation.create_profile, getIntent().getExtras());
++    if (pendingFragmentState != null) {
++      fragment.setInitialSavedState(pendingFragmentState);
++    }
++    getSupportFragmentManager().beginTransaction()
++                               .add(R.id.fragment_container, fragment)
++                               .commitNow();
++    pendingFragmentState = null;
++    contentInitialized = true;
++
+     getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+       @Override public void handleOnBackPressed() {
+         if (!Navigation.findNavController(CreateProfileActivity.this, R.id.fragment_container).popBackStack()) {
+@@ -81,6 +130,31 @@ public class CreateProfileActivity extends BaseActivity implements CreateProfile
+   public void onResume() {
+     super.onResume();
+     dynamicTheme.onResume(this);
++    if (activityLifecycle != null) {
++      activityLifecycle.onResume();
++    }
++  }
++
++  @Override
++  protected void onSaveInstanceState(@NonNull Bundle outState) {
++    Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
++    if (fragment != null && fragment.isAdded()) {
++      pendingFragmentState = getSupportFragmentManager().saveFragmentInstanceState(fragment);
++    }
++    outState.putParcelable(FRAGMENT_STATE, pendingFragmentState);
++    Bundle resultState = new Bundle();
++    getActivityResultRegistry().onSaveInstanceState(resultState);
++    outState.putBundle(ACTIVITY_RESULT_STATE, resultState);
++    super.onSaveInstanceState(outState);
++  }
++
++  @Override
++  protected void onDestroy() {
++    if (activityLifecycle != null) {
++      activityLifecycle.onDestroy();
++      activityLifecycle = null;
++    }
++    super.onDestroy();
+   }
  
-+import android.annotation.SuppressLint
- import android.content.Context
- import android.content.Intent
- import android.net.Uri
-@@ -42,6 +43,7 @@ import org.thoughtcrime.securesms.util.navigation.safeNavigate
- /**
-  * Activity to hold the restore from backup flow.
-  */
-+@SuppressLint("BaseActivitySubclass")
- class RestoreActivity : BaseActivity() {
- 
-   private val dynamicTheme = DynamicNoActionBarTheme()
+   @Override
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt b/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..4303beefab21c4a2a772a0d9fa8be343464c743b
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivityTest.kt
+@@ -0,0 +1,164 @@
++/*
++ * Copyright 2026 Molly
++ * SPDX-License-Identifier: AGPL-3.0-only
++ */
++
++package org.thoughtcrime.securesms.profiles.edit
++
++import android.app.Activity
++import android.app.Application
++import android.content.Intent
++import android.os.Bundle
++import android.view.WindowManager
++import androidx.core.content.IntentCompat
++import androidx.fragment.app.Fragment
++import androidx.fragment.app.FragmentActivity
++import androidx.test.core.app.ApplicationProvider
++import assertk.assertThat
++import assertk.assertions.isEmpty
++import assertk.assertions.isEqualTo
++import assertk.assertions.isTrue
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkObject
++import io.mockk.mockkStatic
++import io.mockk.unmockkObject
++import io.mockk.unmockkStatic
++import io.mockk.verify
++import org.junit.After
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.Robolectric
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.Shadows.shadowOf
++import org.robolectric.annotation.Config
++import org.signal.registration.RegistrationActivityLifecycle
++import org.thoughtcrime.securesms.PassphraseCreateActivity
++import org.thoughtcrime.securesms.PassphrasePromptActivity
++import org.thoughtcrime.securesms.R
++import org.thoughtcrime.securesms.crypto.MasterSecretUtil
++import org.thoughtcrime.securesms.keyvalue.PlainTextKeyValueStore
++import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.service.KeyCachingService
++import org.thoughtcrime.securesms.util.TextSecurePreferences
++
++@RunWith(RobolectricTestRunner::class)
++@Config(application = Application::class)
++class CreateProfileActivityTest {
++
++  @Before
++  fun setUp() {
++    mockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, SignalStore)
++    every { PlainTextKeyValueStore.language } returns "zz"
++    every { SignalStore.account } throws AssertionError("Private account accessed before profile admission")
++    every { SignalStore.registration } throws AssertionError("Profile host entered account-state routing")
++    mockkStatic(MasterSecretUtil::class, TextSecurePreferences::class)
++    every { TextSecurePreferences.isDynamicColorsEnabled(any()) } returns false
++  }
++
++  @After
++  fun tearDown() {
++    PrivateRestoreProbe.rejectCreation = false
++    unmockkStatic(MasterSecretUtil::class, TextSecurePreferences::class)
++    unmockkObject(RegistrationActivityLifecycle.Companion, PlainTextKeyValueStore, SignalStore)
++  }
++
++  @Test
++  fun `missing admission host finishes securely without restoring or inflating private fragments`() {
++    every { RegistrationActivityLifecycle.create(any()) } returns null
++    val savedState = stateWithPrivateFragment()
++    val controller = Robolectric.buildActivity(CreateProfileActivity::class.java)
++
++    try {
++      val activity = controller.create(savedState).get()
++
++      assertThat(activity.isFinishing).isTrue()
++      assertThat(activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0).isTrue()
++      assertThat(activity.supportFragmentManager.fragments).isEmpty()
++      verify(exactly = 0) { SignalStore.account }
++      verify(exactly = 0) { SignalStore.registration }
++    } finally {
++      controller.destroy()
++    }
++  }
++
++  @Test
++  fun `uncached key preserves group editing and next intent through passphrase prompt`() {
++    assertThat(KeyCachingService.isLocked()).isTrue()
++    assertPassphraseRoute(initialized = true, destination = PassphrasePromptActivity::class.java)
++  }
++
++  @Test
++  fun `uninitialized passphrase routes explicit creation without private profile access`() {
++    assertPassphraseRoute(initialized = false, destination = PassphraseCreateActivity::class.java)
++  }
++
++  private fun assertPassphraseRoute(initialized: Boolean, destination: Class<out Activity>) {
++    val host = mockk<RegistrationActivityLifecycle>(relaxed = true)
++    every { RegistrationActivityLifecycle.create(any()) } returns host
++    every { host.isAdmitted() } returns false
++    // Simulate initialization metadata only, never key availability or secret material.
++    every { MasterSecretUtil.isPassphraseInitialized(any()) } returns initialized
++    val nextIntent = Intent("org.thoughtcrime.securesms.TEST_AFTER_PROFILE")
++    val intent = CreateProfileActivity.getIntentForUserProfile(ApplicationProvider.getApplicationContext())
++      .putExtra(CreateProfileActivity.GROUP_ID, "existing-group-id")
++      .putExtra(CreateProfileActivity.SHOW_TOOLBAR, true)
++      .putExtra(CreateProfileActivity.NEXT_BUTTON_TEXT, R.string.save)
++      .putExtra(CreateProfileActivity.IS_DESCRIPTION_FOCUSED, true)
++      .putExtra(CreateProfileActivity.EXCLUDE_SYSTEM, true)
++      .putExtra(CreateProfileActivity.NEXT_INTENT, nextIntent)
++    val savedState = stateWithPrivateFragment()
++    val controller = Robolectric.buildActivity(CreateProfileActivity::class.java, intent)
++
++    try {
++      val activity = controller.create(savedState).get()
++      val unlockIntent = requireNotNull(shadowOf(activity).nextStartedActivity)
++      val continuation = requireNotNull(IntentCompat.getParcelableExtra(unlockIntent, CreateProfileActivity.NEXT_INTENT, Intent::class.java))
++      val afterProfile = requireNotNull(IntentCompat.getParcelableExtra(continuation, CreateProfileActivity.NEXT_INTENT, Intent::class.java))
++
++      assertThat(unlockIntent.component?.className).isEqualTo(destination.name)
++      assertThat(continuation.component?.className).isEqualTo(CreateProfileActivity::class.java.name)
++      assertThat(continuation.getStringExtra(CreateProfileActivity.GROUP_ID)).isEqualTo("existing-group-id")
++      assertThat(continuation.getBooleanExtra(CreateProfileActivity.SHOW_TOOLBAR, false)).isTrue()
++      assertThat(continuation.getIntExtra(CreateProfileActivity.NEXT_BUTTON_TEXT, 0)).isEqualTo(R.string.save)
++      assertThat(continuation.getBooleanExtra(CreateProfileActivity.IS_DESCRIPTION_FOCUSED, false)).isTrue()
++      assertThat(continuation.getBooleanExtra(CreateProfileActivity.EXCLUDE_SYSTEM, false)).isTrue()
++      assertThat(afterProfile.action).isEqualTo(nextIntent.action)
++      assertThat(activity.isFinishing).isTrue()
++      assertThat(activity.supportFragmentManager.fragments).isEmpty()
++      verify(exactly = 0) { SignalStore.account }
++      verify(exactly = 0) { SignalStore.registration }
++    } finally {
++      controller.destroy()
++    }
++
++    verify(exactly = 1) { host.onDestroy() }
++  }
++
++  private fun stateWithPrivateFragment(): Bundle {
++    PrivateRestoreProbe.rejectCreation = false
++    val controller = Robolectric.buildActivity(FragmentActivity::class.java).create()
++    val savedState = Bundle()
++    try {
++      controller.get().supportFragmentManager.beginTransaction()
++        .add(PrivateRestoreProbe(), "private_restore_probe")
++        .commitNow()
++      controller.saveInstanceState(savedState)
++    } finally {
++      controller.destroy()
++    }
++    PrivateRestoreProbe.rejectCreation = true
++    return savedState
++  }
++
++  class PrivateRestoreProbe : Fragment() {
++    companion object {
++      var rejectCreation = false
++    }
++
++    init {
++      check(!rejectCreation) { "Private fragment restored before profile admission" }
++    }
++  }
++}
 diff --git a/build-logic/plugins/src/main/java/ktlint.gradle.kts b/build-logic/plugins/src/main/java/ktlint.gradle.kts
 deleted file mode 100644
 index fee113b5a0fe1b87dc7696c7483116cb11a6cd54..0000000000000000000000000000000000000000

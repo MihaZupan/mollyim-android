@@ -3,18 +3,16 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:09:58 +0100
 Subject: [PATCH] media: preserve private attachment and archive consumers
 
-Retain attachment streaming/caching and archive-format consumers. No physical erasure or full-provider parity claim.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-ATTACHMENT-001, MOL-ARCHIVE-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: d54fe60ef10d16a420c8cfccb7f206c4a4f99fdf
+Semantic-boundary: 13/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
-index ed91a14c3fd48c46ea1a1e7d093a0239c793a611..bb69975830c00d562d1e7f31cfe18404a28565cc 100644
+index 1b938cf4595cef285a6b5be86b15255f84bd8b4f..f4c217e32912872cd3472dd9a2c7000d315636bf 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupState.kt
 @@ -18,7 +18,7 @@ sealed interface BackupState {
@@ -27,7 +25,7 @@ index ed91a14c3fd48c46ea1a1e7d093a0239c793a611..bb69975830c00d562d1e7f31cfe18404
    /**
     * Temporary state object that just denotes what the local store thinks we are.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
-index 54af55effb47f60c69cd470c644ade5a957d014b..b1b5b4e190fee4956a6d0fb3e502c73fd7137155 100644
+index fab41500522365d953403b8d34c23fa65a887e9c..4f8197b00c2f024e0c3bf6c71ae85fa06b27e852 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
 @@ -108,7 +108,7 @@ class BackupsSettingsFragment : ComposeFragment() {
@@ -39,7 +37,7 @@ index 54af55effb47f60c69cd470c644ade5a957d014b..b1b5b4e190fee4956a6d0fb3e502c73f
              if (!state.isLinkedDevice) {
                checkoutLauncher.launch(null)
              }
-@@ -214,17 +214,19 @@ private fun BackupsSettingsContent(
+@@ -209,16 +209,18 @@ private fun BackupsSettingsContent(
              OtherWaysToBackUpHeading()
            }
  
@@ -50,8 +48,7 @@ index 54af55effb47f60c69cd470c644ade5a957d014b..b1b5b4e190fee4956a6d0fb3e502c73f
 -            } else {
 +            } else if (backupsSettingsState.backupState.featureSupported) {
                NeverEnabledBackupsRow(
-                 onBackupsRowClick = onBackupsRowClick,
-                 displayActionButton = true
+                 onBackupsRowClick = onBackupsRowClick
                )
              }
  
@@ -63,10 +60,10 @@ index 54af55effb47f60c69cd470c644ade5a957d014b..b1b5b4e190fee4956a6d0fb3e502c73f
  
            is BackupState.Error -> {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
-index b6e45039309b32e0b5f6251e140c8fd9c262961c..5f95c6abb1dec195206a5e3fd1a268a63097b8c4 100644
+index 8daa35a59a1098c5b56ca1f4f7b80224b792d440..8754fec534564d8b3d06a124ccd805eadb7b00a3 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
-@@ -457,7 +457,7 @@ private fun RemoteBackupsSettingsContent(
+@@ -451,7 +451,7 @@ private fun RemoteBackupsSettingsContent(
              )
            }
  
@@ -75,7 +72,7 @@ index b6e45039309b32e0b5f6251e140c8fd9c262961c..5f95c6abb1dec195206a5e3fd1a268a6
  
            is BackupState.WithTypeAndRenewalTime -> {
              BackupCard(
-@@ -2151,7 +2151,7 @@ private fun BackupReadyToDownloadPreview() {
+@@ -2180,7 +2180,7 @@ private fun BackupReadyToDownloadPreview() {
    Previews.Preview {
      BackupReadyToDownloadRow(
        ready = BackupRestoreState.Ready("12GB"),
@@ -85,18 +82,18 @@ index b6e45039309b32e0b5f6251e140c8fd9c262961c..5f95c6abb1dec195206a5e3fd1a268a6
    }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
-index 2c82a5e05c652af12c63b5490a10f14a1036807f..e3b0547cff2f833fa6e9940a2ef7e09cde67272a 100644
+index 6d1116b18697027dcf72e65544a054fb61686e0b..32bfe9d36603a9581921697e2394235de55381cc 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/AttachmentTable.kt
-@@ -41,7 +41,6 @@ import org.signal.core.util.bitmaps.BitmapDecodingException
+@@ -47,7 +47,6 @@ import org.signal.core.util.UuidUtil
+ import org.signal.core.util.bitmaps.BitmapDecodingException
  import org.signal.core.util.copyTo
- import org.signal.core.util.count
  import org.signal.core.util.crypto.AttachmentSecret
 -import org.signal.core.util.crypto.ClassicDecryptingPartInputStream
  import org.signal.core.util.crypto.ModernDecryptingPartInputStream
  import org.signal.core.util.crypto.ModernEncryptingPartOutputStream
- import org.signal.core.util.delete
-@@ -2713,13 +2712,7 @@ class AttachmentTable(
+ import org.signal.core.util.drain
+@@ -3075,13 +3074,7 @@ class AttachmentTable(
        if (random.size == 32) {
          ModernDecryptingPartInputStream.createFor(attachmentSecret, random, file, offset)
        } else {
@@ -169,7 +166,7 @@ index 873fb740cbdad62b332cc8f88ec3c9db0274fcbb..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
-index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb708e003b 100644
+index ccb822c4b9cf1a2bff61d38b5d08fac4fc41bc68..3f0645bef273859466ee5ae75d8c08e4c48fe1af 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
 @@ -13,14 +13,13 @@ import androidx.core.app.NotificationManagerCompat;
@@ -188,8 +185,8 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
 +import org.thoughtcrime.securesms.apkupdate.ApkUpdateRefreshListener;
  import org.thoughtcrime.securesms.backup.v2.ui.verify.VerifyBackupKeyActivity;
  import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity;
- import org.thoughtcrime.securesms.database.SignalDatabase;
-@@ -42,7 +41,6 @@ import org.thoughtcrime.securesms.profiles.manage.EditProfileActivity;
+ import org.thoughtcrime.securesms.components.settings.app.account.signallogin.verify.SignalLoginVerifyActivity;
+@@ -44,7 +43,6 @@ import org.thoughtcrime.securesms.profiles.manage.EditProfileActivity;
  import org.thoughtcrime.securesms.profiles.username.NewWaysToConnectDialogFragment;
  import org.thoughtcrime.securesms.recipients.Recipient;
  import org.thoughtcrime.securesms.storage.StorageSyncHelper;
@@ -197,7 +194,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
  import org.thoughtcrime.securesms.util.CommunicationActions;
  import org.thoughtcrime.securesms.util.DateUtils;
  import org.thoughtcrime.securesms.util.Environment;
-@@ -81,7 +79,7 @@ public final class Megaphones {
+@@ -82,7 +80,7 @@ public final class Megaphones {
    private static final MegaphoneSchedule ALWAYS = new ForeverSchedule(true);
    private static final MegaphoneSchedule NEVER  = new ForeverSchedule(false);
  
@@ -206,7 +203,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
    private static final long       MIN_TIME_BETWEEN_DONATE_MEGAPHONES = TimeUnit.DAYS.toMillis(30);
  
    private Megaphones() {}
-@@ -125,14 +123,13 @@ public final class Megaphones {
+@@ -126,14 +124,16 @@ public final class Megaphones {
        put(Event.BACKUP_SCHEDULE_PERMISSION, shouldShowBackupSchedulePermissionMegaphone(context) ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(3)) : NEVER);
        put(Event.ONBOARDING, shouldShowOnboardingMegaphone(context) ? ALWAYS : NEVER);
        put(Event.TURN_OFF_CENSORSHIP_CIRCUMVENTION, shouldShowTurnOffCircumventionMegaphone() ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(7)) : NEVER);
@@ -218,13 +215,16 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
        // Specifically putting backup reminders here, above PIN reminders
 -      put(Event.BACKUP_LOW_STORAGE_UPSELL, shouldShowBackupLowStorageUpsell(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60), TimeUnit.DAYS.toMillis(120)) : NEVER);
 -      put(Event.BACKUP_MEDIA_SIZE_UPSELL, shouldShowBackupMediaSizeUpsell() ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60), TimeUnit.DAYS.toMillis(120)) : NEVER);
--      put(Event.BACKUP_MESSAGE_COUNT_UPSELL, shouldShowBackupMessageCountUpsell(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60)) : NEVER);
+-      put(Event.BACKUP_MESSAGE_COUNT_UPSELL, shouldShowBackupMessageCountUpsell() ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60)) : NEVER);
 -      put(Event.BACKUPS_GENERIC_UPSELL, shouldShowGenericBackupsMegaphone(context) ? new BackupUpsellSchedule(records, TimeUnit.DAYS.toMillis(60)) : NEVER);
++      put(Event.BACKUP_LOW_STORAGE_UPSELL, NEVER);
++      put(Event.BACKUP_MEDIA_SIZE_UPSELL, NEVER);
++      put(Event.BACKUP_MESSAGE_COUNT_UPSELL, NEVER);
 +      put(Event.BACKUPS_GENERIC_UPSELL, shouldShowGenericBackupsMegaphone(context) ? new RecurringSchedule(TimeUnit.DAYS.toMillis(30), TimeUnit.DAYS.toMillis(120)) : NEVER);
        put(Event.VERIFY_BACKUP_KEY, new VerifyBackupKeyReminderSchedule());
-       put(Event.USE_NEW_ON_DEVICE_BACKUPS, shouldShowUseNewOnDeviceBackupsMegaphone() ? RecurringSchedule.every(TimeUnit.DAYS.toMillis(14)) : NEVER);
- 
-@@ -177,6 +174,10 @@ public final class Megaphones {
+       put(Event.TWO_FACTOR_REMINDER, new TwoFactorReminderSchedule());
+       put(Event.SIGNAL_LOGIN_REMINDER, new SignalLoginReminderSchedule());
+@@ -180,6 +180,10 @@ public final class Megaphones {
          return buildNotificationsMegaphone(context);
        case ADD_A_PROFILE_PHOTO:
          return buildAddAProfilePhotoMegaphone(context);
@@ -235,7 +235,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
        case TURN_OFF_CENSORSHIP_CIRCUMVENTION:
          return buildTurnOffCircumventionMegaphone(context);
        case LINKED_DEVICE_INACTIVE:
-@@ -195,12 +196,6 @@ public final class Megaphones {
+@@ -198,12 +202,6 @@ public final class Megaphones {
          return buildNewLinkedDeviceMegaphone(context);
        case BACKUPS_GENERIC_UPSELL:
          return buildBackupGenericUpsellMegaphone();
@@ -247,8 +247,8 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
 -        return buildBackupLowStorageUpsellMegaphone();
        case VERIFY_BACKUP_KEY:
          return buildVerifyBackupKeyMegaphone();
-       case USE_NEW_ON_DEVICE_BACKUPS:
-@@ -336,6 +331,36 @@ public final class Megaphones {
+       case TWO_FACTOR_REMINDER:
+@@ -343,6 +341,36 @@ public final class Megaphones {
          .build();
    }
  
@@ -285,7 +285,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
    private static @NonNull Megaphone buildNewLinkedDeviceMegaphone(@NonNull Context context) {
      String createdAt = DateUtils.getDateTimeString(context, Locale.getDefault(), SignalStore.misc().getNewLinkedDeviceCreatedTime());
      return new Megaphone.Builder(Event.NEW_LINKED_DEVICE, Megaphone.Style.BASIC)
-@@ -422,6 +447,19 @@ public final class Megaphones {
+@@ -429,6 +457,19 @@ public final class Megaphones {
          .build();
    }
  
@@ -305,7 +305,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
    public static @NonNull Megaphone buildSetUpYourUsernameMegaphone(@NonNull Context context) {
      return new Megaphone.Builder(Event.SET_UP_YOUR_USERNAME, Megaphone.Style.BASIC)
          .setTitle(R.string.NewWaysToConnectDialogFragment__new_ways_to_connect)
-@@ -477,9 +515,9 @@ public final class Megaphones {
+@@ -484,9 +525,9 @@ public final class Megaphones {
    public static @NonNull Megaphone buildBackupGenericUpsellMegaphone() {
      return new Megaphone.Builder(Event.BACKUPS_GENERIC_UPSELL, Megaphone.Style.BASIC)
          .setImage(R.drawable.backups_megaphone_image)
@@ -317,7 +317,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
            Intent intent = AppSettingsActivity.backupsSettings(controller.getMegaphoneActivity(), true);
  
            controller.onMegaphoneNavigationRequested(intent);
-@@ -621,11 +659,7 @@ public final class Megaphones {
+@@ -665,11 +706,7 @@ public final class Megaphones {
    }
  
    private static boolean shouldShowGenericBackupsMegaphone(@NonNull Context context) {
@@ -330,100 +330,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
        return false;
      }
  
-@@ -672,92 +706,6 @@ public final class Megaphones {
-     return System.currentTimeMillis() - lastSeenDonatePrompt;
-   }
- 
--  private static boolean shouldShowBackupMessageCountUpsell(@NonNull Context context) {
--    if (!SignalStore.account().isRegistered() || TextSecurePreferences.isUnauthorizedReceived(context) || SignalStore.account().isLinkedDevice()) {
--      return false;
--    }
--
--    if (SignalStore.backup().getLatestBackupTier() != null) {
--      return false;
--    }
--
--    return SignalDatabase.messages().getApproximateTotalMessageCount() > 1000;
--  }
--
--  private static boolean shouldShowBackupMediaSizeUpsell() {
--    if (!SignalStore.account().isRegistered() || SignalStore.account().isLinkedDevice() || !Environment.Backups.supportsGooglePlayBilling()) {
--      return false;
--    }
--
--    if (SignalStore.backup().getLatestBackupTier() != MessageBackupTier.FREE) {
--      return false;
--    }
--
--    return SignalDatabase.attachments().getApproximateTotalMediaSize() > ByteUnit.GIGABYTES.toBytes(1);
--  }
--
--  private static boolean shouldShowBackupLowStorageUpsell(@NonNull Context context) {
--    if (!SignalStore.account().isRegistered() || TextSecurePreferences.isUnauthorizedReceived(context) || SignalStore.account().isLinkedDevice() || !Environment.Backups.supportsGooglePlayBilling()) {
--      return false;
--    }
--
--    if (SignalStore.backup().getLatestBackupTier() == MessageBackupTier.PAID) {
--      return false;
--    }
--
--    long available = DiskUtil.getAvailableSpace(context).getBytes();
--    long total     = DiskUtil.getTotalDiskSize(context).getBytes();
--
--    return total > 0 && ((double) available / total) < 0.10;
--  }
--
--  private static @NonNull Megaphone buildBackupMessageCountUpsellMegaphone() {
--    return new Megaphone.Builder(Event.BACKUP_MESSAGE_COUNT_UPSELL, Megaphone.Style.BASIC)
--        .setImage(R.drawable.megaphone_backup_message_count)
--        .setTitle(R.string.BackupMessagesUpsell__title)
--        .setBody(R.string.BackupMessagesUpsell__body)
--        .setActionButton(R.string.BackupMessagesUpsell__turn_on, (megaphone, controller) -> {
--          Intent intent = AppSettingsActivity.backupsSettings(controller.getMegaphoneActivity(), true);
--          controller.onMegaphoneNavigationRequested(intent);
--          controller.onMegaphoneSnooze(Event.BACKUP_MESSAGE_COUNT_UPSELL);
--        })
--        .setSecondaryButton(R.string.BackupMessagesUpsell__not_now, (megaphone, controller) -> {
--          controller.onMegaphoneSnooze(Event.BACKUP_MESSAGE_COUNT_UPSELL);
--        })
--        .build();
--  }
--
--  private static @NonNull Megaphone buildBackupMediaSizeUpsellMegaphone() {
--    return new Megaphone.Builder(Event.BACKUP_MEDIA_SIZE_UPSELL, Megaphone.Style.BASIC)
--        .setImage(R.drawable.megaphone_backup_media_size)
--        .setTitle(R.string.BackupMediaUpsell__title)
--        .setBody(R.string.BackupMediaUpsell__body)
--        .setActionButton(R.string.BackupMediaUpsell__upgrade, (megaphone, controller) -> {
--          controller.onMegaphoneDialogFragmentRequested(BackupUpsellBottomSheet.create(false));
--          controller.onMegaphoneSnooze(Event.BACKUP_MEDIA_SIZE_UPSELL);
--        })
--        .setSecondaryButton(R.string.BackupMediaUpsell__not_now, (megaphone, controller) -> {
--          controller.onMegaphoneSnooze(Event.BACKUP_MEDIA_SIZE_UPSELL);
--        })
--        .build();
--  }
--
--  private static @NonNull Megaphone buildBackupLowStorageUpsellMegaphone() {
--    boolean hasBackups = SignalStore.backup().getLatestBackupTier() != null;
--
--    return new Megaphone.Builder(Event.BACKUP_LOW_STORAGE_UPSELL, Megaphone.Style.BASIC)
--        .setImage(R.drawable.megaphone_backup_storage_low)
--        .setTitle(R.string.BackupStorageUpsell__title)
--        .setBody(R.string.BackupStorageUpsell__body)
--        .setActionButton(hasBackups ? R.string.BackupStorageUpsell__upgrade : R.string.BackupStorageUpsell__turn_on, (megaphone, controller) -> {
--          controller.onMegaphoneDialogFragmentRequested(BackupUpsellBottomSheet.create(true));
--          controller.onMegaphoneSnooze(Event.BACKUP_LOW_STORAGE_UPSELL);
--        })
--        .setSecondaryButton(R.string.BackupStorageUpsell__not_now, (megaphone, controller) -> {
--          controller.onMegaphoneSnooze(Event.BACKUP_LOW_STORAGE_UPSELL);
--        })
--        .build();
--  }
- 
-   public enum Event {
-     PINS_FOR_ALL("pins_for_all"),
-@@ -766,8 +714,8 @@ public final class Megaphones {
+@@ -810,8 +847,8 @@ public final class Megaphones {
      ONBOARDING("onboarding"),
      NOTIFICATIONS("notifications"),
      ADD_A_PROFILE_PHOTO("add_a_profile_photo"),
@@ -434,7 +341,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
      TURN_OFF_CENSORSHIP_CIRCUMVENTION("turn_off_censorship_circumvention"),
      REMOTE_MEGAPHONE("remote_megaphone"),
      LINKED_DEVICE_INACTIVE("linked_device_inactive"),
-@@ -777,9 +725,6 @@ public final class Megaphones {
+@@ -821,9 +858,6 @@ public final class Megaphones {
      GRANT_FULL_SCREEN_INTENT("grant_full_screen_intent"),
      NEW_LINKED_DEVICE("new_linked_device"),
      BACKUPS_GENERIC_UPSELL("turn_on_signal_backups"),
@@ -443,7 +350,7 @@ index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb
 -    BACKUP_LOW_STORAGE_UPSELL("backup_storage_upsell"),
      VERIFY_BACKUP_KEY("verify_backup_key"),
      USE_NEW_ON_DEVICE_BACKUPS("use_new_on_device_backups"),
-     INACTIVE_PRIMARY("inactive_primary");
+     INACTIVE_PRIMARY("inactive_primary"),
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/video/ClassicEncryptedMediaDataSource.java b/app/src/main/java/org/thoughtcrime/securesms/video/ClassicEncryptedMediaDataSource.java
 deleted file mode 100644
 index 95d00caa63c2c60a8d4b79a2608a19ad3b1ec327..0000000000000000000000000000000000000000

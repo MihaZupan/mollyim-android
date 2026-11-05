@@ -3,15 +3,13 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:09:41 +0100
 Subject: [PATCH] native: retain Molly JNI utilities and fork API contracts
 
-Keep native memory/file primitives and the existing libsignal/RingRTC-facing contracts. Matching dependency pins remain part of the final build graph; no upstream binary substitution or native reproducibility claim.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: NATIVE-UTILS-001, MOL-API-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 8f3064dffc7e7ab9ab43a50b804b88b22717f635
+Semantic-boundary: 01/36
 
 diff --git a/app/jni/Android.mk b/app/jni/Android.mk
 deleted file mode 100644
@@ -149,7 +147,7 @@ index 8c2469bad663257ea62ba3eda5402528490839c0..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/DSLSettingsAdapter.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/DSLSettingsAdapter.kt
-index 08626d85ac2d41a39cbfa10cfa582a652972d5fe..c2747735b6a3f14521a39ebd1e613059c9b2fe93 100644
+index 4bf82139d5203318626427d16f6bfc29e8a2c35a..50f1b5213189201ee47010d29f253ad434a3c770 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/DSLSettingsAdapter.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/DSLSettingsAdapter.kt
 @@ -14,6 +14,7 @@ import androidx.annotation.Discouraged
@@ -157,10 +155,10 @@ index 08626d85ac2d41a39cbfa10cfa582a652972d5fe..c2747735b6a3f14521a39ebd1e613059
  import com.google.android.material.dialog.MaterialAlertDialogBuilder
  import com.google.android.material.materialswitch.MaterialSwitch
 +import org.signal.core.ui.util.ThemeUtil
+ import org.signal.core.ui.util.ViewUtil
  import org.signal.core.util.logging.Log
  import org.thoughtcrime.securesms.R
- import org.thoughtcrime.securesms.components.settings.models.AsyncSwitch
-@@ -219,12 +220,19 @@ class SwitchPreferenceViewHolder(itemView: View) : PreferenceViewHolder<SwitchPr
+@@ -220,12 +221,19 @@ class SwitchPreferenceViewHolder(itemView: View) : PreferenceViewHolder<SwitchPr
      switchWidget.isChecked = model.isChecked
      switchWidget.isEnabled = model.isEnabled
  
@@ -182,27 +180,27 @@ index 08626d85ac2d41a39cbfa10cfa582a652972d5fe..c2747735b6a3f14521a39ebd1e613059
      }
  
      if (payload.contains(SwitchPreference.PAYLOAD_CHECKED)) {
-@@ -253,7 +261,7 @@ class ExternalLinkPreferenceViewHolder(itemView: View) : PreferenceViewHolder<Ex
+@@ -254,7 +262,7 @@ class ExternalLinkPreferenceViewHolder(itemView: View) : PreferenceViewHolder<Ex
      super.bind(model)
  
-     val externalLinkIcon = requireNotNull(ContextCompat.getDrawable(context, R.drawable.symbol_open_20)).apply {
+     val externalLinkIcon = requireNotNull(ContextCompat.getDrawable(context, CoreUiR.drawable.symbol_open_20)).apply {
 -      colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.signal_icon_tint_primary), PorterDuff.Mode.SRC_IN)
 +      colorFilter = PorterDuffColorFilter(ThemeUtil.getThemedColor(context, R.attr.signal_icon_tint_primary), PorterDuff.Mode.SRC_IN)
      }
      externalLinkIcon.setBounds(0, 0, ViewUtil.dpToPx(20), ViewUtil.dpToPx(20))
  
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/ConversationSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/ConversationSettingsState.kt
-index 027a0a1e47b011d3fc1b48bdda05d1204578c9b7..5696f78909a7b58f2a59ff48e3cd5548e36c8925 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/ConversationSettingsState.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/ConversationSettingsState.kt
-@@ -54,6 +54,7 @@ sealed class SpecificSettingsState {
- 
-   data class RecipientSettingsState(
-     val identityRecord: IdentityRecord? = null,
-+    val canDelete: Boolean = false,
-     val allGroupsInCommon: List<Recipient> = listOf(),
-     val groupsInCommon: List<Recipient> = listOf(),
-     val selfHasGroups: Boolean = false,
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/individual/IndividualSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/individual/IndividualSettingsState.kt
+index 21c96107b7c87ed0ab04ce1ca7a42e51ad61ed5a..657255d87fb890fcf470c332d2e2c25399adfbdf 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/individual/IndividualSettingsState.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/individual/IndividualSettingsState.kt
+@@ -25,6 +25,7 @@ data class IndividualSettingsState(
+   val disappearingMessagesLifespan: Int = 0,
+   val canModifyBlockedState: Boolean = false,
+   val identityRecord: IdentityRecord? = null,
++  val canDelete: Boolean = false,
+   val contactLinkState: ContactLinkState = ContactLinkState.NONE,
+   val allGroupsInCommon: List<Recipient> = emptyList(),
+   val selfHasGroups: Boolean = false,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/dsl.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/dsl.kt
 index d09759cb39e596e76f239da80c065b608ca7b37c..78248ff24547fac40634ad88e530e5b0684b6be1 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/dsl.kt
@@ -307,7 +305,7 @@ index 0c52be96673ad76a0e45b98b73192ca13295c2d7..1097def5e0b10a39e1b65b268ba164de
    /**
     * When a megaphone has been snoozed via "remind me later" or a similar option.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/profiles/AvatarHelper.java b/app/src/main/java/org/thoughtcrime/securesms/profiles/AvatarHelper.java
-index 2a7c103b2467441dd285d9abc051d27685adf2a9..5087d58376b512d95c44f12db50c3b64006872da 100644
+index f430f21b879c8d0385c6e650f9357337bb448cbe..5900cad87aac98273a575a4841c293274b9df85f 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/profiles/AvatarHelper.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/profiles/AvatarHelper.java
 @@ -79,7 +79,8 @@ public class AvatarHelper {
@@ -443,54 +441,59 @@ index a251043fb978eea351c6624926f8d08f30209862..0ef132d818a7f48ee2f3b68a6fbaeaa8
  
    public static String toJson(Object object) {
 diff --git a/core/ui/src/main/java/org/signal/core/ui/compose/DropdownMenus.kt b/core/ui/src/main/java/org/signal/core/ui/compose/DropdownMenus.kt
-index 0b3742bda618e51f3dd41c50a577b6b7abfdf960..e9c526dceff5bde473ed43d3138f81d1b2b031b9 100644
+index 0cfd454a6da180a5fade6831f3e9d90a491e2404..9ed299aed349c0b58105c8741e40883c4c8c9a17 100644
 --- a/core/ui/src/main/java/org/signal/core/ui/compose/DropdownMenus.kt
 +++ b/core/ui/src/main/java/org/signal/core/ui/compose/DropdownMenus.kt
-@@ -79,6 +79,7 @@ object DropdownMenus {
+@@ -107,6 +107,7 @@ object DropdownMenus {
    @Composable
    fun Item(
      modifier: Modifier = Modifier,
 +    enabled: Boolean = true,
      contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
-     text: @Composable () -> Unit,
-     onClick: () -> Unit
-@@ -91,6 +92,7 @@ object DropdownMenus {
-         }
+     @DrawableRes leadingIconResId: Int? = null,
+     leadingIconSpacing: Dp = 0.dp,
+@@ -133,6 +134,7 @@ object DropdownMenus {
        },
+       colors = MenuDefaults.itemColors(leadingIconColor = MaterialTheme.colorScheme.onSurface),
        onClick = onClick,
 +      enabled = enabled,
        modifier = modifier
      )
    }
 diff --git a/core/ui/src/main/java/org/signal/core/ui/compose/Rows.kt b/core/ui/src/main/java/org/signal/core/ui/compose/Rows.kt
-index 6c35123e414d9e48ba4c6d157f298ca0aeb04e2f..7464fb4e95e79fa97b4b12c259ee443f83ea7302 100644
+index 5ed3205cd20c6d6b73f96a4db6d8e4adec6c19ee..47820972cd2ce51ed7f13cd7422c1660fe8140d3 100644
 --- a/core/ui/src/main/java/org/signal/core/ui/compose/Rows.kt
 +++ b/core/ui/src/main/java/org/signal/core/ui/compose/Rows.kt
-@@ -153,6 +153,7 @@ object Rows {
-     values: Array<String>,
-     selectedValue: String,
+@@ -161,7 +161,8 @@ object Rows {
      onSelected: (String) -> Unit,
-+    trailingIcon: (@Composable RowScope.() -> Unit)? = null,
-     enabled: Boolean = true
+     modifier: Modifier = Modifier,
+     enabled: Boolean = true,
+-    requireConfirmation: Boolean = false
++    requireConfirmation: Boolean = false,
++    trailingIcon: (@Composable RowScope.() -> Unit)? = null
    ) {
      RadioListRow(
-@@ -173,6 +174,7 @@ object Rows {
-       values = values,
-       selectedValue = selectedValue,
+       text = { selectedIndex ->
+@@ -183,7 +184,8 @@ object Rows {
        onSelected = onSelected,
-+      trailingIcon = trailingIcon,
-       enabled = enabled
+       modifier = modifier,
+       enabled = enabled,
+-      requireConfirmation = requireConfirmation
++      requireConfirmation = requireConfirmation,
++      trailingIcon = trailingIcon
      )
    }
-@@ -185,6 +187,7 @@ object Rows {
-     values: Array<String>,
-     selectedValue: String,
+ 
+@@ -201,13 +203,15 @@ object Rows {
      onSelected: (String) -> Unit,
-+    trailingIcon: (@Composable RowScope.() -> Unit)? = null,
-     enabled: Boolean = true
+     modifier: Modifier = Modifier,
+     enabled: Boolean = true,
+-    requireConfirmation: Boolean = false
++    requireConfirmation: Boolean = false,
++    trailingIcon: (@Composable RowScope.() -> Unit)? = null
    ) {
      val selectedIndex = values.indexOf(selectedValue)
-@@ -192,6 +195,7 @@ object Rows {
+     var displayDialog by remember { mutableStateOf(false) }
  
      TextRow(
        text = { text(selectedIndex) },
@@ -498,15 +501,15 @@ index 6c35123e414d9e48ba4c6d157f298ca0aeb04e2f..7464fb4e95e79fa97b4b12c259ee443f
        enabled = enabled,
        onClick = {
          displayDialog = true
-@@ -488,6 +492,7 @@ object Rows {
+@@ -528,6 +532,7 @@ object Rows {
      text: @Composable RowScope.() -> Unit,
      modifier: Modifier = Modifier,
      icon: (@Composable RowScope.() -> Unit)? = null,
 +    trailingIcon: (@Composable RowScope.() -> Unit)? = null,
      onClick: (() -> Unit)? = null,
      onLongClick: (() -> Unit)? = null,
-     enabled: Boolean = true
-@@ -509,11 +514,17 @@ object Rows {
+     onDisabledClick: (() -> Unit)? = null,
+@@ -553,11 +558,17 @@ object Rows {
          .padding(defaultPadding()),
        verticalAlignment = CenterVertically
      ) {
@@ -528,7 +531,7 @@ index 6c35123e414d9e48ba4c6d157f298ca0aeb04e2f..7464fb4e95e79fa97b4b12c259ee443f
      }
    }
  
-@@ -685,6 +696,9 @@ private fun RadioListRowPreview() {
+@@ -746,6 +757,9 @@ private fun RadioListRowPreview() {
        labels = arrayOf("A", "B", "C"),
        values = arrayOf("a", "b", "c"),
        selectedValue = selectedValue,
@@ -539,19 +542,11 @@ index 6c35123e414d9e48ba4c6d157f298ca0aeb04e2f..7464fb4e95e79fa97b4b12c259ee443f
          selectedValue = it
        }
 diff --git a/core/util-jvm/src/main/java/org/signal/core/util/FlowExtensions.kt b/core/util-jvm/src/main/java/org/signal/core/util/FlowExtensions.kt
-index e013909b6396ebb35f07c1b16c7dc226b85a40c0..0b60964f025843a6f837fa4b3be4e9244952be28 100644
+index 63283b41705cdb3e58e94f10f4293a746c6cd807..e456828ae95ada3ac69fae747da0ffb2ec1b2a3a 100644
 --- a/core/util-jvm/src/main/java/org/signal/core/util/FlowExtensions.kt
 +++ b/core/util-jvm/src/main/java/org/signal/core/util/FlowExtensions.kt
-@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
- import kotlinx.coroutines.flow.channelFlow
- import kotlinx.coroutines.flow.conflate
- import kotlinx.coroutines.flow.filterNot
-+import kotlinx.coroutines.flow.flow
- import kotlinx.coroutines.flow.onEach
- import kotlin.time.Duration
- 
-@@ -35,3 +36,11 @@ fun <T> Flow<T>.throttleLatest(timeout: Duration, emitImmediately: (T) -> Boolea
-       }
+@@ -109,3 +109,11 @@ private class PendingValues<T> {
+     finished = true
    }
  }
 +
@@ -563,10 +558,10 @@ index e013909b6396ebb35f07c1b16c7dc226b85a40c0..0b60964f025843a6f837fa4b3be4e924
 +  }
 +}
 diff --git a/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt b/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
-index d46ee471fe5ae894eb3eee1d337b813f42f59919..3098bbec493ef0060001f76f6ca30d86d20e31f4 100644
+index 412fe493edb0ebb69374aa43d17601bbd0f258cf..1f58cc68f07defe892eef1056c12694f524a2918 100644
 --- a/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
 +++ b/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
-@@ -13,11 +13,11 @@ import android.content.Intent
+@@ -14,11 +14,11 @@ import android.content.Intent
  import android.os.Build
  import android.os.Bundle
  import android.os.IBinder
@@ -579,7 +574,7 @@ index d46ee471fe5ae894eb3eee1d337b813f42f59919..3098bbec493ef0060001f76f6ca30d86
  import kotlin.concurrent.withLock
  
  /**
-@@ -43,7 +43,7 @@ abstract class SafeForegroundService : Service() {
+@@ -44,7 +44,7 @@ abstract class SafeForegroundService : Service() {
       * Safely starts the target foreground service.
       * @return False if we tried to start the service but failed, otherwise true.
       */
@@ -588,7 +583,7 @@ index d46ee471fe5ae894eb3eee1d337b813f42f59919..3098bbec493ef0060001f76f6ca30d86
      fun start(context: Context, serviceClass: Class<out SafeForegroundService>, extras: Bundle = Bundle.EMPTY): Boolean {
        stateLock.withLock {
          val state = currentState(serviceClass)
-@@ -136,7 +136,7 @@ abstract class SafeForegroundService : Service() {
+@@ -137,7 +137,7 @@ abstract class SafeForegroundService : Service() {
       *
       * @return True if we updated a started service, otherwise false.
       */
@@ -621,7 +616,7 @@ index e75f0d7507b535c8259ba006a3ee6dfc325d663c..0489bc73e39c889821543e34df37b29d
      return ContextCompat.getSystemService(context, DownloadManager.class);
    }
 diff --git a/core/util/src/main/java/org/signal/core/util/StringUtil.kt b/core/util/src/main/java/org/signal/core/util/StringUtil.kt
-index 1d4157766f4a0dedffc390cffb646dc2819da9d0..3586f6ff63ba86382c53d940c5ec4325a969d484 100644
+index 061842131d4adda38883fa956477755567118bdd..30548cf950c8e28f7daef0743d9b32113080a7d2 100644
 --- a/core/util/src/main/java/org/signal/core/util/StringUtil.kt
 +++ b/core/util/src/main/java/org/signal/core/util/StringUtil.kt
 @@ -98,6 +98,24 @@ object StringUtil {
@@ -863,10 +858,10 @@ zCp<xk8v&PGgfHj#B}xjC_M!R~z8GFdfo#HG<a@v(^Q9f}=X69>G$+YMc?3oHZwHMi
 W3t#XZ*re^C>kV%BZqOLui}`>0H3zf+
 
 diff --git a/feature/media-send/src/main/java/org/signal/mediasend/MediaSendDependencies.kt b/feature/media-send/src/main/java/org/signal/mediasend/MediaSendDependencies.kt
-index afdb9efe426835467ae7d7b82bf47a9bec0b8b9e..65dec67085db3fbc0eb003a8430cd19ba5334f71 100644
+index fbfbc4648f042a168dfdebfa28fe9e982f26e649..60d926acd9a6d43964125e31e7a54f1caf818b71 100644
 --- a/feature/media-send/src/main/java/org/signal/mediasend/MediaSendDependencies.kt
 +++ b/feature/media-send/src/main/java/org/signal/mediasend/MediaSendDependencies.kt
-@@ -20,7 +20,7 @@ object MediaSendDependencies {
+@@ -21,7 +21,7 @@ object MediaSendDependencies {
  
    @Synchronized
    fun init(application: Application, provider: Provider) {
@@ -876,7 +871,7 @@ index afdb9efe426835467ae7d7b82bf47a9bec0b8b9e..65dec67085db3fbc0eb003a8430cd19b
      }
  
 diff --git a/lib/glide/src/main/java/org/signal/glide/SignalGlideDependencies.kt b/lib/glide/src/main/java/org/signal/glide/SignalGlideDependencies.kt
-index ebc4b85356588d466617ee49db2f93480ed0fc50..1d6375c6b2e849d5cdfe7903adb2df4dc7bdb12a 100644
+index 60d6a0338134c3327646df7ba680b7797bf5c50b..aef9382c041ed77a7a5aa5098af46ce65c881c05 100644
 --- a/lib/glide/src/main/java/org/signal/glide/SignalGlideDependencies.kt
 +++ b/lib/glide/src/main/java/org/signal/glide/SignalGlideDependencies.kt
 @@ -18,7 +18,7 @@ object SignalGlideDependencies {

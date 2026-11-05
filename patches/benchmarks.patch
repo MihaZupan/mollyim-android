@@ -3,15 +3,13 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:31 +0100
 Subject: [PATCH] tooling: retain reference benchmark and developer-tool scope
 
-Preserve existing benchmark/profile/developer support decisions, including optimization/coverage implications; not a new restoration or removal.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: DROP-BENCH-001, DROP-TOOL-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 4aba18c2153a3a3cb46c39294087b3c15bb47324
+Semantic-boundary: 33/36
 
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestMessages.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/TestMessages.kt
 deleted file mode 100644
@@ -222,15 +220,15 @@ index 8d26c612505579be88dfd1999eefc6245df68ecf..00000000000000000000000000000000
 -}
 diff --git a/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt b/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt
 deleted file mode 100644
-index 6f001fe2ff357f7f0d78c38b21e1a5f14cd91845..0000000000000000000000000000000000000000
+index 0003a5dcc6caae9e600311c9ed5eb9b8046a8a6b..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/thoughtcrime/securesms/database/TestDbUtils.kt
 +++ /dev/null
 @@ -1,126 +0,0 @@
 -package org.thoughtcrime.securesms.database
 -
 -import android.content.ContentValues
--import org.signal.core.util.SqlUtil.buildArgs
--import org.thoughtcrime.securesms.recipients.RecipientId
+-import org.signal.core.database.SqlUtil.buildArgs
+-import org.signal.core.models.recipients.RecipientId
 -import org.whispersystems.signalservice.internal.push.Content
 -
 -object TestDbUtils {
@@ -1240,10 +1238,10 @@ index 1df370449aa1a78b8675a09787f77be5e6f79694..00000000000000000000000000000000
 --keepclasseswithmembers @org.junit.runner.RunWith public class *
 diff --git a/microbenchmark/build.gradle.kts b/microbenchmark/build.gradle.kts
 deleted file mode 100644
-index 16630360b6be375e82a94cd4b00f7d2e45b46413..0000000000000000000000000000000000000000
+index aea2edc2f2ce1024c83affc7fb544a5eba49f294..0000000000000000000000000000000000000000
 --- a/microbenchmark/build.gradle.kts
 +++ /dev/null
-@@ -1,65 +0,0 @@
+@@ -1,68 +0,0 @@
 -@file:Suppress("UnstableApiUsage")
 -
 -import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -1257,7 +1255,10 @@ index 16630360b6be375e82a94cd4b00f7d2e45b46413..00000000000000000000000000000000
 -
 -android {
 -  namespace = "org.signal.microbenchmark"
--  compileSdkVersion(libs.versions.compileSdk.get())
+-
+-  compileSdk {
+-    version = release(libs.versions.compileSdk.get().toInt())
+-  }
 -
 -  compileOptions {
 -    isCoreLibraryDesugaringEnabled = true

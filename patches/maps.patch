@@ -4,15 +4,13 @@ Date: Wed, 4 Nov 2026 08:09:54 +0100
 Subject: [PATCH] maps: retain OpenStreetMap location and attribution
  integration
 
-Preserve OSM presentation, attribution, provider and caller behavior at the existing dependency seam.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-MAP-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 2768400a144830282f8e6008926ea01c27b9c587
+Semantic-boundary: 09/36
 
 diff --git a/app/src/main/java/com/google/android/gms/maps/CameraUpdate.java b/app/src/main/java/com/google/android/gms/maps/CameraUpdate.java
 new file mode 100644
@@ -50,10 +48,10 @@ index 0000000000000000000000000000000000000000..0fbeeda0d7cceb59bd0a720f92ea3d8d
 +}
 diff --git a/app/src/main/java/com/google/android/gms/maps/GoogleMap.java b/app/src/main/java/com/google/android/gms/maps/GoogleMap.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7d284fa2467197ac07aae0f248bafc500fb76d9f
+index 0000000000000000000000000000000000000000..f8469c337aee53678689ab5fd446617ae26d506e
 --- /dev/null
 +++ b/app/src/main/java/com/google/android/gms/maps/GoogleMap.java
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,150 @@
 +package com.google.android.gms.maps;
 +
 +import android.graphics.Bitmap;
@@ -143,6 +141,11 @@ index 0000000000000000000000000000000000000000..7d284fa2467197ac07aae0f248bafc50
 +  }
 +
 +  public void setBuildingsEnabled(boolean isBuildingsEnabled) { }
++
++  public void setPadding(int left, int top, int right, int bottom) {
++    mapView.setPadding(left, top, right, bottom);
++    mapView.setMapCenterOffset((left - right) / 2, (top - bottom) / 2);
++  }
 +
 +  public void setMapType (int type) { }
 +
@@ -666,10 +669,10 @@ index 6c80f9d12c6e81cdfd15bc1269a14ce118c5b4ce..a51a567c166b9cfff146ce8fe929a0c1
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/maps/PlacePickerActivity.java b/app/src/main/java/org/thoughtcrime/securesms/maps/PlacePickerActivity.java
-index 0c628459179446aa97a12130ef4fd2cade00a1a0..f110c5f1ac9e8929a3907f6d60d1d1966bded5d2 100644
+index 05071dbb966b363e3d6a7b6bddeb382b2a96f775..a5e5fef434060f431c00d5d98f631c5b2d74a643 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/maps/PlacePickerActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/maps/PlacePickerActivity.java
-@@ -34,17 +34,20 @@ import com.google.android.gms.maps.model.MapStyleOptions;
+@@ -37,17 +37,20 @@ import com.google.android.gms.maps.model.MapStyleOptions;
  import org.signal.core.util.bitmaps.BitmapUtil;
  import org.signal.core.util.concurrent.ListenableFuture;
  import org.signal.core.util.logging.Log;
@@ -690,37 +693,24 @@ index 0c628459179446aa97a12130ef4fd2cade00a1a0..f110c5f1ac9e8929a3907f6d60d1d196
  import java.util.concurrent.ExecutionException;
  
  /**
-@@ -87,13 +90,23 @@ public final class PlacePickerActivity extends AppCompatActivity {
-   public void onCreate(@Nullable Bundle savedInstanceState) {
-     super.onCreate(savedInstanceState);
-     dynamicTheme.onCreate(this);
--    
-+
-     setContentView(R.layout.activity_place_picker);
- 
-     bottomSheet      = findViewById(R.id.bottom_sheet);
-     View markerImage = findViewById(R.id.marker_image_view);
-     View fab         = findViewById(R.id.place_chosen_button);
- 
-+    // MOLLY: TODO
-+    // if (BuildConfig.USE_OSM) {
-+    //   findViewById(R.id.map_type_overlay).setVisibility(View.GONE);
-+    // } else {
-+    //   findViewById(R.id.btnMapTypeNormal).setOnClickListener(v -> handleMapType("normal"));
-+    //   findViewById(R.id.btnMapTypeSatellite).setOnClickListener(v -> handleMapType("satellite"));
-+    //   findViewById(R.id.btnMapTypeTerrain).setOnClickListener(v -> handleMapType("terrain"));
-+    // }
+@@ -105,6 +108,7 @@ public final class PlacePickerActivity extends AppCompatActivity {
+       applyMapPadding();
+       return insets;
+     });
 +    findViewById(R.id.map_type_overlay).setVisibility(View.GONE);
-+
+ 
      ViewCompat.setBackgroundTintList(fab, ColorStateList.valueOf(getIntent().getIntExtra(KEY_CHAT_COLOR, Color.RED)));
      fab.setOnClickListener(v -> finishWithAddress());
- 
-@@ -167,9 +180,28 @@ public final class PlacePickerActivity extends AppCompatActivity {
-   private void setMap(GoogleMap googleMap) {
+@@ -180,6 +184,7 @@ public final class PlacePickerActivity extends AppCompatActivity {
      this.googleMap = googleMap;
  
+     applyMapPadding();
 +    setMapType(TextSecurePreferences.getGoogleMapType(this));
      moveMapToInitialIfPossible();
+   }
+ 
+@@ -189,6 +194,24 @@ public final class PlacePickerActivity extends AppCompatActivity {
+     }
    }
  
 +  private void handleMapType(final String mapType) {
@@ -744,7 +734,7 @@ index 0c628459179446aa97a12130ef4fd2cade00a1a0..f110c5f1ac9e8929a3907f6d60d1d196
    private void moveMapToInitialIfPossible() {
      if (initialLocation != null && googleMap != null) {
        Log.d(TAG, "Moving map to initial location");
-@@ -282,7 +314,7 @@ public final class PlacePickerActivity extends AppCompatActivity {
+@@ -301,7 +324,7 @@ public final class PlacePickerActivity extends AppCompatActivity {
    private static @NonNull String addressToShortString(@Nullable Address address) {
      if (address == null) return "";
  

@@ -4,15 +4,13 @@ Date: Wed, 4 Nov 2026 08:09:56 +0100
 Subject: [PATCH] registration: retain linked Android and transfer support
  boundaries
 
-Preserve current linking, registration restrictions, QR/provisioning and transfer contracts rather than assuming later upstream parity.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-LINK-001, MOL-PROVISION-001, MOL-TRANSFER-001, MOL-REG-GATES-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: d4be20ef50133ed1d56d5e0b76c7f0f55d8c14e8
+Semantic-boundary: 11/36
 
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/Generator.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/Generator.kt
 deleted file mode 100644
@@ -260,7 +258,7 @@ index 16f200094bce4d50ce4bbe66562d07cad225467a..00000000000000000000000000000000
 -}
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/OtherClient.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/OtherClient.kt
 deleted file mode 100644
-index f5bdff0176c46eff289fd0a55a4b0a2292da29d3..0000000000000000000000000000000000000000
+index 1c8a4ed3beeb5f2ccad2f58f66ec1cee602cc656..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/signal/benchmark/setup/OtherClient.kt
 +++ /dev/null
 @@ -1,246 +0,0 @@
@@ -296,7 +294,7 @@ index f5bdff0176c46eff289fd0a55a4b0a2292da29d3..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.dependencies.AppDependencies
 -import org.thoughtcrime.securesms.keyvalue.SignalStore
 -import org.thoughtcrime.securesms.recipients.Recipient
--import org.thoughtcrime.securesms.recipients.RecipientId
+-import org.thoughtcrime.securesms.recipients.RecipientIds
 -import org.whispersystems.signalservice.api.SignalServiceAccountDataStore
 -import org.whispersystems.signalservice.api.SignalSessionLock
 -import org.whispersystems.signalservice.api.crypto.EnvelopeContent
@@ -368,7 +366,7 @@ index f5bdff0176c46eff289fd0a55a4b0a2292da29d3..00000000000000000000000000000000
 -    val now = System.currentTimeMillis()
 -    val content = Generator.encryptedTextMessage(now)
 -
--    val recipientId = RecipientId.from(SignalServiceAddress(serviceId, e164))
+-    val recipientId = RecipientIds.from(SignalServiceAddress(serviceId, e164))
 -    val sealedSenderAccess = SealedSenderAccessUtil.getSealedSenderAccessFor(Recipient.resolved(recipientId))
 -
 -    val outgoing = aliceCipher.encrypt(bobProtocolAddress, sealedSenderAccess, content)
@@ -510,561 +508,890 @@ index f5bdff0176c46eff289fd0a55a4b0a2292da29d3..00000000000000000000000000000000
 -    override fun setMultiDevice(isMultiDevice: Boolean) = throw UnsupportedOperationException()
 -  }
 -}
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
-index 58bca577c423b43d5d03ed5fa64fffc6dd7ca131..439bd206f11a6b6042cf48891cc9fe5fb0ec7403 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
-@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.Column
- import androidx.compose.foundation.layout.PaddingValues
- import androidx.compose.foundation.layout.Row
- import androidx.compose.foundation.layout.absoluteOffset
--import androidx.compose.foundation.layout.defaultMinSize
- import androidx.compose.foundation.layout.padding
- import androidx.compose.foundation.layout.size
- import androidx.compose.foundation.lazy.LazyColumn
- import androidx.compose.foundation.shape.CircleShape
--import androidx.compose.foundation.shape.RoundedCornerShape
- import androidx.compose.material3.Icon
- import androidx.compose.material3.MaterialTheme
- import androidx.compose.material3.Text
-@@ -30,11 +28,9 @@ import androidx.compose.ui.Modifier
- import androidx.compose.ui.graphics.Color
- import androidx.compose.ui.platform.LocalContext
- import androidx.compose.ui.platform.LocalInspectionMode
--import androidx.compose.ui.res.colorResource
- import androidx.compose.ui.res.painterResource
- import androidx.compose.ui.res.stringResource
- import androidx.compose.ui.text.TextStyle
--import androidx.compose.ui.text.style.TextAlign
- import androidx.compose.ui.text.style.TextDirection
- import androidx.compose.ui.unit.dp
- import androidx.fragment.app.viewModels
-@@ -111,8 +107,8 @@ class AppSettingsFragment : ComposeFragment(), Callbacks {
-             is AppSettingsRoute.PrivacyRoute.Privacy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_privacySettingsFragment)
-             is AppSettingsRoute.BackupsRoute.Backups -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_backupsSettingsFragment)
-             is AppSettingsRoute.DataAndStorageRoute.DataAndStorage -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_dataAndStorageSettingsFragment)
-+            is AppSettingsRoute.DataAndStorageRoute.Proxy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_networkPreferenceFragment)
-             is AppSettingsRoute.AppUpdates -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_appUpdatesSettingsFragment)
--            is AppSettingsRoute.Payments -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_paymentsActivity)
-             is AppSettingsRoute.HelpRoute.Settings -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_helpSettingsFragment)
-             is AppSettingsRoute.Invite -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_inviteFragment)
-             is AppSettingsRoute.LabsRoute.Labs -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_labsSettingsFragment)
-@@ -325,37 +321,11 @@ private fun AppSettingsContent(
-           val donateUrl = stringResource(R.string.donate_url)
- 
-           Rows.TextRow(
--            text = {
--              Text(
--                text = stringResource(R.string.preferences__donate_to_signal),
--                modifier = Modifier.weight(1f)
--              )
--
--              if (state.hasExpiredGiftBadge) {
--                Icon(
--                  painter = painterResource(R.drawable.symbol_info_fill_24),
--                  tint = colorResource(R.color.signal_accent_primary),
--                  contentDescription = null
--                )
--              }
--            },
--            icon = {
--              Icon(
--                painter = painterResource(R.drawable.symbol_heart_24),
--                contentDescription = null,
--                tint = MaterialTheme.colorScheme.onSurface
--              )
--            },
-+            text = stringResource(R.string.preferences__donate_to_signal),
-+            icon = painterResource(R.drawable.symbol_heart_24),
-             onClick = {
--              if (state.allowUserToGoToDonationManagementScreen) {
--                callbacks.navigate(AppSettingsRoute.DonationsRoute.Donations())
--              } else {
--                CommunicationActions.openBrowserLink(context, donateUrl)
--              }
-+              CommunicationActions.openBrowserLink(context, donateUrl)
-             },
--            onLongClick = {
--              callbacks.copyDonorBadgeSubscriberIdToClipboard()
--            }
-           )
-         }
- 
-@@ -433,6 +403,16 @@ private fun AppSettingsContent(
-           )
-         }
- 
-+        item {
-+          Rows.TextRow(
-+            text = stringResource(R.string.preferences__network),
-+            icon = painterResource(R.drawable.ic_network_24),
-+            onClick = {
-+              callbacks.navigate(AppSettingsRoute.DataAndStorageRoute.Proxy)
-+            }
-+          )
-+        }
-+
-         item {
-           Rows.TextRow(
-             text = stringResource(R.string.preferences__data_and_storage),
-@@ -455,49 +435,6 @@ private fun AppSettingsContent(
-           }
-         }
- 
--        if (state.isPrimaryDevice && state.showPayments) {
--          item {
--            Dividers.Default()
--          }
--
--          item {
--            Rows.TextRow(
--              text = {
--                Text(
--                  text = stringResource(R.string.preferences__payments),
--                  modifier = Modifier.weight(1f)
--                )
--
--                if (state.unreadPaymentsCount > 0) {
--                  Text(
--                    text = state.unreadPaymentsCount.toString(),
--                    color = MaterialTheme.colorScheme.inverseOnSurface,
--                    style = MaterialTheme.typography.bodyMedium,
--                    textAlign = TextAlign.Center,
--                    modifier = Modifier
--                      .background(
--                        color = MaterialTheme.colorScheme.primary,
--                        shape = RoundedCornerShape(50)
--                      )
--                      .defaultMinSize(minWidth = 30.dp)
--                      .padding(4.dp)
--                  )
--                }
--              },
--              icon = {
--                Icon(
--                  painter = painterResource(R.drawable.symbol_payment_24),
--                  contentDescription = null,
--                  tint = MaterialTheme.colorScheme.onSurface
--                )
--              },
--              onClick = {
--                callbacks.navigate(AppSettingsRoute.Payments)
--              }
--            )
--          }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
+index 015606d5b18f20cfc5c8954843a03ea6ebea6741..635d8415f1cc29ef34b0b496962f85bf5a64f651 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
+@@ -77,11 +77,7 @@ class AppSettingsActivity : NavGraphHostActivity() {
+         is AppSettingsRoute.BackupsRoute.Backups -> AppSettingsFragmentDirections.actionDirectToBackupsSettingsFragment().setLaunchCheckoutFlow(appSettingsRoute.launchCheckoutFlow)
+         AppSettingsRoute.Invite -> AppSettingsFragmentDirections.actionDirectToInviteFragment()
+         AppSettingsRoute.DataAndStorageRoute.DataAndStorage -> AppSettingsFragmentDirections.actionDirectToStoragePreferenceFragment()
+-        AppSettingsRoute.AccountRoute.Account -> if (SignalStore.account.isPrimaryDevice) {
+-          AppSettingsFragmentDirections.actionDirectToAccountSettingsFragment()
+-        } else {
+-          AppSettingsFragmentDirections.actionDirectToLinkedDeviceAccountSettingsFragment()
 -        }
--
-         item {
-           Dividers.Default()
-         }
-@@ -512,16 +449,6 @@ private fun AppSettingsContent(
-           )
-         }
- 
--        item {
--          Rows.TextRow(
--            text = stringResource(R.string.AppSettingsFragment__invite_your_friends),
--            icon = painterResource(R.drawable.symbol_invite_24),
--            onClick = {
--              callbacks.navigate(AppSettingsRoute.Invite)
--            }
--          )
--        }
--
-         if (state.showInternalPreferences) {
-           item {
-             Dividers.Default()
-@@ -708,12 +635,9 @@ private fun AppSettingsContentPreview() {
-       state = AppSettingsState(
-         isPrimaryDevice = true,
-         unreadPaymentsCount = 5,
--        hasExpiredGiftBadge = true,
--        allowUserToGoToDonationManagementScreen = true,
-         userUnregistered = false,
-         clientDeprecated = false,
-         showInternalPreferences = true,
--        showPayments = true,
-         showAppUpdates = true,
-         backupFailureState = BackupFailureState.OUT_OF_STORAGE_SPACE
-       ),
-@@ -745,12 +669,9 @@ private fun AppSettingsContentUnregisteredPreview() {
-       state = AppSettingsState(
-         isPrimaryDevice = true,
-         unreadPaymentsCount = 5,
--        hasExpiredGiftBadge = true,
--        allowUserToGoToDonationManagementScreen = true,
-         userUnregistered = true,
-         clientDeprecated = false,
-         showInternalPreferences = true,
--        showPayments = true,
-         showAppUpdates = true,
-         backupFailureState = BackupFailureState.OUT_OF_STORAGE_SPACE
-       ),
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsState.kt
-index 630e4f79aa125332b6c85343adc57feb18448908..029519856091190d45244553ca5d8c05c873bc34 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsState.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsState.kt
-@@ -1,21 +1,18 @@
++        AppSettingsRoute.AccountRoute.Account -> AppSettingsFragmentDirections.actionDirectToAccountSettingsFragment()
+         else -> error("Unsupported start location: ${appSettingsRoute?.javaClass?.name}")
+       }
+     }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsEntry.kt
+index d24f304264ea4176a72cc1906629b2302488f55d..df911c76ba22b208b0bddf17bf622cd893c8ce35 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsEntry.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsEntry.kt
+@@ -6,11 +6,13 @@
  package org.thoughtcrime.securesms.components.settings.app
  
- import androidx.compose.runtime.Immutable
--import org.thoughtcrime.securesms.keyvalue.SignalStore
--import org.thoughtcrime.securesms.util.Environment
-+import org.thoughtcrime.securesms.BuildConfig
- import org.thoughtcrime.securesms.util.RemoteConfig
+ import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.size
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.remember
++import androidx.compose.material3.Text
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalContext
+@@ -19,10 +21,13 @@ import androidx.compose.ui.unit.dp
+ import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import androidx.lifecycle.viewmodel.compose.viewModel
+ import org.signal.appsettings.home.AppSettingsAction
++import org.signal.appsettings.home.AppSettingsEvent
+ import org.signal.appsettings.home.AppSettingsScreen
+ import org.signal.appsettings.routes.AppSettingsNavigationEvent
+ import org.signal.appsettings.routes.AppSettingsRoute
+ import org.signal.core.ui.compose.CollectActions
++import org.signal.core.ui.compose.Rows
++import org.signal.core.ui.compose.SignalIcons
+ import org.thoughtcrime.securesms.R
+ import org.thoughtcrime.securesms.avatar.AvatarImage
+ import org.thoughtcrime.securesms.banner.BannerManager
+@@ -68,7 +73,24 @@ fun AppSettingsEntry(
+     onEvent = viewModel::onEvent,
+     selectedRoute = selectedRoute,
+     avatar = { self?.let { SelfAvatar(it) } },
+-    banner = { bannerManager.Banner() }
++    banner = { bannerManager.Banner() },
++    profileExtra = {
++      state.linkedDeviceCount?.let { count ->
++        Text(
++          text = if (count > 0) context.resources.getQuantityString(R.plurals.BioTextPreference_n_linked_devices, count, count) else stringResource(R.string.BioTextPreference_no_linked_devices),
++          modifier = Modifier.clickable(enabled = state.isPrimaryDevice && !state.isLinkedDevice && state.isRegisteredAndUpToDate) {
++            viewModel.onEvent(AppSettingsEvent.LinkedDevicesClicked)
++          }
++        )
++      }
++    },
++    networkRow = {
++      Rows.TextRow(
++        text = stringResource(R.string.preferences__network),
++        icon = SignalIcons.Data.painter,
++        onClick = { viewModel.onEvent(AppSettingsEvent.NetworkClicked) }
++      )
++    }
+   )
+ }
  
- @Immutable
- data class AppSettingsState(
-   val isPrimaryDevice: Boolean,
-   val unreadPaymentsCount: Int,
--  val hasExpiredGiftBadge: Boolean,
--  val allowUserToGoToDonationManagementScreen: Boolean,
-   val userUnregistered: Boolean,
-+  val isLinkedDevice: Boolean = false,
-   val clientDeprecated: Boolean,
-   val showInternalPreferences: Boolean = RemoteConfig.internalUser,
--  val showPayments: Boolean = SignalStore.payments.paymentsAvailability.showPaymentsMenu(),
--  val showAppUpdates: Boolean = Environment.IS_NIGHTLY,
-+  val showAppUpdates: Boolean = BuildConfig.MANAGE_MOLLY_UPDATES,
-   val backupFailureState: BackupFailureState = BackupFailureState.NONE
- ) {
-   fun isRegisteredAndUpToDate(): Boolean {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
+index 25478a56bb7aa6efb53536f79f31d13477071a04..ee7fae20f495e1bee6fe0fb8d72db54bf3968c34 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
+@@ -13,20 +13,14 @@ import org.signal.core.ui.compose.ComposeFragment
+ import org.signal.core.util.collectFlowOnViewLifecycle
+ import org.thoughtcrime.securesms.R
+ import org.thoughtcrime.securesms.components.settings.app.subscription.completed.InAppPaymentsBottomSheetDelegate
+-import org.thoughtcrime.securesms.keyvalue.SignalStore
+ import org.thoughtcrime.securesms.util.navigation.safeNavigate
+ 
+-/**
+- * Fragment host for [AppSettingsEntry] until app settings moves to Nav3. Only translates routes into the nav graph.
+- */
+ class AppSettingsFragment : ComposeFragment() {
+-
+   private val appSettingsRouter by viewModels<AppSettingsRouter>()
+ 
+   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+     super.onViewCreated(view, savedInstanceState)
+     viewLifecycleOwner.lifecycle.addObserver(InAppPaymentsBottomSheetDelegate(childFragmentManager, viewLifecycleOwner))
+-
+     collectFlowOnViewLifecycle(appSettingsRouter.events, Lifecycle.State.RESUMED) { event ->
+       when (event) {
+         AppSettingsNavigationEvent.NavigateBack -> requireActivity().finishAfterTransition()
+@@ -43,11 +37,7 @@ class AppSettingsFragment : ComposeFragment() {
+   private fun navigateToScreen(route: AppSettingsRoute) {
+     when (route) {
+       is AppSettingsRoute.BackupsRoute.Remote -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_remoteBackupsSettingsFragment)
+-      is AppSettingsRoute.AccountRoute.Account -> if (SignalStore.account.isPrimaryDevice) {
+-        findNavController().safeNavigate(R.id.action_appSettingsFragment_to_accountSettingsFragment)
+-      } else {
+-        findNavController().safeNavigate(R.id.action_appSettingsFragment_to_linkedDeviceAccountSettingsFragment)
+-      }
++      is AppSettingsRoute.AccountRoute.Account -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_accountSettingsFragment)
+       is AppSettingsRoute.LinkDeviceRoute.LinkDevice -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_linkDeviceFragment)
+       is AppSettingsRoute.DonationsRoute.Donations -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_manageDonationsFragment)
+       is AppSettingsRoute.AppearanceRoute.Appearance -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_appearanceSettingsFragment)
+@@ -57,6 +47,7 @@ class AppSettingsFragment : ComposeFragment() {
+       is AppSettingsRoute.PrivacyRoute.Privacy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_privacySettingsFragment)
+       is AppSettingsRoute.BackupsRoute.Backups -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_backupsSettingsFragment)
+       is AppSettingsRoute.DataAndStorageRoute.DataAndStorage -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_dataAndStorageSettingsFragment)
++      is AppSettingsRoute.DataAndStorageRoute.Proxy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_networkPreferenceFragment)
+       is AppSettingsRoute.AppUpdates -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_appUpdatesSettingsFragment)
+       is AppSettingsRoute.Payments -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_paymentsActivity)
+       is AppSettingsRoute.HelpRoute.Settings -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_helpSettingsFragment)
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+index 32afcd8a828aaa3634076c940c0c47091a64412f..030c1321234195a4eaeae34e5b2f931a860c5cb3 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+@@ -73,6 +73,7 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
+             registerAppearanceRoutes(router::onEvent)
+             registerChatsRoutes(router::onEvent)
+             registerNotificationsRoutes()
++            registerRoleSettingsRoutes(router::onEvent)
+             registerPrivacyRoutes(router::onEvent)
+ 
+             // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
+index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..01f26d6135865ff4f603aef7f25225d4e5420ed4 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
+@@ -7,23 +7,24 @@ package org.thoughtcrime.securesms.components.settings.app
+ 
+ import androidx.lifecycle.asFlow
+ import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.rx3.asFlow
+ import kotlinx.coroutines.withContext
+ import org.signal.appsettings.home.AppSettingsState
+ import org.signal.appsettings.home.BackupFailureState
+ import org.signal.core.util.Util
++import org.signal.core.util.logging.Log
+ import org.signal.core.util.concurrent.SignalDispatchers
+ import org.thoughtcrime.securesms.backup.v2.BackupRepository
+-import org.thoughtcrime.securesms.components.settings.app.subscription.InAppDonations
+ import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
+-import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
+ import org.thoughtcrime.securesms.conversationlist.model.UnreadPaymentsLiveData
+ import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
+ import org.thoughtcrime.securesms.dependencies.AppDependencies
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.BuildConfig
++import org.thoughtcrime.securesms.linkdevice.LinkDeviceRepository
+ import org.thoughtcrime.securesms.recipients.Recipient
+-import org.thoughtcrime.securesms.util.Environment
+ import org.thoughtcrime.securesms.util.RemoteConfig
+ import org.thoughtcrime.securesms.util.SignalE164Util
+ 
+@@ -53,6 +54,20 @@ object AppSettingsRepository {
+ 
+   fun isPrimaryDevice(): Boolean = SignalStore.account.isPrimaryDevice
+ 
++  fun isLinkedDevice(): Boolean = SignalStore.account.isLinkedDevice
++
++  suspend fun getLinkedDeviceCount(): Int? = withContext(SignalDispatchers.IO) {
++    if (!isPrimaryDevice() || isLinkedDevice() || isUserUnregistered()) return@withContext null
++    try {
++      LinkDeviceRepository.loadDevices()?.size
++    } catch (e: CancellationException) {
++      throw e
++    } catch (e: Exception) {
++      Log.w(Log.tag(AppSettingsRepository::class.java), "Unable to load the optional linked-device count.", e)
++      null
++    }
++  }
++
+   fun isUserUnregistered(): Boolean = SignalStore.account.isUnauthorizedReceived || !SignalStore.account.isRegistered
+ 
+   fun isClientDeprecated(): Boolean = SignalStore.misc.isClientDeprecated
+@@ -63,19 +78,13 @@ object AppSettingsRepository {
+ 
+   fun showPayments(): Boolean = SignalStore.payments.paymentsAvailability.showPaymentsMenu()
+ 
+-  fun showAppUpdates(): Boolean = Environment.IS_NIGHTLY
++  fun showAppUpdates(): Boolean = BuildConfig.MANAGE_MOLLY_UPDATES
+ 
+-  /** A quick guess at whether the user can manage donations in the app, before [canManageDonations] has an answer. */
+-  fun likelyCanManageDonations(): Boolean = SignalStore.inAppPayments.isLikelyASustainer() || InAppDonations.hasAtLeastOnePaymentMethodAvailable()
++  /** Molly's settings use the existing external donation URL, not new in-app subscriptions. */
++  fun likelyCanManageDonations(): Boolean = false
+ 
+-  /** Whether the user can manage donations in the app, or null if their subscription couldn't be fetched. */
+-  suspend fun canManageDonations(): Boolean? {
+-    return withContext(SignalDispatchers.IO) {
+-      RecurringInAppPaymentRepository.getActiveSubscriptionSync(InAppPaymentSubscriberRecord.Type.DONATION).successOrNull()?.let { activeSubscription ->
+-        SignalStore.account.isRegistered && (activeSubscription.isActive || InAppDonations.hasAtLeastOnePaymentMethodAvailable())
+-      }
+-    }
+-  }
++  /** Retained query compatibility without making a subscription request. */
++  suspend fun canManageDonations(): Boolean? = false
+ 
+   fun getBackupFailureState(): BackupFailureState {
+     return when {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRoleNavigation.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRoleNavigation.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..36c092d1b2a8c0c838e7e6387576bfe9e7f253a3
+--- /dev/null
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRoleNavigation.kt
+@@ -0,0 +1,82 @@
++package org.thoughtcrime.securesms.components.settings.app
++
++import android.content.Intent
++import android.os.Bundle
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.remember
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.platform.LocalContext
++import androidx.core.os.bundleOf
++import androidx.navigation.fragment.NavHostFragment
++import androidx.navigation3.runtime.EntryProviderScope
++import androidx.navigation3.runtime.NavKey
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.map
++import org.signal.appsettings.routes.AppSettingsNavigationEvent
++import org.signal.appsettings.routes.AppSettingsRoute
++import org.signal.core.ui.compose.split.detailEntry
++import org.thoughtcrime.securesms.R
++import org.thoughtcrime.securesms.compose.AndroidNavHostFragment
++import org.thoughtcrime.securesms.compose.FragmentBackHandler
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfo
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfoProvider
++import org.thoughtcrime.securesms.compose.FragmentBackPressedState
++import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.profiles.manage.EditProfileActivity
++
++fun EntryProviderScope<NavKey>.registerRoleSettingsRoutes(parentEventEmitter: (AppSettingsNavigationEvent) -> Unit) {
++  detailEntry<AppSettingsRoute.AccountRoute.Account> {
++    RoleSettingsEntry(R.id.accountSettingsFragment)
++  }
++  detailEntry<AppSettingsRoute.AccountRoute.ManageProfile> {
++    val context = LocalContext.current
++    LaunchedEffect(Unit) {
++      context.startActivity(Intent(context, EditProfileActivity::class.java))
++      parentEventEmitter(AppSettingsNavigationEvent.NavigateBack)
++    }
++  }
++  detailEntry<AppSettingsRoute.UsernameLinkRoute.UsernameLink> {
++    RoleSettingsEntry(R.id.username_link_settings)
++  }
++  detailEntry<AppSettingsRoute.LinkDeviceRoute.LinkDevice> {
++    if (SignalStore.account.isPrimaryDevice && !SignalStore.account.isLinkedDevice) {
++      RoleSettingsEntry(R.id.linkDeviceFragment)
++    } else {
++      LaunchedEffect(Unit) { parentEventEmitter(AppSettingsNavigationEvent.NavigateBack) }
++    }
++  }
++  detailEntry<AppSettingsRoute.DataAndStorageRoute.Proxy> {
++    RoleSettingsEntry(R.id.networkPreferenceFragment)
++  }
++}
++
++@Composable
++private fun RoleSettingsEntry(destination: Int) {
++  val backPressedState = remember { FragmentBackPressedState() }
++  FragmentBackHandler(backPressedState)
++  AndroidNavHostFragment(
++    clazz = RoleSettingsNavHostFragment::class.java,
++    modifier = Modifier.fillMaxSize(),
++    arguments = bundleOf(RoleSettingsNavHostFragment.START_DESTINATION to destination),
++    onUpdate = { backPressedState.attach(it) }
++  )
++}
++
++class RoleSettingsNavHostFragment : NavHostFragment(), FragmentBackPressedInfoProvider {
++  companion object {
++    const val START_DESTINATION = "role.settings.start.destination"
++  }
++
++  override fun onCreate(savedInstanceState: Bundle?) {
++    val graph = navController.navInflater.inflate(R.navigation.app_settings_with_change_number)
++    graph.setStartDestination(requireArguments().getInt(START_DESTINATION))
++    navController.setGraph(graph, null)
++    super.onCreate(savedInstanceState)
++  }
++
++  override fun getFragmentBackPressedInfo(): Flow<FragmentBackPressedInfo> = navController.currentBackStackEntryFlow.map {
++    if (navController.previousBackStackEntry != null) FragmentBackPressedInfo.Enabled { navController.popBackStack() } else FragmentBackPressedInfo.Disabled
++  }
++}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
-index 3972b61270e480998ec850f5647b8229bc47d013..73fee62ee36ac24ee4b781cc6ad6a760bde18b66 100644
+index 226ca476872964d7e7481589192a81043ce0603b..fafd975a1594b1db1c2a3780f263e1123d72f941 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModel.kt
-@@ -4,12 +4,6 @@ import androidx.lifecycle.LiveData
- import androidx.lifecycle.ViewModel
- import androidx.lifecycle.map
- import io.reactivex.rxjava3.disposables.CompositeDisposable
--import io.reactivex.rxjava3.kotlin.plusAssign
--import io.reactivex.rxjava3.kotlin.subscribeBy
--import org.thoughtcrime.securesms.components.settings.app.subscription.InAppDonations
--import org.thoughtcrime.securesms.components.settings.app.subscription.RecurringInAppPaymentRepository
--import org.thoughtcrime.securesms.conversationlist.model.UnreadPaymentsLiveData
--import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
- import org.thoughtcrime.securesms.dependencies.AppDependencies
- import org.thoughtcrime.securesms.keyvalue.SignalStore
- import org.thoughtcrime.securesms.recipients.Recipient
-@@ -22,32 +16,17 @@ class AppSettingsViewModel : ViewModel() {
-     AppSettingsState(
-       isPrimaryDevice = SignalStore.account.isPrimaryDevice,
-       unreadPaymentsCount = 0,
--      hasExpiredGiftBadge = SignalStore.inAppPayments.getExpiredGiftBadge() != null,
--      allowUserToGoToDonationManagementScreen = SignalStore.inAppPayments.isLikelyASustainer() || InAppDonations.hasAtLeastOnePaymentMethodAvailable(),
-       userUnregistered = TextSecurePreferences.isUnauthorizedReceived(AppDependencies.application) || !SignalStore.account.isRegistered,
-+      isLinkedDevice = SignalStore.account.isLinkedDevice,
-       clientDeprecated = SignalStore.misc.isClientDeprecated
-     )
-   )
+@@ -1,6 +1,7 @@
+ package org.thoughtcrime.securesms.components.settings.app
  
--  private val unreadPaymentsLiveData = UnreadPaymentsLiveData()
-   private val disposables = CompositeDisposable()
+ import androidx.lifecycle.viewModelScope
++import kotlinx.coroutines.Job
+ import kotlinx.coroutines.channels.Channel
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+@@ -23,46 +24,31 @@ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.R
+ import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
  
-   val state: LiveData<AppSettingsState> = store.stateLiveData
-   val self: LiveData<BioRecipientState> = Recipient.self().live().liveData.map { BioRecipientState(it) }
- 
--  init {
--    store.update(unreadPaymentsLiveData) { payments, state -> state.copy(unreadPaymentsCount = payments.map { it.unreadCount }.orElse(0)) }
+-/**
+- * Drives [org.signal.appsettings.home.AppSettingsScreen]. Navigation goes straight to [parentEventEmitter].
+- */
+ class AppSettingsViewModel(
+   private val parentEventEmitter: (AppSettingsNavigationEvent) -> Unit
+-) : EventDrivenViewModel<AppSettingsEvent>(TAG) {
 -
--    disposables += RecurringInAppPaymentRepository.getActiveSubscription(InAppPaymentSubscriberRecord.Type.DONATION).subscribeBy(
--      onSuccess = { activeSubscription ->
--        store.update { state ->
--          state.copy(allowUserToGoToDonationManagementScreen = SignalStore.account.isRegistered && (activeSubscription.isActive || InAppDonations.hasAtLeastOnePaymentMethodAvailable()))
--        }
--      },
--      onError = {}
--    )
+-  companion object {
+-    private val TAG = Log.tag(AppSettingsViewModel::class)
 -  }
 -
-   override fun onCleared() {
-     disposables.clear()
++) : EventDrivenViewModel<AppSettingsEvent>(Log.tag(AppSettingsViewModel::class)) {
+   private val _state = MutableStateFlow(
+     AppSettingsState(
+       isPrimaryDevice = AppSettingsRepository.isPrimaryDevice(),
+-      allowUserToGoToDonationManagementScreen = AppSettingsRepository.likelyCanManageDonations(),
++      isLinkedDevice = AppSettingsRepository.isLinkedDevice(),
+       showInternalPreferences = AppSettingsRepository.showInternalPreferences(),
+       showPayments = AppSettingsRepository.showPayments(),
+       showAppUpdates = AppSettingsRepository.showAppUpdates()
+     )
+   )
+   private val _actions = Channel<AppSettingsAction>(Channel.BUFFERED)
+-
++  private var linkedCountJob: Job? = null
+   val state: StateFlow<AppSettingsState> = _state.asStateFlow()
+   val actions: Flow<AppSettingsAction> = _actions.receiveAsFlow()
+ 
+   init {
+     refresh()
+-
+     viewModelScope.launch {
+       AppSettingsRepository.observeProfile().collect { profile -> _state.update { it.copy(profile = profile) } }
+     }
+-
+     viewModelScope.launch {
+       AppSettingsRepository.observeUnreadPaymentsCount().collect { count -> _state.update { it.copy(unreadPaymentsCount = count) } }
+     }
+-
+-    viewModelScope.launch {
+-      val canManageDonations = AppSettingsRepository.canManageDonations() ?: return@launch
+-      _state.update { it.copy(allowUserToGoToDonationManagementScreen = canManageDonations) }
+-    }
    }
-@@ -64,7 +43,6 @@ class AppSettingsViewModel : ViewModel() {
-   fun refresh() {
-     store.update {
+ 
+   override suspend fun processEvent(event: AppSettingsEvent) {
+@@ -73,14 +59,12 @@ class AppSettingsViewModel(
+       AppSettingsEvent.UsernameLinkClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.UsernameLinkRoute.UsernameLink)
+       AppSettingsEvent.BackupWarningClicked -> onBackupWarningClicked()
+       AppSettingsEvent.AccountClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AccountRoute.Account)
+-      AppSettingsEvent.LinkedDevicesClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.LinkDeviceRoute.LinkDevice)
+-      AppSettingsEvent.DonateClicked -> {
+-        if (_state.value.allowUserToGoToDonationManagementScreen) {
+-          parentEventEmitter.navigateTo(AppSettingsRoute.DonationsRoute.Donations())
+-        } else {
+-          _actions.send(AppSettingsAction.OpenDonateUrl)
++      AppSettingsEvent.LinkedDevicesClicked -> {
++        if (AppSettingsRepository.isPrimaryDevice() && !AppSettingsRepository.isLinkedDevice() && !AppSettingsRepository.isUserUnregistered() && !AppSettingsRepository.isClientDeprecated()) {
++          parentEventEmitter.navigateTo(AppSettingsRoute.LinkDeviceRoute.LinkDevice)
+         }
+       }
++      AppSettingsEvent.DonateClicked -> _actions.send(AppSettingsAction.OpenDonateUrl)
+       AppSettingsEvent.DonateLongClicked -> copySubscriberId(InAppPaymentSubscriberRecord.Type.DONATION, Snackbar.CopiedDonorSubscriberId)
+       AppSettingsEvent.AppearanceClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AppearanceRoute.Appearance)
+       AppSettingsEvent.ChatsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.ChatsRoute.Chats)
+@@ -89,13 +73,14 @@ class AppSettingsViewModel(
+       AppSettingsEvent.PrivacyClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.PrivacyRoute.Privacy)
+       AppSettingsEvent.BackupsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.BackupsRoute.Backups())
+       AppSettingsEvent.BackupsLongClicked -> {
+-        if (_state.value.isPrimaryDevice) {
+-          copySubscriberId(InAppPaymentSubscriberRecord.Type.BACKUP, Snackbar.CopiedBackupsSubscriberId)
+-        }
++        if (_state.value.isPrimaryDevice) copySubscriberId(InAppPaymentSubscriberRecord.Type.BACKUP, Snackbar.CopiedBackupsSubscriberId)
+       }
++      AppSettingsEvent.NetworkClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.DataAndStorageRoute.Proxy)
+       AppSettingsEvent.DataAndStorageClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.DataAndStorageRoute.DataAndStorage)
+       AppSettingsEvent.AppUpdatesClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.AppUpdates)
+-      AppSettingsEvent.PaymentsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.Payments)
++      AppSettingsEvent.PaymentsClicked -> {
++        if (_state.value.isPrimaryDevice && !_state.value.isLinkedDevice) parentEventEmitter.navigateTo(AppSettingsRoute.Payments)
++      }
+       AppSettingsEvent.HelpClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.HelpRoute.Settings())
+       AppSettingsEvent.InviteClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.Invite)
+       AppSettingsEvent.LabsClicked -> parentEventEmitter.navigateTo(AppSettingsRoute.LabsRoute.Labs)
+@@ -111,24 +96,36 @@ class AppSettingsViewModel(
+       BackupFailureState.SUBSCRIPTION_STATE_MISMATCH, BackupFailureState.OUT_OF_STORAGE_SPACE -> Unit
+       BackupFailureState.NONE -> return
+     }
+-
+     parentEventEmitter.navigateTo(AppSettingsRoute.BackupsRoute.Remote())
+   }
+ 
+   private suspend fun copySubscriberId(type: InAppPaymentSubscriberRecord.Type, snackbar: Snackbar) {
+-    if (AppSettingsRepository.copySubscriberIdToClipboard(type)) {
+-      _state.update { it.copy(snackbar = snackbar) }
+-    }
++    if (AppSettingsRepository.copySubscriberIdToClipboard(type)) _state.update { it.copy(snackbar = snackbar) }
+   }
+ 
+   private fun refresh() {
++    val primary = AppSettingsRepository.isPrimaryDevice()
++    val linked = AppSettingsRepository.isLinkedDevice()
+     _state.update {
        it.copy(
--        hasExpiredGiftBadge = SignalStore.inAppPayments.getExpiredGiftBadge() != null,
-         backupFailureState = getBackupFailureState()
++        isPrimaryDevice = primary,
++        isLinkedDevice = linked,
++        linkedDeviceCount = if (primary && !linked) it.linkedDeviceCount else null,
+         hasExpiredGiftBadge = AppSettingsRepository.hasExpiredGiftBadge(),
+         backupFailureState = AppSettingsRepository.getBackupFailureState(),
+         clientDeprecated = AppSettingsRepository.isClientDeprecated(),
+         userUnregistered = AppSettingsRepository.isUserUnregistered()
        )
      }
++    if (!primary || linked || _state.value.userUnregistered) {
++      linkedCountJob?.cancel()
++    } else if (linkedCountJob?.isActive != true) {
++      linkedCountJob = viewModelScope.launch {
++        val count = AppSettingsRepository.getLinkedDeviceCount() ?: return@launch
++        if (AppSettingsRepository.isPrimaryDevice() && !AppSettingsRepository.isLinkedDevice() && !AppSettingsRepository.isUserUnregistered()) {
++          _state.update { it.copy(linkedDeviceCount = count) }
++        }
++      }
++    }
+   }
+ }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsFragment.kt
-index 637725e6ceacb48706bc6d73eedfaede51273422..d42261bc64a4c1c71aca455cf8c9dad98d88d8c6 100644
+index 9b3708356346a8e19ad369dd68a33815ffe4e637..af3a7584218fe2960b69ccde876750dc2f974033 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsFragment.kt
-@@ -1,17 +1,10 @@
- package org.thoughtcrime.securesms.components.settings.app.account
- 
--import android.content.Context
- import android.content.Intent
--import android.graphics.Typeface
--import android.util.DisplayMetrics
--import android.view.ViewGroup
--import android.widget.EditText
--import android.widget.TextView
- import android.widget.Toast
- import androidx.annotation.ColorRes
- import androidx.annotation.StringRes
- import androidx.annotation.VisibleForTesting
--import androidx.appcompat.app.AlertDialog
- import androidx.compose.foundation.layout.padding
- import androidx.compose.foundation.lazy.LazyColumn
- import androidx.compose.material3.MaterialTheme
-@@ -28,15 +21,10 @@ import androidx.compose.ui.platform.testTag
- import androidx.compose.ui.res.colorResource
- import androidx.compose.ui.res.stringResource
- import androidx.compose.ui.res.vectorResource
--import androidx.core.app.DialogCompat
- import androidx.fragment.app.viewModels
- import androidx.lifecycle.compose.collectAsStateWithLifecycle
--import androidx.lifecycle.lifecycleScope
- import androidx.navigation.fragment.findNavController
--import com.google.android.material.button.MaterialButton
--import com.google.android.material.dialog.MaterialAlertDialogBuilder
- import com.google.android.material.snackbar.Snackbar
--import kotlinx.coroutines.launch
- import org.signal.core.ui.compose.ComposeFragment
- import org.signal.core.ui.compose.DayNightPreviews
- import org.signal.core.ui.compose.Dialogs
-@@ -48,18 +36,14 @@ import org.signal.core.ui.compose.Texts
- import org.signal.core.util.ServiceUtil
- import org.thoughtcrime.securesms.R
- import org.thoughtcrime.securesms.compose.rememberStatusBarColorNestedScrollModifier
--import org.thoughtcrime.securesms.contactshare.SimpleTextWatcher
- import org.thoughtcrime.securesms.dependencies.AppDependencies
- import org.thoughtcrime.securesms.keyvalue.SignalStore
- import org.thoughtcrime.securesms.lock.v2.CreateSvrPinActivity
- import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
--import org.thoughtcrime.securesms.lock.v2.SvrConstants
- import org.thoughtcrime.securesms.pin.RegistrationLockV2Dialog
- import org.thoughtcrime.securesms.registration.ui.RegistrationActivity
- import org.thoughtcrime.securesms.util.PlayStoreUtil
--import org.thoughtcrime.securesms.util.ViewUtil
+@@ -40,30 +40,18 @@ import org.thoughtcrime.securesms.util.PlayStoreUtil
  import org.thoughtcrime.securesms.util.navigation.safeNavigate
--import org.whispersystems.signalservice.api.kbs.PinHashUtil
+ import org.signal.appsettings.R as AppSettingsR
  
+-/**
+- * Account settings shown on a primary device. Carries out the [AccountSettingsAction]s that need an Activity or the
+- * legacy nav graph.
+- */
  class AccountSettingsFragment : ComposeFragment() {
+-
+   private val viewModel: AccountSettingsViewModel by viewModels(
+     factoryProducer = ViewModelFactory.factoryProducer {
+-      AccountSettingsViewModel(
+-        accountRepository = AccountSettingsRepository(),
+-        arePasskeysSupported = SignalPasskeyManager.isSupported(requireContext())
+-      )
++      AccountSettingsViewModel(AccountSettingsRepository(), SignalPasskeyManager.isSupported(requireContext()))
+     }
+   )
+-
+   private lateinit var pinFlowLauncher: ActivityResultLauncher<Intent>
  
-@@ -96,63 +80,8 @@ class AccountSettingsFragment : ComposeFragment() {
+   override fun onCreate(savedInstanceState: Bundle?) {
+     super.onCreate(savedInstanceState)
+-
+     pinFlowLauncher = registerForActivityResult(StartActivityForResult()) { result ->
+-      if (result.resultCode == Activity.RESULT_OK) {
+-        viewModel.onEvent(AccountSettingsEvent.PinCreated)
+-      }
++      if (result.resultCode == Activity.RESULT_OK) viewModel.onEvent(AccountSettingsEvent.PinCreated)
+     }
    }
  
-   private fun setPinRemindersEnabled(enabled: Boolean) {
--    if (!enabled) {
--      val context: Context = requireContext()
--      val metrics: DisplayMetrics = resources.displayMetrics
+@@ -75,36 +63,33 @@ class AccountSettingsFragment : ComposeFragment() {
+   @Composable
+   override fun FragmentContent() {
+     val state by viewModel.state.collectAsStateWithLifecycle()
 -
--      val dialog: AlertDialog = MaterialAlertDialogBuilder(context)
--        .setView(R.layout.pin_disable_reminders_dialog)
--        .setOnDismissListener { viewModel.refreshState() }
--        .create()
+     val addMethodBiometrics = rememberBiometricsAuthentication(
+       promptTitle = stringResource(AppSettingsR.string.AccountSettingsFragment__unlock_to_add_two_factor_method),
+       educationSheetMessage = stringResource(AppSettingsR.string.AccountSettingsFragment__to_add_this_method_confirm_its_you),
+       onAuthenticationFailed = { viewModel.onEvent(AccountSettingsEvent.AuthenticationFailed) }
+     )
 -
--      dialog.show()
--      dialog.window!!.setLayout((metrics.widthPixels * .80).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+     val removalBiometrics = rememberBiometricsAuthentication(
+       promptTitle = stringResource(AppSettingsR.string.AccountSettingsFragment__unlock_to_remove_two_factor_method),
+       educationSheetMessage = stringResource(AppSettingsR.string.AccountSettingsFragment__to_remove_this_method_confirm_its_you),
+       onAuthenticationFailed = { viewModel.onEvent(AccountSettingsEvent.AuthenticationFailed) }
+     )
 -
--      val pinEditText = DialogCompat.requireViewById(dialog, R.id.reminder_disable_pin) as EditText
--      val statusText = DialogCompat.requireViewById(dialog, R.id.reminder_disable_status) as TextView
--      val cancelButton = DialogCompat.requireViewById(dialog, R.id.reminder_disable_cancel)
--      val turnOffButton = DialogCompat.requireViewById(dialog, R.id.reminder_disable_turn_off)
--      val changeKeyboard = DialogCompat.requireViewById(dialog, R.id.reminder_change_keyboard) as MaterialButton
+     val signalLoginBiometrics = rememberBiometricsAuthentication(
+       promptTitle = stringResource(AppSettingsR.string.AccountSettingsFragment__unlock_to_view_signal_login),
+       educationSheetMessage = stringResource(AppSettingsR.string.AccountSettingsFragment__to_view_your_signal_login_confirm_its_you),
+       onAuthenticationFailed = { viewModel.onEvent(AccountSettingsEvent.AuthenticationFailed) }
+     )
 -
--      dialog.lifecycleScope.launch {
--        viewModel.state.collect { state ->
--          state.pinKeyboardType.applyTo(
--            pinEditText = pinEditText,
--            toggleTypeButton = changeKeyboard
--          )
--        }
--      }
+     val deleteAccountBiometrics = rememberBiometricsAuthentication(
+       promptTitle = stringResource(AppSettingsR.string.AccountSettingsFragment__unlock_to_confirm_its_you),
+       educationSheetMessage = stringResource(AppSettingsR.string.AccountSettingsFragment__to_delete_your_account_confirm_its_you),
+       onAuthenticationFailed = { viewModel.onEvent(AccountSettingsEvent.AuthenticationFailed) }
+     )
 -
--      changeKeyboard.setOnClickListener { viewModel.togglePinKeyboardType() }
+-    CollectActions(viewModel.actions) { action -> handleAction(action, addMethodBiometrics, removalBiometrics, signalLoginBiometrics, deleteAccountBiometrics) }
 -
--      pinEditText.post {
--        ViewUtil.focusAndShowKeyboard(pinEditText)
--      }
--
--      pinEditText.addTextChangedListener(object : SimpleTextWatcher() {
--        override fun onTextChanged(text: String) {
--          turnOffButton.isEnabled = text.length >= SvrConstants.MINIMUM_PIN_LENGTH
--        }
--      })
--
--      pinEditText.typeface = Typeface.DEFAULT
--      turnOffButton.setOnClickListener {
--        val pin = pinEditText.text.toString()
--        val correct = PinHashUtil.verifyLocalPinHash(SignalStore.svr.localPinHash!!, pin)
--        if (correct) {
--          SignalStore.pin.setPinRemindersEnabled(false)
--          viewModel.refreshState()
--          dialog.dismiss()
--        } else {
--          statusText.setText(R.string.preferences_app_protection__incorrect_pin_try_again)
--        }
--      }
--
--      cancelButton.setOnClickListener { dialog.dismiss() }
--    } else {
--      SignalStore.pin.setPinRemindersEnabled(true)
--      viewModel.refreshState()
--    }
-+    SignalStore.pin.setPinRemindersEnabled(enabled)
-+    viewModel.refreshState()
++    CollectActions(viewModel.actions) { action ->
++      handleAction(action, addMethodBiometrics, removalBiometrics, signalLoginBiometrics, deleteAccountBiometrics)
++    }
+     AccountSettingsScreen(
+       state = state,
+-      onEvent = viewModel::onEvent
++      onEvent = viewModel::onEvent,
++      linkedDevicePinMessage = stringResource(R.string.AccountSettingsFragment_pin_settings_cannot_be_changed_from_a_linked_device)
+     )
    }
  
-   private inner class Callbacks : AccountSettingsScreenCallbacks {
-@@ -275,56 +204,64 @@ fun AccountSettingsScreen(
-         )
+@@ -116,79 +101,37 @@ class AccountSettingsFragment : ComposeFragment() {
+     deleteAccountBiometrics: BiometricsAuthentication
+   ) {
+     when (action) {
+-      AccountSettingsAction.NavigateBack -> {
+-        requireActivity().onBackPressedDispatcher.onBackPressed()
+-      }
+-
+-      AccountSettingsAction.LaunchCreatePinFlow -> {
+-        pinFlowLauncher.launch(CreateSvrPinActivity.getIntentForPinCreate(requireContext()))
+-      }
+-
+-      AccountSettingsAction.LaunchChangePinFlow -> {
+-        pinFlowLauncher.launch(CreateSvrPinActivity.getIntentForPinChangeFromSettings(requireContext()))
+-      }
+-
+-      AccountSettingsAction.ShowPinCreatedConfirmation -> {
+-        Snackbar.make(requireView(), R.string.ConfirmKbsPinFragment__pin_created, Snackbar.LENGTH_LONG).show()
+-      }
+-
+-      AccountSettingsAction.AuthenticateToViewSignalLoginDetails -> {
+-        signalLoginBiometrics.withBiometricsAuthentication {
+-          viewModel.onEvent(AccountSettingsEvent.SignalLoginDetailsAuthenticated)
+-        }
+-      }
+-
+-      AccountSettingsAction.NavigateToSignalLoginDetails -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_settingsSignalLoginDetailsFragment)
+-      }
+-
+-      AccountSettingsAction.AuthenticateToAddTotpApp -> {
+-        addMethodBiometrics.withBiometricsAuthentication {
+-          viewModel.onEvent(AccountSettingsEvent.AddTotpAppAuthenticated)
+-        }
+-      }
+-
+-      AccountSettingsAction.NavigateToTotpSetup -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_authenticatorSetupFragment)
+-      }
+-
+-      AccountSettingsAction.AuthenticateToAddPasskey -> {
+-        addMethodBiometrics.withBiometricsAuthentication {
+-          viewModel.onEvent(AccountSettingsEvent.AddPasskeyAuthenticated)
+-        }
+-      }
+-
+-      AccountSettingsAction.NavigateToPasskeySetup -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_passkeySetupFragment)
+-      }
+-
+-      is AccountSettingsAction.NavigateToRenameMethod -> {
+-        findNavController().safeNavigate(
+-          R.id.action_accountSettingsFragment_to_twoFactorNameFragment,
+-          Bundle().apply { TwoFactorNavArgs.putRenamedMethod(this, action.method) }
+-        )
++      AccountSettingsAction.NavigateBack -> requireActivity().onBackPressedDispatcher.onBackPressed()
++      AccountSettingsAction.LaunchCreatePinFlow -> pinFlowLauncher.launch(CreateSvrPinActivity.getIntentForPinCreate(requireContext()))
++      AccountSettingsAction.LaunchChangePinFlow -> pinFlowLauncher.launch(CreateSvrPinActivity.getIntentForPinChangeFromSettings(requireContext()))
++      AccountSettingsAction.ShowPinCreatedConfirmation -> Snackbar.make(requireView(), R.string.ConfirmKbsPinFragment__pin_created, Snackbar.LENGTH_LONG).show()
++      AccountSettingsAction.AuthenticateToViewSignalLoginDetails -> signalLoginBiometrics.withBiometricsAuthentication {
++        viewModel.onEvent(AccountSettingsEvent.SignalLoginDetailsAuthenticated)
++      }
++      AccountSettingsAction.NavigateToSignalLoginDetails -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_settingsSignalLoginDetailsFragment)
++      AccountSettingsAction.AuthenticateToAddTotpApp -> addMethodBiometrics.withBiometricsAuthentication {
++        viewModel.onEvent(AccountSettingsEvent.AddTotpAppAuthenticated)
++      }
++      AccountSettingsAction.NavigateToTotpSetup -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_authenticatorSetupFragment)
++      AccountSettingsAction.AuthenticateToAddPasskey -> addMethodBiometrics.withBiometricsAuthentication {
++        viewModel.onEvent(AccountSettingsEvent.AddPasskeyAuthenticated)
++      }
++      AccountSettingsAction.NavigateToPasskeySetup -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_passkeySetupFragment)
++      is AccountSettingsAction.NavigateToRenameMethod -> findNavController().safeNavigate(
++        R.id.action_accountSettingsFragment_to_twoFactorNameFragment,
++        Bundle().apply { TwoFactorNavArgs.putRenamedMethod(this, action.method) }
++      )
++      is AccountSettingsAction.AuthenticateToRemoveMethod -> removalBiometrics.withBiometricsAuthentication {
++        viewModel.onEvent(AccountSettingsEvent.MethodRemovalAuthenticated(action.method))
        }
- 
--      item {
--        @StringRes val textId = if (state.hasPin || state.hasRestoredAep) {
--          R.string.preferences_app_protection__change_your_pin
--        } else {
--          R.string.preferences_app_protection__create_a_pin
-+      if (state.isLinkedDevice) {
-+        item {
-+          Rows.TextRow(
-+            text = stringResource(R.string.AccountSettingsFragment_pin_settings_cannot_be_changed_from_a_linked_device),
-+          )
+-
+-      is AccountSettingsAction.AuthenticateToRemoveMethod -> {
+-        removalBiometrics.withBiometricsAuthentication {
+-          viewModel.onEvent(AccountSettingsEvent.MethodRemovalAuthenticated(action.method))
++      AccountSettingsAction.ShowAuthenticationFailed -> toast(AppSettingsR.string.AccountSettingsFragment__authentication_required)
++      is AccountSettingsAction.ShowMethodRemoved -> toast(
++        when (action.kind) {
++          TwoFactorMethod.Kind.AUTHENTICATOR_APP -> AppSettingsR.string.AccountSettingsFragment__authenticator_app_removed
++          TwoFactorMethod.Kind.PASSKEY -> AppSettingsR.string.AccountSettingsFragment__passkey_removed
++          TwoFactorMethod.Kind.OTHER -> AppSettingsR.string.AccountSettingsFragment__two_factor_method_removed
          }
-+      } else {
-+        item {
-+          @StringRes val textId = if (state.hasPin || state.hasRestoredAep) {
-+            R.string.preferences_app_protection__change_your_pin
-+          } else {
-+            R.string.preferences_app_protection__create_a_pin
-+          }
- 
--        Rows.TextRow(
--          text = stringResource(textId),
--          enabled = state.isNotDeprecatedOrUnregistered(),
--          onClick = {
--            if (state.hasPin) {
--              callbacks.onChangePinClick()
--            } else {
--              callbacks.onCreatePinClick()
--            }
--          },
--          modifier = Modifier.testTag(AccountSettingsTestTags.ROW_MODIFY_PIN)
+-      }
+-
+-      AccountSettingsAction.ShowAuthenticationFailed -> {
+-        toast(AppSettingsR.string.AccountSettingsFragment__authentication_required)
+-      }
+-
+-      is AccountSettingsAction.ShowMethodRemoved -> {
+-        toast(
+-          when (action.kind) {
+-            TwoFactorMethod.Kind.AUTHENTICATOR_APP -> AppSettingsR.string.AccountSettingsFragment__authenticator_app_removed
+-            TwoFactorMethod.Kind.PASSKEY -> AppSettingsR.string.AccountSettingsFragment__passkey_removed
+-            TwoFactorMethod.Kind.OTHER -> AppSettingsR.string.AccountSettingsFragment__two_factor_method_removed
+-          }
 -        )
 -      }
-+          Rows.TextRow(
-+            text = stringResource(textId),
-+            enabled = state.isNotDeprecatedOrUnregistered(),
-+            onClick = {
-+              if (state.hasPin) {
-+                callbacks.onChangePinClick()
-+              } else {
-+                callbacks.onCreatePinClick()
-+              }
-+            },
-+            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_MODIFY_PIN)
-+          )
-+        }
- 
--      item {
--        Rows.ToggleRow(
--          text = stringResource(R.string.preferences_app_protection__pin_reminders),
--          label = stringResource(R.string.AccountSettingsFragment__youll_be_asked_less_frequently),
--          checked = state.hasPin && state.pinRemindersEnabled,
--          enabled = state.hasPin && state.isNotDeprecatedOrUnregistered(),
--          onCheckChanged = callbacks::setPinRemindersEnabled,
--          modifier = Modifier.testTag(AccountSettingsTestTags.ROW_PIN_REMINDER)
--        )
+-
++      )
+       is AccountSettingsAction.ShowMethodRemovalFailed -> toast(
+         when (action.kind) {
+           TwoFactorMethod.Kind.AUTHENTICATOR_APP -> AppSettingsR.string.AccountSettingsFragment__couldnt_remove_authenticator_app
+@@ -196,62 +139,25 @@ class AccountSettingsFragment : ComposeFragment() {
+           TwoFactorMethod.Kind.OTHER -> AppSettingsR.string.AccountSettingsFragment__couldnt_remove_two_factor_method
+         }
+       )
+-
+-      is AccountSettingsAction.OpenSupportArticle -> {
+-        CommunicationActions.openBrowserLink(requireContext(), action.url)
 -      }
-+        item {
-+          Rows.ToggleRow(
-+            text = stringResource(R.string.preferences_app_protection__pin_reminders),
-+            label = stringResource(R.string.AccountSettingsFragment__youll_be_asked_less_frequently),
-+            checked = state.hasPin && state.pinRemindersEnabled,
-+            enabled = state.hasPin && state.isNotDeprecatedOrUnregistered(),
-+            onCheckChanged = callbacks::setPinRemindersEnabled,
-+            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_PIN_REMINDER)
-+          )
-+        }
- 
--      item {
--        Rows.ToggleRow(
--          text = stringResource(R.string.preferences_app_protection__registration_lock),
--          label = stringResource(R.string.AccountSettingsFragment__require_your_signal_pin),
--          checked = state.registrationLockEnabled,
--          enabled = state.hasPin && state.isNotDeprecatedOrUnregistered(),
--          onCheckChanged = callbacks::setRegistrationLockEnabled,
--          modifier = Modifier.testTag(AccountSettingsTestTags.ROW_REGISTRATION_LOCK)
--        )
+-
+-      AccountSettingsAction.NavigateToAdvancedPinSettings -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_advancedPinSettingsActivity)
 -      }
-+        item {
-+          Rows.ToggleRow(
-+            text = stringResource(R.string.preferences_app_protection__registration_lock),
-+            label = stringResource(R.string.AccountSettingsFragment__require_your_signal_pin),
-+            checked = state.registrationLockEnabled,
-+            enabled = state.hasPin && state.isNotDeprecatedOrUnregistered(),
-+            onCheckChanged = callbacks::setRegistrationLockEnabled,
-+            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_REGISTRATION_LOCK)
-+          )
-+        }
- 
--      item {
--        Rows.TextRow(
--          text = stringResource(R.string.preferences__advanced_pin_settings),
--          enabled = state.isNotDeprecatedOrUnregistered(),
--          onClick = callbacks::openAdvancedPinSettings,
--          modifier = Modifier.testTag(AccountSettingsTestTags.ROW_ADVANCED_PIN_SETTINGS)
--        )
-+        item {
-+          Rows.TextRow(
-+            text = stringResource(R.string.preferences__advanced_pin_settings),
-+            enabled = state.isNotDeprecatedOrUnregistered(),
-+            onClick = callbacks::openAdvancedPinSettings,
-+            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_ADVANCED_PIN_SETTINGS)
-+          )
-+        }
+-
+-      AccountSettingsAction.NavigateToChangePhoneNumber -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_changePhoneNumberFragment)
+-      }
+-
+-      AccountSettingsAction.NavigateToDeviceTransfer -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_oldDeviceTransferActivity)
+-      }
+-
+-      AccountSettingsAction.NavigateToExportAccountData -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_exportAccountFragment)
+-      }
+-
+-      AccountSettingsAction.AuthenticateToDeleteAccount -> {
+-        deleteAccountBiometrics.withBiometricsAuthentication {
+-          viewModel.onEvent(AccountSettingsEvent.DeleteAccountAuthenticated)
+-        }
+-      }
+-
+-      AccountSettingsAction.NavigateToDeleteAccount -> {
+-        findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_deleteAccountFragment)
+-      }
+-
+-      AccountSettingsAction.OpenPlayStore -> {
+-        PlayStoreUtil.openPlayStoreOrOurApkDownloadPage(requireContext())
+-      }
+-
+-      AccountSettingsAction.LaunchReRegistration -> {
+-        startActivity(RegistrationIntents.newIntentForReRegistration(requireContext()))
+-      }
+-
++      is AccountSettingsAction.OpenSupportArticle -> CommunicationActions.openBrowserLink(requireContext(), action.url)
++      AccountSettingsAction.NavigateToAdvancedPinSettings -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_advancedPinSettingsActivity)
++      AccountSettingsAction.NavigateToChangePhoneNumber -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_changePhoneNumberFragment)
++      AccountSettingsAction.NavigateToDeviceTransfer -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_oldDeviceTransferActivity)
++      AccountSettingsAction.NavigateToExportAccountData -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_exportAccountFragment)
++      AccountSettingsAction.AuthenticateToDeleteAccount -> deleteAccountBiometrics.withBiometricsAuthentication {
++        viewModel.onEvent(AccountSettingsEvent.DeleteAccountAuthenticated)
++      }
++      AccountSettingsAction.NavigateToDeleteAccount -> findNavController().safeNavigate(R.id.action_accountSettingsFragment_to_deleteAccountFragment)
++      AccountSettingsAction.OpenPlayStore -> PlayStoreUtil.openPlayStoreOrOurApkDownloadPage(requireContext())
++      AccountSettingsAction.LaunchReRegistration -> startActivity(RegistrationIntents.newIntentForReRegistration(requireContext()))
++      AccountSettingsAction.LaunchReLinkDevice -> startActivity(RegistrationIntents.newIntentForReLinkDevice(requireContext()))
++      AccountSettingsAction.ShowLinkedDeviceLearnMore -> LinkedDeviceAccountLearnMoreBottomSheet.show(childFragmentManager)
+       AccountSettingsAction.WipeAllData -> {
+-        if (!ServiceUtil.getActivityManager(AppDependencies.application).clearApplicationUserData()) {
+-          viewModel.onEvent(AccountSettingsEvent.DataWipeFailed)
+-        }
+-      }
+-
+-      AccountSettingsAction.ShowDataWipeFailed -> {
+-        toast(R.string.preferences_account_delete_all_data_failed)
+-      }
+-
+-      AccountSettingsAction.ShowRegistrationLockEnableFailed -> {
+-        toast(R.string.preferences_app_protection__failed_to_enable_registration_lock)
+-      }
+-
+-      AccountSettingsAction.ShowRegistrationLockDisableFailed -> {
+-        toast(R.string.preferences_app_protection__failed_to_disable_registration_lock)
++        if (!ServiceUtil.getActivityManager(AppDependencies.application).clearApplicationUserData()) viewModel.onEvent(AccountSettingsEvent.DataWipeFailed)
        }
++      AccountSettingsAction.ShowDataWipeFailed -> toast(R.string.preferences_account_delete_all_data_failed)
++      AccountSettingsAction.ShowRegistrationLockEnableFailed -> toast(R.string.preferences_app_protection__failed_to_enable_registration_lock)
++      AccountSettingsAction.ShowRegistrationLockDisableFailed -> toast(R.string.preferences_app_protection__failed_to_disable_registration_lock)
+     }
+   }
  
-       item {
-@@ -341,7 +278,7 @@ fun AccountSettingsScreen(
-         item {
-           Rows.TextRow(
-             text = stringResource(R.string.AccountSettingsFragment__change_phone_number),
--            enabled = state.isNotDeprecatedOrUnregistered(),
-+            enabled = state.isNotDeprecatedOrUnregistered() && !state.isLinkedDevice,
-             onClick = callbacks::openChangeNumberFlow,
-             modifier = Modifier.testTag(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER)
-           )
-@@ -352,7 +289,7 @@ fun AccountSettingsScreen(
-         Rows.TextRow(
-           text = stringResource(R.string.preferences_chats__transfer_account),
-           label = stringResource(R.string.preferences_chats__transfer_account_to_a_new_android_device),
--          enabled = state.canTransferWhileUnregistered || state.isNotDeprecatedOrUnregistered(),
-+          enabled = state.canTransferWhileUnregistered || state.isNotDeprecatedOrUnregistered() && !state.isLinkedDevice,
-           onClick = callbacks::openDeviceTransferFlow,
-           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
-         )
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsState.kt
-index 7945fcda511720c00611ba37a1cea1f3bcad8e69..1353f056452bc83c316d45e4aae2f83ccd7c117b 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsState.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsState.kt
-@@ -3,6 +3,7 @@ package org.thoughtcrime.securesms.components.settings.app.account
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsRepository.kt
+index a4c971c2fc90d5c385b679c5fe7684dcc4747a32..7b75943b6f7c61d9b878c3599742eacdb47777c6 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsRepository.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsRepository.kt
+@@ -10,6 +10,7 @@ import org.signal.core.models.MasterKey
+ import org.signal.core.util.concurrent.SignalDispatchers
+ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.linkdevice.LinkDeviceRepository
  import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
+ import org.thoughtcrime.securesms.megaphone.TwoFactorReminderSchedule
+ import org.thoughtcrime.securesms.pin.SvrRepository
+@@ -30,6 +31,16 @@ class AccountSettingsRepository(
  
- data class AccountSettingsState(
-+  val isLinkedDevice: Boolean = false,
-   val hasPin: Boolean,
-   val pinKeyboardType: PinKeyboardType,
-   val hasRestoredAep: Boolean,
+   fun hasPin(): Boolean = SignalStore.svr.hasPin() && !SignalStore.svr.hasOptedOut()
+ 
++  fun isLinkedDevice(): Boolean = SignalStore.account.isLinkedDevice
++
++  fun canTransferWhileUnregistered(): Boolean = true
++
++  fun canTransferWhileLinked(): Boolean = true
++
++  suspend fun unlinkSelf() {
++    withContext(SignalDispatchers.IO) { LinkDeviceRepository.removeDevice(SignalStore.account.deviceId) }
++  }
++
+   fun hasRestoredAep(): Boolean = SignalStore.account.restoredAccountEntropyPool
+ 
+   fun arePinRemindersEnabled(): Boolean = SignalStore.pin.arePinRemindersEnabled() && SignalStore.svr.hasPin()
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModel.kt
-index 4047ea04ca35faf318bdf9dc6c690561e4aaf8d4..b90c640ec01f986d9f87e96c6e6802826af8da6e 100644
+index 339d48222d90b638607adf512b000e51f823d35d..e0e8b7d4f6a59e8f4af8182054ef69887f9ec620 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModel.kt
-@@ -25,6 +25,7 @@ class AccountSettingsViewModel : ViewModel() {
+@@ -26,7 +26,6 @@ import org.signal.core.util.logging.Log
+ import org.signal.libsignal.net.MfaKeyKind
+ import org.signal.libsignal.net.RequestResult
+ import org.signal.network.service.TwoFactorMethodService
+-import org.thoughtcrime.securesms.lock.v2.PinKeyboardType
+ import org.thoughtcrime.securesms.lock.v2.SvrConstants
+ import org.thoughtcrime.securesms.net.SignalNetwork
+ import org.signal.network.service.TwoFactorMethodService.TwoFactorMethod as ServiceTwoFactorMethod
+@@ -45,7 +44,14 @@ class AccountSettingsViewModel(
+     private val TAG = Log.tag(AccountSettingsViewModel::class)
+   }
  
-   private fun getCurrentState(): AccountSettingsState {
-     return AccountSettingsState(
-+      isLinkedDevice = SignalStore.account.isLinkedDevice,
-       hasPin = SignalStore.svr.hasPin() && !SignalStore.svr.hasOptedOut(),
-       pinKeyboardType = SignalStore.pin.keyboardType,
-       hasRestoredAep = SignalStore.account.restoredAccountEntropyPool,
+-  private val _state = MutableStateFlow(AccountSettingsState(arePasskeysSupported = arePasskeysSupported))
++  private val _state = MutableStateFlow(
++    AccountSettingsState(
++      arePasskeysSupported = arePasskeysSupported,
++      isLinkedDevice = accountRepository.isLinkedDevice(),
++      canTransferWhileUnregistered = accountRepository.canTransferWhileUnregistered(),
++      canTransferWhileLinked = accountRepository.canTransferWhileLinked()
++    )
++  )
+   private val _actions = Channel<AccountSettingsAction>(Channel.BUFFERED)
+ 
+   val state: StateFlow<AccountSettingsState> = _state.asStateFlow()
+@@ -56,6 +62,10 @@ class AccountSettingsViewModel(
+   }
+ 
+   override suspend fun processEvent(event: AccountSettingsEvent) {
++    if (accountRepository.isLinkedDevice() && event.requiresPrimary()) {
++      refresh()
++      return
++    }
+     when (event) {
+       AccountSettingsEvent.ScreenResumed -> {
+         refresh()
+@@ -131,7 +141,7 @@ class AccountSettingsViewModel(
+         _actions.send(AccountSettingsAction.NavigateToChangePhoneNumber)
+       }
+       AccountSettingsEvent.TransferAccountClicked -> {
+-        _actions.send(AccountSettingsAction.NavigateToDeviceTransfer)
++        if (_state.value.canTransferAccount) _actions.send(AccountSettingsAction.NavigateToDeviceTransfer)
+       }
+       AccountSettingsEvent.RequestAccountDataClicked -> {
+         _actions.send(AccountSettingsAction.NavigateToExportAccountData)
+@@ -140,13 +150,18 @@ class AccountSettingsViewModel(
+         _actions.send(AccountSettingsAction.OpenPlayStore)
+       }
+       AccountSettingsEvent.ReRegisterClicked -> {
+-        _actions.send(AccountSettingsAction.LaunchReRegistration)
++        _actions.send(if (accountRepository.isLinkedDevice()) AccountSettingsAction.LaunchReLinkDevice else AccountSettingsAction.LaunchReRegistration)
++      }
++      AccountSettingsEvent.LinkedDeviceLearnMoreClicked -> {
++        _actions.send(AccountSettingsAction.ShowLinkedDeviceLearnMore)
+       }
+       AccountSettingsEvent.DeleteAllDataClicked -> {
+         _state.update { it.copy(dialog = Dialog.ConfirmDeleteAllData) }
+       }
+       AccountSettingsEvent.DeleteAllDataConfirmed -> {
++        if (_state.value.dialog != Dialog.ConfirmDeleteAllData) return
+         _state.update { it.copy(dialog = Dialog.None) }
++        if (accountRepository.isLinkedDevice()) accountRepository.unlinkSelf()
+         _actions.send(AccountSettingsAction.WipeAllData)
+       }
+       AccountSettingsEvent.DataWipeFailed -> {
+@@ -165,13 +180,8 @@ class AccountSettingsViewModel(
+   }
+ 
+   private suspend fun applyPinRemindersToggled(enabled: Boolean) {
+-    if (enabled) {
+-      accountRepository.setPinRemindersEnabled(true)
+-      refresh()
+-    } else {
+-      val keyboardType = accountRepository.getPinKeyboardType()
+-      _state.update { it.copy(dialog = Dialog.ConfirmPinToDisableReminders(isAlphanumericKeyboard = keyboardType == PinKeyboardType.ALPHA_NUMERIC)) }
+-    }
++    accountRepository.setPinRemindersEnabled(enabled)
++    refresh()
+   }
+ 
+   private suspend fun applyDisablePinRemindersConfirmed() {
+@@ -245,9 +255,14 @@ class AccountSettingsViewModel(
+ 
+   private suspend fun refresh() {
+     val isPhoneNumberless = accountRepository.isPhoneNumberless()
++    val linked = accountRepository.isLinkedDevice()
+ 
+     _state.update {
+       it.copy(
++        isLinkedDevice = linked,
++        canTransferWhileUnregistered = accountRepository.canTransferWhileUnregistered(),
++        canTransferWhileLinked = accountRepository.canTransferWhileLinked(),
++        dialog = if (linked && !it.isLinkedDevice) Dialog.None else it.dialog,
+         hasPin = accountRepository.hasPin(),
+         hasRestoredAep = accountRepository.hasRestoredAep(),
+         pinRemindersEnabled = accountRepository.arePinRemindersEnabled(),
+@@ -256,11 +271,11 @@ class AccountSettingsViewModel(
+         clientDeprecated = accountRepository.isClientDeprecated(),
+         isPhoneNumberless = isPhoneNumberless,
+         // Held onto across refreshes so a resume doesn't drop the list back to its loading state.
+-        signalLogin = if (isPhoneNumberless) it.signalLogin ?: SignalLogin(maxTotpApps = accountRepository.getMaxTotpApps(), maxTwoFactorMethods = accountRepository.getMaxTwoFactorMethods()) else null
++        signalLogin = if (isPhoneNumberless && !linked) it.signalLogin ?: SignalLogin(maxTotpApps = accountRepository.getMaxTotpApps(), maxTwoFactorMethods = accountRepository.getMaxTwoFactorMethods()) else null
+       )
+     }
+ 
+-    if (isPhoneNumberless) {
++    if (isPhoneNumberless && !linked) {
+       refreshTwoFactorMethods()
+     }
+   }
+@@ -310,6 +325,31 @@ class AccountSettingsViewModel(
+     }
+   }
+ 
++  private fun AccountSettingsEvent.requiresPrimary(): Boolean = when (this) {
++    AccountSettingsEvent.ModifyPinClicked,
++    is AccountSettingsEvent.PinRemindersToggled,
++    is AccountSettingsEvent.PinEntryChanged,
++    AccountSettingsEvent.PinKeyboardToggled,
++    AccountSettingsEvent.DisablePinRemindersConfirmed,
++    is AccountSettingsEvent.RegistrationLockToggled,
++    AccountSettingsEvent.RegistrationLockConfirmed,
++    AccountSettingsEvent.AccountAndRecoveryClicked,
++    AccountSettingsEvent.SignalLoginDetailsAuthenticated,
++    AccountSettingsEvent.AddTotpAppClicked,
++    AccountSettingsEvent.AddTotpAppAuthenticated,
++    AccountSettingsEvent.AddPasskeyClicked,
++    AccountSettingsEvent.AddPasskeyAuthenticated,
++    is AccountSettingsEvent.RenameMethodClicked,
++    is AccountSettingsEvent.RemoveMethodClicked,
++    is AccountSettingsEvent.MethodRemovalAuthenticated,
++    is AccountSettingsEvent.RemoveMethodConfirmed,
++    AccountSettingsEvent.AdvancedPinSettingsClicked,
++    AccountSettingsEvent.ChangePhoneNumberClicked,
++    AccountSettingsEvent.DeleteAccountClicked,
++    AccountSettingsEvent.DeleteAccountAuthenticated -> true
++    else -> false
++  }
++
+   private fun canSubmit(pin: String): Boolean = pin.length >= SvrConstants.MINIMUM_PIN_LENGTH
+ 
+   private fun updatePinDialog(transform: (Dialog.ConfirmPinToDisableReminders) -> Dialog.ConfirmPinToDisableReminders) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupStateObserver.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupStateObserver.kt
-index 70e24ac0b804fba14f75b13242f58883a43913ca..f7fe8478284a72c34ffe2a91c63fa661b321c846 100644
+index 36ee97a2fa6e4ce8c865acaf47d0903f8095acc9..53f1344e669267a458bb49458d2818a29cbf8cc6 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupStateObserver.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupStateObserver.kt
 @@ -84,9 +84,11 @@ class BackupStateObserver(
@@ -1080,7 +1407,7 @@ index 70e24ac0b804fba14f75b13242f58883a43913ca..f7fe8478284a72c34ffe2a91c63fa661
    }
  
    private val internalBackupState = MutableStateFlow(getNonIOBackupState())
-@@ -348,8 +350,9 @@ class BackupStateObserver(
+@@ -351,8 +353,9 @@ class BackupStateObserver(
        }
  
        null -> {
@@ -1092,85 +1419,11 @@ index 70e24ac0b804fba14f75b13242f58883a43913ca..f7fe8478284a72c34ffe2a91c63fa661
        }
      }
    }
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/preferences/BioTextPreference.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/preferences/BioTextPreference.kt
-index 37048228d693a4d435f3c8417d763b1a2c855360..5bfc7f77ab464c9bafc4264768bb9231fa926c0c 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/preferences/BioTextPreference.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/conversation/preferences/BioTextPreference.kt
-@@ -29,12 +29,14 @@ object BioTextPreference {
-     abstract fun getHeadlineText(context: Context): CharSequence
-     abstract fun getSubhead1Text(context: Context): String?
-     abstract fun getSubhead2Text(): String?
-+    abstract fun getSubhead2ExtraText(context: Context): String?
- 
-     open val onHeadlineClickListener: (() -> Unit)? = null
-   }
- 
-   class RecipientModel(
-     private val recipient: Recipient,
-+    private val linkedDevices: Int?,
-     override val onHeadlineClickListener: (() -> Unit)?
-   ) : BioTextPreferenceModel<RecipientModel>() {
- 
-@@ -52,6 +54,17 @@ object BioTextPreference {
- 
-     override fun getSubhead2Text(): String? = null
- 
-+    override fun getSubhead2ExtraText(context: Context): String? {
-+      if (linkedDevices == null) {
-+        return null
-+      }
-+      return if (linkedDevices > 0) {
-+        context.resources.getQuantityString(R.plurals.BioTextPreference_n_linked_devices, linkedDevices, linkedDevices)
-+      } else {
-+        context.getString(R.string.BioTextPreference_no_linked_devices)
-+      }
-+    }
-+
-     override fun areContentsTheSame(newItem: RecipientModel): Boolean {
-       return super.areContentsTheSame(newItem) && newItem.recipient.hasSameContent(recipient)
-     }
-@@ -72,6 +85,8 @@ object BioTextPreference {
- 
-     override fun getSubhead2Text(): String? = null
- 
-+    override fun getSubhead2ExtraText(context: Context): String? = null
-+
-     override fun areContentsTheSame(newItem: GroupModel): Boolean {
-       return super.areContentsTheSame(newItem) &&
-         groupTitle == newItem.groupTitle &&
-@@ -89,6 +104,7 @@ object BioTextPreference {
-     private val headline: TextView = itemView.findViewById(R.id.bio_preference_headline)
-     private val subhead1: TextView = itemView.findViewById(R.id.bio_preference_subhead_1)
-     protected val subhead2: TextView = itemView.findViewById(R.id.bio_preference_subhead_2)
-+    protected val subhead2extra: TextView = itemView.findViewById(R.id.bio_preference_subhead_2_extra)
-     private val terminatedPill: TextView = itemView.findViewById(R.id.bio_preference_terminated_pill)
- 
-     override fun bind(model: T) {
-@@ -119,6 +135,11 @@ object BioTextPreference {
-         subhead2.text = it
-         subhead2.visibility = if (it == null) View.GONE else View.VISIBLE
-       }
-+
-+      model.getSubhead2ExtraText(context).let {
-+        subhead2extra.text = it
-+        subhead2extra.visibility = if (it == null) View.GONE else View.VISIBLE
-+      }
-     }
-   }
- 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt
-index cabdbda95c93cfbb1b7c8a4ea06cc9e719fc8a09..1b2d7f6b751bb646cc28e314ce28ee17f3bc94f6 100644
+index 6174b9e92f8eca822cb0b875a7ca19f6ad852661..65bb4dc942d83bfb50d0355bcbf762bdc64b7e67 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt
-@@ -37,7 +37,6 @@ import org.signal.core.ui.compose.Scaffolds
- import org.signal.core.ui.permissions.Permissions
- import org.thoughtcrime.securesms.R
- import org.thoughtcrime.securesms.util.VibrateUtil
--import org.thoughtcrime.securesms.util.navigation.safeNavigate
- import org.signal.mediasend.R as MediaSendR
- 
- /**
-@@ -61,15 +60,6 @@ class AddLinkDeviceFragment : ComposeFragment() {
+@@ -62,15 +62,6 @@ class AddLinkDeviceFragment : ComposeFragment() {
      val navController: NavController by remember { mutableStateOf(findNavController()) }
      val cameraPermissionState: PermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
  
@@ -1186,7 +1439,7 @@ index cabdbda95c93cfbb1b7c8a4ea06cc9e719fc8a09..1b2d7f6b751bb646cc28e314ce28ee17
      LaunchedEffect(cameraViewModel) {
        cameraViewModel.qrCodeDetected.collect { data ->
          if (VibrateUtil.isHapticFeedbackEnabled(requireContext())) {
-@@ -85,8 +75,14 @@ class AddLinkDeviceFragment : ComposeFragment() {
+@@ -86,8 +77,14 @@ class AddLinkDeviceFragment : ComposeFragment() {
        cameraEmitter = cameraViewModel::onEvent,
        navController = navController,
        hasPermissions = cameraPermissionState.status.isGranted,
@@ -1201,7 +1454,7 @@ index cabdbda95c93cfbb1b7c8a4ea06cc9e719fc8a09..1b2d7f6b751bb646cc28e314ce28ee17
        onQrCodeApproved = {
          navController.popBackStack()
          viewModel.addDevice(shouldSync = false)
-@@ -121,6 +117,8 @@ private fun MainScreen(
+@@ -122,6 +119,8 @@ private fun MainScreen(
    cameraEmitter: (CameraScreenEvents) -> Unit = {},
    navController: NavController? = null,
    hasPermissions: Boolean = false,
@@ -1210,7 +1463,7 @@ index cabdbda95c93cfbb1b7c8a4ea06cc9e719fc8a09..1b2d7f6b751bb646cc28e314ce28ee17
    onRequestPermissions: () -> Unit = {},
    onSwitchCamera: () -> Unit = {},
    onQrCodeApproved: () -> Unit = {},
-@@ -129,30 +127,43 @@ private fun MainScreen(
+@@ -130,30 +129,43 @@ private fun MainScreen(
    onLinkDeviceFailure: () -> Unit = {}
  ) {
    Scaffolds.Settings(
@@ -1218,7 +1471,7 @@ index cabdbda95c93cfbb1b7c8a4ea06cc9e719fc8a09..1b2d7f6b751bb646cc28e314ce28ee17
 +    title = if (linkWithoutQrCode) stringResource(id = R.string.DeviceAddFragment__link_without_scanning) else "",
      onNavigationClick = { navController?.popBackStack() },
      navigationIcon = ImageVector.vectorResource(id = R.drawable.ic_x),
-     navigationContentDescription = stringResource(id = R.string.Material3SearchToolbar__close),
+     navigationContentDescription = stringResource(id = CoreUiR.string.CloseButton__content_description),
      actions = {
 -      IconButton(onClick = onSwitchCamera) {
 -        Icon(painterResource(id = R.drawable.symbol_switch_24), contentDescription = null)
@@ -1281,10 +1534,10 @@ index 6f548e4c86cabd76097b5bdc14f88c33a44dfa92..5ca60c3a2669d78cb1e5b1f7dbb78990
 -data class Device(val id: Int, val name: String?, val createdMillis: Long?, val lastSeenMillis: Long, val registrationId: Int)
 +data class Device(val id: Int, val name: String?, val createdMillis: Long?, val lastSeenMillis: Long, val registrationId: Int, val canRename: Boolean = true)
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceFragment.kt
-index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b0467979ef7090 100644
+index 8a4b58ca4d8eea4ff66e01e954b5a47e85e4b4c7..b73615dcb9bbf290c0e84e40e25aa6b484de6031 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceFragment.kt
-@@ -101,7 +101,7 @@ class LinkDeviceFragment : ComposeFragment() {
+@@ -103,7 +103,7 @@ class LinkDeviceFragment : ComposeFragment() {
  
      biometricDeviceLockLauncher = registerForActivityResult(BiometricDeviceLockContract()) { result: Int ->
        if (result == BiometricDeviceAuthentication.AUTHENTICATED) {
@@ -1293,7 +1546,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
        }
      }
  
-@@ -233,11 +233,11 @@ class LinkDeviceFragment : ComposeFragment() {
+@@ -243,11 +243,11 @@ class LinkDeviceFragment : ComposeFragment() {
        DevicePinAuthEducationSheet.show(getString(R.string.LinkDeviceFragment__before_linking), parentFragmentManager)
        parentFragmentManager.setFragmentResultListener(DevicePinAuthEducationSheet.REQUEST_KEY, viewLifecycleOwner) { _, _ ->
          if (!biometricAuth.authenticate(requireContext(), true) { biometricDeviceLockLauncher.launch(getString(R.string.LinkDeviceFragment__unlock_to_link)) }) {
@@ -1307,7 +1560,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
      }
    }
  
-@@ -259,7 +259,7 @@ class LinkDeviceFragment : ComposeFragment() {
+@@ -269,7 +269,7 @@ class LinkDeviceFragment : ComposeFragment() {
  
      override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
        Log.i(TAG, "Authentication succeeded")
@@ -1316,7 +1569,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
      }
  
      override fun onAuthenticationFailed() {
-@@ -398,7 +398,7 @@ fun DeviceListScreen(
+@@ -409,7 +409,7 @@ fun DeviceListScreen(
        tint = Color.Unspecified
      )
      Text(
@@ -1325,15 +1578,15 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
        textAlign = TextAlign.Center,
        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
      )
-@@ -413,6 +413,7 @@ fun DeviceListScreen(
- 
-     Buttons.LargeTonal(
-       onClick = onLinkNewDeviceClicked,
+@@ -433,6 +433,7 @@ fun DeviceListScreen(
+       } else {
+         linkButtonColors
+       },
 +      enabled = state.canLinkDevices,
        modifier = Modifier
          .defaultMinSize(300.dp)
          .padding(bottom = 8.dp)
-@@ -450,7 +451,7 @@ fun DeviceListScreen(
+@@ -470,7 +471,7 @@ fun DeviceListScreen(
          )
        } else {
          state.devices.forEach { device ->
@@ -1342,7 +1595,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
          }
        }
      }
-@@ -494,7 +495,7 @@ fun DeviceListScreen(
+@@ -514,7 +515,7 @@ fun DeviceListScreen(
  }
  
  @Composable
@@ -1351,7 +1604,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
    val titleString = if (device.name.isNullOrEmpty()) stringResource(R.string.DeviceListItem_unnamed_device) else device.name
    val linkedDate = device.createdMillis?.let { DateUtils.getDayPrecisionTimeSpanString(LocalContext.current, LocalLocale.current.platformLocale, device.createdMillis) }
    val lastActive = DateUtils.getDayPrecisionTimeSpanString(LocalContext.current, LocalLocale.current.platformLocale, device.lastSeenMillis)
-@@ -562,6 +563,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
+@@ -582,6 +583,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
                )
              }
            },
@@ -1359,7 +1612,7 @@ index 3be12fcf060ade1179abe1babe669420a7215cf5..16dc0fc979e26ad690d5a20b54b04679
            onClick = {
              setDeviceToRemove(device)
              controller.hide()
-@@ -586,6 +588,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
+@@ -606,6 +608,7 @@ fun DeviceRow(device: Device, isInternalUser: Boolean, setDeviceToRemove: (Devic
                )
              }
            },
@@ -1452,7 +1705,7 @@ index 44c8298cfc632e520796a72c6228073a94ce746d..2c376e0ab71d211992910c33c11a7492
    }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceLearnMoreBottomSheetFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceLearnMoreBottomSheetFragment.kt
-index a42f7e5b995e5caec559c35754626f92e193f455..254bb968de055f8aa38bdec0300f55dfba779966 100644
+index d23d3f266d4a4067669c02259c5666949c7c64dd..2fdc14e05bc8af19404a8cfbfae756c32958c9b3 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceLearnMoreBottomSheetFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceLearnMoreBottomSheetFragment.kt
 @@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
@@ -1674,7 +1927,7 @@ index 0000000000000000000000000000000000000000..6d6c9230bacd102dfa5811c49caeb396
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceSettingsState.kt
-index 989b8dde2d1fea713f30888bf4e3553df362a6a4..d8adad37318a01db4337ab7a857b1008ed7d5ec6 100644
+index 5b4728fbb00033996488c6e363a242830201f56b..4e493a4001ce3e809960e78145f3b313bf6b54fb 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceSettingsState.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceSettingsState.kt
 @@ -16,6 +16,8 @@ data class LinkDeviceSettingsState(
@@ -1687,15 +1940,15 @@ index 989b8dde2d1fea713f30888bf4e3553df362a6a4..d8adad37318a01db4337ab7a857b1008
    val bottomSheetVisible: Boolean = false,
    val deviceToEdit: Device? = null,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceViewModel.kt
-index 13f7cce342dd67a60cfa3ee0a1751fe55debb4c5..993a904590334abc888c3c3479dc23585d1346f6 100644
+index b88762589c697ac528b6ef7dd3ea7894e047e411..52c9e8c3342c6ccfbf91ee273c98c1052c8aabaa 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceViewModel.kt
-@@ -152,12 +152,9 @@ class LinkDeviceViewModel : ViewModel() {
-     pollJob?.cancel()
-   }
+@@ -159,10 +159,11 @@ class LinkDeviceViewModel : ViewModel() {
  
--  fun markQrEducationSheetSeen() {
--    SignalStore.uiHints.markHasSeenLinkDeviceQrEducationSheet()
+   fun markQrEducationSheetSeen() {
+     SignalStore.uiHints.markHasSeenLinkDeviceQrEducationSheet()
++  }
++
 +  fun requestLinkWithoutQrCode(value: Boolean) {
      _state.update {
 -      it.copy(
@@ -1706,7 +1959,7 @@ index 13f7cce342dd67a60cfa3ee0a1751fe55debb4c5..993a904590334abc888c3c3479dc2358
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/PinsForAllSchedule.java b/app/src/main/java/org/thoughtcrime/securesms/megaphone/PinsForAllSchedule.java
-index dea1e1ae70f33f1928e2b96d96ec9ba857ecac30..8d2b2ae10c4ee830a771b70830aab9c642cf4c3a 100644
+index 1b21d29216d83357517f4b95c12acd244859cc15..8e0fdccacf285d43c2b9e37371924f69be599dd6 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/PinsForAllSchedule.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/PinsForAllSchedule.java
 @@ -45,7 +45,7 @@ class PinsForAllSchedule implements MegaphoneSchedule {
@@ -1719,7 +1972,7 @@ index dea1e1ae70f33f1928e2b96d96ec9ba857ecac30..8d2b2ae10c4ee830a771b70830aab9c6
      }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/SignalPinReminderSchedule.java b/app/src/main/java/org/thoughtcrime/securesms/megaphone/SignalPinReminderSchedule.java
-index c5f64fc6b36454d537ebccfae77a320e244498c0..f11994669ec486ad95304fdfbfba977490a586ce 100644
+index 5c4aad1d8f1a0a6b192d46b2706a0ad77c294238..2de96377f278d3612754894a06d6094283dd5a4f 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/SignalPinReminderSchedule.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/SignalPinReminderSchedule.java
 @@ -10,7 +10,7 @@ final class SignalPinReminderSchedule implements MegaphoneSchedule {
@@ -1732,7 +1985,7 @@ index c5f64fc6b36454d537ebccfae77a320e244498c0..f11994669ec486ad95304fdfbfba9774
      }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/recipients/RecipientUtil.java b/app/src/main/java/org/thoughtcrime/securesms/recipients/RecipientUtil.java
-index 62936d2481923f36a3602532f3a8bd90e78b9f8c..89bb6e11c5a0fa31e39fee5523b96d69ea8f79b3 100644
+index 597d901e2712b2f304ddfc07132ad9be287aa53c..0596703dc427eb9f19bd6a82c33770ae3bae2fb7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/recipients/RecipientUtil.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/recipients/RecipientUtil.java
 @@ -121,6 +121,19 @@ public class RecipientUtil {
@@ -1755,7 +2008,7 @@ index 62936d2481923f36a3602532f3a8bd90e78b9f8c..89bb6e11c5a0fa31e39fee5523b96d69
    public static List<Recipient> getEligibleForSending(@NonNull List<Recipient> recipients) {
      return recipients.stream()
                       .filter(r -> r.getRegistered() != RegisteredState.NOT_REGISTERED)
-@@ -413,7 +426,7 @@ public class RecipientUtil {
+@@ -417,7 +430,7 @@ public class RecipientUtil {
    }
  
    @WorkerThread
@@ -1895,10 +2148,10 @@ index c9d79cb20083d9782649d78e8e61fdcfd1bd3210..b51700875250cf94bb35192a9c684418
    val isReRegister: Boolean = false,
    val recoveryPassword: String? = null,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt b/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
-index e7a0e1a9fa00a007642eecb452bb3721ad5859db..31ace05faa215ccedce0ded0ef4c331a154b5aa9 100644
+index 47389ae467291373921be9d31d1210719ab04bab..384fbf5e266aa64c84b2a3ed93a0fe877ae67184 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
-@@ -1,32 +1,26 @@
+@@ -1,32 +1,29 @@
  package org.thoughtcrime.securesms.util
  
 -import com.google.android.gms.wallet.WalletConstants
@@ -1928,16 +2181,19 @@ index e7a0e1a9fa00a007642eecb452bb3721ad5859db..31ace05faa215ccedce0ded0ef4c331a
    }
  
    @JvmField
--  val USE_NEW_REGISTRATION: Boolean = true
-+  val USE_NEW_REGISTRATION: Boolean = false // MOLLY: Test before enable
+-  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = true
++  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = false
++
++  @JvmField
++  val PHONENUMBERLESS_REGISTRATION: Boolean = false
  
    @JvmField
--  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = true
-+  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = false // MOLLY: Test before enable
+-  val PHONENUMBERLESS_REGISTRATION: Boolean = true
++  val USE_NEW_REGISTRATION: Boolean = true
  
-   object Backups {
-     @JvmStatic
-@@ -39,12 +33,6 @@ object Environment {
+   /** Whether this build is distributed through the Play Store, and so can use Google Play billing at all. */
+   @JvmStatic
+@@ -45,12 +42,6 @@ object Environment {
    }
  
    object Donations {
@@ -1950,57 +2206,6 @@ index e7a0e1a9fa00a007642eecb452bb3721ad5859db..31ace05faa215ccedce0ded0ef4c331a
      @JvmStatic
      @get:JvmName("getStripeConfiguration")
      val STRIPE_CONFIGURATION = StripeApi.Configuration(
-diff --git a/app/src/main/res/layout/conversation_settings_bio_preference_item.xml b/app/src/main/res/layout/conversation_settings_bio_preference_item.xml
-index 5fdc686a507c91d00f8d1bd5f1a8a1a3715fda00..880ec7f3bdf964cb37ce2ffd7d3501c76da4c571 100644
---- a/app/src/main/res/layout/conversation_settings_bio_preference_item.xml
-+++ b/app/src/main/res/layout/conversation_settings_bio_preference_item.xml
-@@ -32,7 +32,7 @@
-         android:paddingEnd="12dp"
-         android:paddingBottom="6dp"
-         android:textAppearance="@style/Signal.Text.BodyMedium"
--        android:textColor="@color/signal_colorOnSurface"
-+        android:textColor="?attr/colorOnSurface"
-         android:visibility="gone"
-         app:layout_constraintEnd_toEndOf="parent"
-         app:layout_constraintStart_toStartOf="parent"
-@@ -50,7 +50,7 @@
-         android:gravity="center"
-         android:lineSpacingExtra="4sp"
-         android:textAppearance="@style/Signal.Text.BodyLarge"
--        android:textColor="@color/signal_text_secondary"
-+        android:textColor="?attr/signal_text_secondary"
-         app:layout_constraintEnd_toEndOf="parent"
-         app:layout_constraintStart_toStartOf="parent"
-         app:layout_constraintTop_toBottomOf="@id/bio_preference_terminated_pill"
-@@ -66,10 +66,26 @@
-         android:gravity="center"
-         android:lineSpacingExtra="4sp"
-         android:textAppearance="@style/Signal.Text.BodyLarge"
--        android:textColor="@color/signal_text_secondary"
-+        android:textColor="?attr/signal_text_secondary"
-         app:layout_constraintEnd_toEndOf="parent"
-         app:layout_constraintStart_toStartOf="parent"
-         app:layout_constraintTop_toBottomOf="@id/bio_preference_subhead_1"
-         tools:text="+1 555-876-5309" />
- 
-+    <org.thoughtcrime.securesms.components.emoji.EmojiTextView
-+        android:id="@+id/bio_preference_subhead_2_extra"
-+        android:layout_width="0dp"
-+        android:layout_height="wrap_content"
-+        android:layout_marginStart="32dp"
-+        android:layout_marginTop="4dp"
-+        android:layout_marginEnd="32dp"
-+        android:gravity="center"
-+        android:lineSpacingExtra="4sp"
-+        android:textAppearance="@style/Signal.Text.BodySmall"
-+        android:textColor="?attr/signal_text_secondary"
-+        app:layout_constraintEnd_toEndOf="parent"
-+        app:layout_constraintStart_toStartOf="parent"
-+        app:layout_constraintTop_toBottomOf="@id/bio_preference_subhead_2"
-+        tools:text="No linked devices" />
-+
- </androidx.constraintlayout.widget.ConstraintLayout>
-\ No newline at end of file
 diff --git a/app/src/main/res/layout/device_name.xml b/app/src/main/res/layout/device_name.xml
 new file mode 100644
 index 0000000000000000000000000000000000000000..ef8ab2cf52baa7360c08efeb8bec2a0271847edc
@@ -2024,62 +2229,6 @@ index 0000000000000000000000000000000000000000..ef8ab2cf52baa7360c08efeb8bec2a02
 +    android:saveEnabled="false"
 +    android:hint="@string/RegistrationActivity_device_name_description"
 +    tools:text="Device Name" />
-diff --git a/app/src/main/res/layout/fragment_registration_welcome_v3.xml b/app/src/main/res/layout/fragment_registration_welcome_v3.xml
-index ee4ccca2b7bf6a9fe652923b6480da02e32253b6..ee360df2fbdf9611242839cd86cab03000906de4 100644
---- a/app/src/main/res/layout/fragment_registration_welcome_v3.xml
-+++ b/app/src/main/res/layout/fragment_registration_welcome_v3.xml
-@@ -16,6 +16,13 @@
-         app:layout_constraintStart_toStartOf="parent"
-         app:layout_constraintTop_toTopOf="parent" />
- 
-+    <androidx.appcompat.widget.Toolbar
-+        android:id="@+id/toolbar"
-+        android:layout_width="match_parent"
-+        android:layout_height="wrap_content"
-+        app:title=""
-+        app:layout_constraintTop_toTopOf="parent" />
-+
-     <TextView
-         android:id="@+id/title"
-         android:layout_width="0dp"
-@@ -36,7 +43,7 @@
-         android:layout_marginBottom="24dp"
-         android:gravity="center"
-         android:text="@string/RegistrationActivity_terms_and_privacy"
--        android:textColor="@color/signal_colorOnSurfaceVariant"
-+        android:textColor="?attr/colorOnSurfaceVariant"
-         app:layout_constraintBottom_toTopOf="@+id/welcome_continue_button"
-         app:layout_constraintEnd_toEndOf="@+id/welcome_continue_button"
-         app:layout_constraintStart_toStartOf="@+id/welcome_continue_button" />
-@@ -61,11 +68,25 @@
-         android:layout_height="wrap_content"
-         android:layout_marginStart="32dp"
-         android:layout_marginEnd="32dp"
--        android:layout_marginBottom="48dp"
--        app:backgroundTint="@color/signal_colorSurface2"
-+        android:layout_marginBottom="17dp"
-+        app:backgroundTint="?attr/colorSurfaceContainer"
-         android:text="@string/registration_activity__restore_or_transfer"
--        app:layout_constraintBottom_toBottomOf="parent"
-+        app:layout_constraintBottom_toTopOf="@+id/link"
-         app:layout_constraintEnd_toEndOf="@+id/welcome_continue_button"
-         app:layout_constraintStart_toStartOf="@+id/welcome_continue_button" />
- 
-+    <com.google.android.material.button.MaterialButton
-+        android:id="@+id/link"
-+        style="@style/Signal.Widget.Button.Large.Tonal"
-+        android:layout_width="match_parent"
-+        android:layout_height="wrap_content"
-+        android:layout_marginStart="32dp"
-+        android:layout_marginEnd="32dp"
-+        android:layout_marginBottom="48dp"
-+        app:backgroundTint="?attr/colorSurfaceContainer"
-+        android:text="@string/RegistrationActivity_link_device"
-+        app:layout_constraintBottom_toBottomOf="parent"
-+        app:layout_constraintEnd_toEndOf="@+id/welcome_transfer_or_restore"
-+        app:layout_constraintStart_toStartOf="@+id/welcome_transfer_or_restore" />
-+
- </androidx.constraintlayout.widget.ConstraintLayout>
 diff --git a/app/src/quickstart/AndroidManifest.xml b/app/src/quickstart/AndroidManifest.xml
 deleted file mode 100644
 index c94ccab70b7fe56b936bed26abaa7c3a473aa3b8..0000000000000000000000000000000000000000
@@ -2346,10 +2495,10 @@ index 682f30d11cfe9a7c8c57ed7bfa8dfbca46ad3b92..00000000000000000000000000000000
 -}
 diff --git a/app/src/quickstart/java/org/thoughtcrime/securesms/QuickstartRestoreActivity.kt b/app/src/quickstart/java/org/thoughtcrime/securesms/QuickstartRestoreActivity.kt
 deleted file mode 100644
-index 92328e53148e795f6fb523f893accf05276c5a86..0000000000000000000000000000000000000000
+index 67c7525aae5edea4ff2ae14e3b02c63ab2528385..0000000000000000000000000000000000000000
 --- a/app/src/quickstart/java/org/thoughtcrime/securesms/QuickstartRestoreActivity.kt
 +++ /dev/null
-@@ -1,206 +0,0 @@
+@@ -1,202 +0,0 @@
 -/*
 - * Copyright 2025 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -2376,20 +2525,21 @@ index 92328e53148e795f6fb523f893accf05276c5a86..00000000000000000000000000000000
 -import androidx.compose.ui.Alignment
 -import androidx.compose.ui.Modifier
 -import androidx.compose.ui.unit.dp
+-import androidx.lifecycle.Lifecycle
 -import androidx.lifecycle.lifecycleScope
 -import kotlinx.coroutines.Dispatchers
 -import kotlinx.coroutines.launch
 -import kotlinx.coroutines.withContext
--import org.greenrobot.eventbus.Subscribe
--import org.greenrobot.eventbus.ThreadMode
 -import org.signal.core.ui.compose.theme.SignalTheme
+-import org.signal.core.util.eventbus.EventBus
+-import org.signal.core.util.eventbus.RestartableSubscription
+-import org.signal.core.util.eventbus.ThreadMode
 -import org.signal.core.util.logging.Log
 -import org.signal.libsignal.zkgroup.profiles.ProfileKey
 -import org.thoughtcrime.securesms.backup.v2.BackupRepository
 -import org.thoughtcrime.securesms.backup.v2.ImportResult
 -import org.thoughtcrime.securesms.backup.v2.RestoreV2Event
 -import org.thoughtcrime.securesms.backup.v2.local.ArchiveFileSystem
--import org.thoughtcrime.securesms.conversation.v2.registerForLifecycle
 -import org.thoughtcrime.securesms.jobs.RestoreLocalAttachmentJob
 -import org.thoughtcrime.securesms.keyvalue.SignalStore
 -import org.thoughtcrime.securesms.recipients.Recipient
@@ -2427,8 +2577,6 @@ index 92328e53148e795f6fb523f893accf05276c5a86..00000000000000000000000000000000
 -
 -  private var restoreStatus by mutableStateOf("Restoring data...")
 -
--  private val eventBusSubscriber = EventBusSubscriber()
--
 -  private val manageStorageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
 -    if (hasStorageAccess()) {
 -      startRestore()
@@ -2464,7 +2612,11 @@ index 92328e53148e795f6fb523f893accf05276c5a86..00000000000000000000000000000000
 -      }
 -    }
 -
--    org.greenrobot.eventbus.EventBus.getDefault().registerForLifecycle(subscriber = eventBusSubscriber, lifecycleOwner = this)
+-    RestartableSubscription {
+-      EventBus.default.subscribe<RestoreV2Event>(ThreadMode.MAIN) { restoreEvent ->
+-        restoreStatus = "${restoreEvent.type}: ${restoreEvent.count} / ${restoreEvent.estimatedTotalCount}"
+-      }
+-    }.bindTo(this, Lifecycle.State.RESUMED)
 -
 -    if (hasStorageAccess()) {
 -      startRestore()
@@ -2484,7 +2636,7 @@ index 92328e53148e795f6fb523f893accf05276c5a86..00000000000000000000000000000000
 -    lifecycleScope.launch(Dispatchers.IO) {
 -      try {
 -        val self = Recipient.self()
--        val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.get(), self.e164.get(), ProfileKey(self.profileKey))
+-        val selfData = BackupRepository.SelfData(self.aci.get(), self.pni.orElse(null), self.e164.orElse(null), ProfileKey(self.profileKey))
 -
 -        val backupDir = QuickstartInitializer.pendingBackupDir!!
 -
@@ -2548,16 +2700,613 @@ index 92328e53148e795f6fb523f893accf05276c5a86..00000000000000000000000000000000
 -      }
 -    }
 -  }
--
--  private inner class EventBusSubscriber {
--    @Subscribe(threadMode = ThreadMode.MAIN)
--    fun onEvent(restoreEvent: RestoreV2Event) {
--      restoreStatus = "${restoreEvent.type}: ${restoreEvent.count} / ${restoreEvent.estimatedTotalCount}"
--    }
--  }
 -}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
+index ab4ce5f4ddf8fdeaf4b7af87410c2efbeb16808b..264cf41fd77c5a3f5a5f78a2aee805cf909a38bd 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsViewModelTest.kt
+@@ -58,6 +58,8 @@ class AppSettingsViewModelTest {
+   private val navigationEvents = mutableListOf<AppSettingsNavigationEvent>()
+ 
+   private var isPrimaryDevice = true
++  private var isLinkedDevice = false
++  private var linkedDeviceCount: Int? = null
+   private var userUnregistered = false
+   private var backupFailureState = BackupFailureState.NONE
+ 
+@@ -69,6 +71,8 @@ class AppSettingsViewModelTest {
+     every { AppSettingsRepository.observeProfile() } returns profile
+     every { AppSettingsRepository.observeUnreadPaymentsCount() } returns unreadPaymentsCount
+     every { AppSettingsRepository.isPrimaryDevice() } answers { isPrimaryDevice }
++    every { AppSettingsRepository.isLinkedDevice() } answers { isLinkedDevice }
++    coEvery { AppSettingsRepository.getLinkedDeviceCount() } answers { linkedDeviceCount }
+     every { AppSettingsRepository.isUserUnregistered() } answers { userUnregistered }
+     every { AppSettingsRepository.isClientDeprecated() } returns false
+     every { AppSettingsRepository.hasExpiredGiftBadge() } returns false
+@@ -103,21 +107,22 @@ class AppSettingsViewModelTest {
+   }
+ 
+   @Test
+-  fun `the fetched subscription decides whether donations can be managed`() = runTest(testDispatcher) {
++  fun `Molly does not fetch or enable new subscription management`() = runTest(testDispatcher) {
+     coEvery { AppSettingsRepository.canManageDonations() } returns true
+ 
+     val state = createViewModel().state.value
+ 
+-    assertThat(state.allowUserToGoToDonationManagementScreen).isTrue()
++    assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
++    coVerify(exactly = 0) { AppSettingsRepository.canManageDonations() }
+   }
+ 
+   @Test
+-  fun `a failed subscription fetch keeps the initial guess`() = runTest(testDispatcher) {
++  fun `an upstream donation capability hint cannot enable Molly subscriptions`() = runTest(testDispatcher) {
+     every { AppSettingsRepository.likelyCanManageDonations() } returns true
+ 
+     val state = createViewModel().state.value
+ 
+-    assertThat(state.allowUserToGoToDonationManagementScreen).isTrue()
++    assertThat(state.allowUserToGoToDonationManagementScreen).isFalse()
+   }
+ 
+   @Test
+@@ -165,6 +170,7 @@ class AppSettingsViewModelTest {
+     viewModel.onEvent(AppSettingsEvent.NotificationsClicked)
+     viewModel.onEvent(AppSettingsEvent.PrivacyClicked)
+     viewModel.onEvent(AppSettingsEvent.BackupsClicked)
++    viewModel.onEvent(AppSettingsEvent.NetworkClicked)
+     viewModel.onEvent(AppSettingsEvent.DataAndStorageClicked)
+     viewModel.onEvent(AppSettingsEvent.AppUpdatesClicked)
+     viewModel.onEvent(AppSettingsEvent.PaymentsClicked)
+@@ -184,6 +190,7 @@ class AppSettingsViewModelTest {
+       AppSettingsRoute.NotificationsRoute.Notifications,
+       AppSettingsRoute.PrivacyRoute.Privacy,
+       AppSettingsRoute.BackupsRoute.Backups(),
++      AppSettingsRoute.DataAndStorageRoute.Proxy,
+       AppSettingsRoute.DataAndStorageRoute.DataAndStorage,
+       AppSettingsRoute.AppUpdates,
+       AppSettingsRoute.Payments,
+@@ -195,15 +202,15 @@ class AppSettingsViewModelTest {
+   }
+ 
+   @Test
+-  fun `DonateClicked opens donation management when the user can manage donations`() = runTest(testDispatcher) {
++  fun `DonateClicked keeps Molly external routing even with an upstream management hint`() = runTest(testDispatcher) {
+     every { AppSettingsRepository.likelyCanManageDonations() } returns true
+     val viewModel = createViewModel()
+     val actions = collectActions(viewModel.actions)
+ 
+     viewModel.onEvent(AppSettingsEvent.DonateClicked)
+ 
+-    assertThat(navigationEvents).containsExactly(AppSettingsNavigationEvent.NavigateToScreen(AppSettingsRoute.DonationsRoute.Donations()))
+-    assertThat(actions).isEmpty()
++    assertThat(navigationEvents).isEmpty()
++    assertThat(actions).containsExactly(AppSettingsAction.OpenDonateUrl)
+   }
+ 
+   @Test
+@@ -311,6 +318,22 @@ class AppSettingsViewModelTest {
+     assertThat(navigationEvents).isEmpty()
+   }
+ 
++  @Test
++  fun `home exposes the real linked count and clears it when the device becomes linked`() = runTest(testDispatcher) {
++    linkedDeviceCount = 3
++    val viewModel = createViewModel()
++    assertThat(viewModel.state.value.linkedDeviceCount).isEqualTo(3)
++
++    isPrimaryDevice = false
++    isLinkedDevice = true
++    viewModel.onEvent(AppSettingsEvent.ScreenResumed)
++    viewModel.onEvent(AppSettingsEvent.LinkedDevicesClicked)
++
++    assertThat(viewModel.state.value.isLinkedDevice).isTrue()
++    assertThat(viewModel.state.value.linkedDeviceCount).isEqualTo(null)
++    assertThat(navigationEvents).isEmpty()
++  }
++
+   private fun createViewModel(): AppSettingsViewModel {
+     return AppSettingsViewModel(parentEventEmitter = { navigationEvents += it })
+   }
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModelTest.kt
+index e80cbf5a9aab12077c76f215c69a488c86de8888..f9d6dc8ea68178726e95b0f5a9ad1ae00185186c 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModelTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/account/AccountSettingsViewModelTest.kt
+@@ -10,7 +10,6 @@ import assertk.assertions.containsExactly
+ import assertk.assertions.isEmpty
+ import assertk.assertions.isEqualTo
+ import assertk.assertions.isFalse
+-import assertk.assertions.isInstanceOf
+ import assertk.assertions.isNull
+ import assertk.assertions.isTrue
+ import io.mockk.coEvery
+@@ -53,7 +52,6 @@ class AccountSettingsViewModelTest {
+ 
+   companion object {
+     private const val CORRECT_PIN = "1234"
+-    private const val INCORRECT_PIN = "9999"
+ 
+     private val MASTER_KEY = MasterKey(ByteArray(32) { (it + 100).toByte() })
+ 
+@@ -75,6 +73,10 @@ class AccountSettingsViewModelTest {
+     Dispatchers.setMain(testDispatcher)
+ 
+     every { repository.hasPin() } returns true
++    every { repository.isLinkedDevice() } returns false
++    every { repository.canTransferWhileUnregistered() } returns true
++    every { repository.canTransferWhileLinked() } returns true
++    coEvery { repository.unlinkSelf() } returns Unit
+     every { repository.hasRestoredAep() } returns false
+     every { repository.arePinRemindersEnabled() } returns true
+     every { repository.isRegistrationLockEnabled() } returns false
+@@ -140,84 +142,109 @@ class AccountSettingsViewModelTest {
+   }
+ 
+   @Test
+-  fun `turning PIN reminders off asks for the PIN first`() = runTest(testDispatcher) {
++  fun `Molly turning PIN reminders off does not ask for a PIN`() = runTest(testDispatcher) {
+     every { repository.getPinKeyboardType() } returns PinKeyboardType.ALPHA_NUMERIC
+ 
+     val viewModel = createViewModel()
+ 
+     viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
+ 
+-    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
+-    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.ConfirmPinToDisableReminders(isAlphanumericKeyboard = true))
++    verify { repository.setPinRemindersEnabled(false) }
++    verify(exactly = 0) { repository.verifyLocalPin(any()) }
++    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
+   }
+ 
+   @Test
+-  fun `a correct PIN turns reminders off and closes the dialog`() = runTest(testDispatcher) {
++  fun `obsolete reminder confirmation without a dialog does not mutate preferences`() = runTest(testDispatcher) {
+     val viewModel = createViewModel()
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
+     viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(CORRECT_PIN))
+     viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
+ 
+-    verify { repository.setPinRemindersEnabled(false) }
++    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
+     assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
+   }
+ 
+   @Test
+-  fun `canSubmit only turns on once the PIN is long enough`() = runTest(testDispatcher) {
++  fun `linked role cannot mutate PIN registration lock or primary account actions`() = runTest(testDispatcher) {
++    every { repository.isLinkedDevice() } returns true
+     val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
+ 
++    viewModel.onEvent(AccountSettingsEvent.ModifyPinClicked)
+     viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
++    viewModel.onEvent(AccountSettingsEvent.RegistrationLockToggled(true))
++    viewModel.onEvent(AccountSettingsEvent.RegistrationLockConfirmed)
++    viewModel.onEvent(AccountSettingsEvent.ChangePhoneNumberClicked)
++    viewModel.onEvent(AccountSettingsEvent.DeleteAccountClicked)
++    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
++    coVerify(exactly = 0) { repository.setRegistrationLockEnabled(any()) }
++    assertThat(actions).isEmpty()
++  }
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("123"))
+-    assertThat((viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders).canSubmit).isFalse()
++  @Test
++  fun `Molly old-device transfer preserves registered unregistered and deprecated roles`() = runTest(testDispatcher) {
++    for (linked in listOf(false, true)) {
++      every { repository.isLinkedDevice() } returns linked
++      for ((unregistered, deprecated) in listOf(false to false, true to false, false to true, true to true)) {
++        every { repository.isUserUnregistered() } returns unregistered
++        every { repository.isClientDeprecated() } returns deprecated
++        val viewModel = createViewModel()
++        val actions = collectActions(viewModel.actions)
++
++        viewModel.onEvent(AccountSettingsEvent.TransferAccountClicked)
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("1234"))
+-    assertThat((viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders).canSubmit).isTrue()
++        assertThat(viewModel.state.value.canTransferAccount).isTrue()
++        assertThat(actions).containsExactly(AccountSettingsAction.NavigateToDeviceTransfer)
++      }
++    }
+   }
+ 
+   @Test
+-  fun `an incorrect PIN leaves the dialog up with an error`() = runTest(testDispatcher) {
++  fun `linked transfer still obeys its explicit presentation capability`() = runTest(testDispatcher) {
++    every { repository.isLinkedDevice() } returns true
++    every { repository.canTransferWhileLinked() } returns false
+     val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(INCORRECT_PIN))
+-    viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
+-
+-    verify(exactly = 0) { repository.setPinRemindersEnabled(any()) }
++    viewModel.onEvent(AccountSettingsEvent.TransferAccountClicked)
+ 
+-    val dialog = viewModel.state.value.dialog
+-    assertThat(dialog).isInstanceOf(Dialog.ConfirmPinToDisableReminders::class)
+-    assertThat((dialog as Dialog.ConfirmPinToDisableReminders).incorrectPin).isTrue()
++    assertThat(viewModel.state.value.canTransferAccount).isFalse()
++    assertThat(actions).isEmpty()
+   }
+ 
+   @Test
+-  fun `typing again clears the incorrect PIN error`() = runTest(testDispatcher) {
++  fun `linked phone-numberless metadata does not fetch primary MFA secrets or methods`() = runTest(testDispatcher) {
++    every { repository.isLinkedDevice() } returns true
++    every { repository.isPhoneNumberless() } returns true
+     val viewModel = createViewModel()
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(INCORRECT_PIN))
+-    viewModel.onEvent(AccountSettingsEvent.DisablePinRemindersConfirmed)
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged("1"))
++    assertThat(viewModel.state.value.signalLogin).isNull()
++    verify(exactly = 0) { repository.masterKey() }
++    coVerify(exactly = 0) { twoFactorMethodService.getMethods(any()) }
++  }
+ 
+-    val dialog = viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders
+-    assertThat(dialog.incorrectPin).isFalse()
+-    assertThat(dialog.pin).isEqualTo("1")
+-    assertThat(dialog.canSubmit).isFalse()
++  @Test
++  fun `linked re-registration requests the existing relink intent path`() = runTest(testDispatcher) {
++    every { repository.isLinkedDevice() } returns true
++    val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
++
++    viewModel.onEvent(AccountSettingsEvent.ReRegisterClicked)
++    assertThat(actions).containsExactly(AccountSettingsAction.LaunchReLinkDevice)
+   }
+ 
+   @Test
+-  fun `toggling the keyboard swaps the type and clears what was typed`() = runTest(testDispatcher) {
++  fun `linked local deletion retains best-effort self unlink before the wipe action`() = runTest(testDispatcher) {
++    every { repository.isLinkedDevice() } returns true
+     val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
+ 
+-    viewModel.onEvent(AccountSettingsEvent.PinRemindersToggled(false))
+-    viewModel.onEvent(AccountSettingsEvent.PinEntryChanged(CORRECT_PIN))
+-    viewModel.onEvent(AccountSettingsEvent.PinKeyboardToggled)
++    viewModel.onEvent(AccountSettingsEvent.DeleteAllDataClicked)
++    viewModel.onEvent(AccountSettingsEvent.DeleteAllDataConfirmed)
+ 
+-    val dialog = viewModel.state.value.dialog as Dialog.ConfirmPinToDisableReminders
+-    assertThat(dialog.isAlphanumericKeyboard).isTrue()
+-    assertThat(dialog.pin).isEqualTo("")
+-    assertThat(dialog.canSubmit).isFalse()
++    coVerify { repository.unlinkSelf() }
++    assertThat(actions).containsExactly(AccountSettingsAction.WipeAllData)
+   }
+ 
+   @Test
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt
+index 4e6e3dd7f3f55686a06a721244cefacbfed184c4..0cc11ff79a3e727b6cae802df089d9d85673fe2e 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt
+@@ -12,6 +12,8 @@ package org.signal.appsettings.account
+  * Actions are logged, so be sure `toString()` contains nothing sensitive.
+  */
+ sealed interface AccountSettingsAction {
++  data object LaunchReLinkDevice : AccountSettingsAction
++  data object ShowLinkedDeviceLearnMore : AccountSettingsAction
+ 
+   /** Leave the screen. */
+   data object NavigateBack : AccountSettingsAction
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsEvent.kt b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsEvent.kt
+index 1ecda9657bcb5e7add7e972c4c9143811c74e1e5..b10b99186b7fc67e2673c487564c8d1edd655f49 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsEvent.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsEvent.kt
+@@ -9,6 +9,7 @@ package org.signal.appsettings.account
+  * Reminder that these events are logged, so don't include anything sensitive in the toString.
+  */
+ sealed interface AccountSettingsEvent {
++  data object LinkedDeviceLearnMoreClicked : AccountSettingsEvent
+ 
+   /** The screen came back to the foreground, so everything we read out of storage may be stale. */
+   data object ScreenResumed : AccountSettingsEvent
+@@ -28,7 +29,7 @@ sealed interface AccountSettingsEvent {
+   /** The user came back from the PIN creation flow having actually set a PIN. */
+   data object PinCreated : AccountSettingsEvent
+ 
+-  /** The user flipped the PIN reminders toggle. Turning them off requires confirming the PIN first. */
++  /** The user flipped Molly's PIN reminders toggle. */
+   data class PinRemindersToggled(val enabled: Boolean) : AccountSettingsEvent
+ 
+   /** The user typed in the PIN confirmation field. */
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsScreen.kt
+index b87fe451795fdea2d9e91584a4bf8dc715a352fc..ef725f4d459fe9c752a100e3a405ffdba31fd0c9 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsScreen.kt
+@@ -110,7 +110,8 @@ object AccountSettingsTestTags {
+ @Composable
+ fun AccountSettingsScreen(
+   state: AccountSettingsState,
+-  onEvent: (AccountSettingsEvent) -> Unit
++  onEvent: (AccountSettingsEvent) -> Unit,
++  linkedDevicePinMessage: String? = null
+ ) {
+   Scaffolds.Settings(
+     title = stringResource(R.string.AccountSettingsFragment__account),
+@@ -121,7 +122,7 @@ fun AccountSettingsScreen(
+       scaffoldPadding = contentPadding,
+       modifier = Modifier.testTag(AccountSettingsTestTags.SCROLLER)
+     ) {
+-      if (state.signalLogin != null) {
++      if (state.signalLogin != null && !state.isLinkedDevice) {
+         item {
+           Texts.SectionHeader(
+             text = stringResource(R.string.AccountSettingsFragment__signal_login),
+@@ -207,7 +208,17 @@ fun AccountSettingsScreen(
+         }
+       }
+ 
+-      if (!state.isPhoneNumberless) {
++      if (state.isLinkedDevice) {
++        linkedDevicePinMessage?.let { message ->
++          item { Rows.TextRow(text = message) }
++        }
++        item {
++          Rows.TextRow(
++            text = stringResource(CoreUiR.string.LearnMoreTextView_learn_more),
++            onClick = { onEvent(AccountSettingsEvent.LinkedDeviceLearnMoreClicked) }
++          )
++        }
++      } else if (!state.isPhoneNumberless) {
+         item {
+           Texts.SectionHeader(
+             text = stringResource(R.string.preferences_app_protection__signal_pin)
+@@ -223,7 +234,7 @@ fun AccountSettingsScreen(
+ 
+           Rows.TextRow(
+             text = stringResource(textId),
+-            enabled = state.isNotDeprecatedOrUnregistered,
++            enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
+             onClick = { onEvent(AccountSettingsEvent.ModifyPinClicked) },
+             modifier = Modifier.testTag(AccountSettingsTestTags.ROW_MODIFY_PIN)
+           )
+@@ -275,7 +286,7 @@ fun AccountSettingsScreen(
+         item {
+           Rows.TextRow(
+             text = stringResource(R.string.AccountSettingsFragment__change_phone_number),
+-            enabled = state.isNotDeprecatedOrUnregistered,
++            enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
+             onClick = { onEvent(AccountSettingsEvent.ChangePhoneNumberClicked) },
+             modifier = Modifier.testTag(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER)
+           )
+@@ -286,7 +297,7 @@ fun AccountSettingsScreen(
+         Rows.TextRow(
+           text = stringResource(R.string.preferences_chats__transfer_account),
+           label = stringResource(R.string.preferences_chats__transfer_account_to_a_new_android_device),
+-          enabled = state.canTransferWhileUnregistered || state.isNotDeprecatedOrUnregistered,
++          enabled = state.canTransferAccount,
+           onClick = { onEvent(AccountSettingsEvent.TransferAccountClicked) },
+           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
+         )
+@@ -301,6 +312,16 @@ fun AccountSettingsScreen(
+         )
+       }
+ 
++      if (state.isLinkedDevice && state.isNotDeprecatedOrUnregistered) {
++        item {
++          Rows.TextRow(
++            text = stringResource(R.string.preferences_account_delete_all_data),
++            onClick = { onEvent(AccountSettingsEvent.DeleteAllDataClicked) },
++            modifier = Modifier.testTag(AccountSettingsTestTags.ROW_DELETE_ALL_DATA)
++          )
++        }
++      }
++
+       if (!state.isNotDeprecatedOrUnregistered) {
+         if (state.clientDeprecated) {
+           item {
+@@ -336,7 +357,7 @@ fun AccountSettingsScreen(
+       }
+ 
+       item {
+-        val textColor = if (state.isNotDeprecatedOrUnregistered) {
++        val textColor = if (state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice) {
+           SignalTheme.colors.colorAlert
+         } else {
+           SignalTheme.colors.colorAlertDisabled
+@@ -349,7 +370,7 @@ fun AccountSettingsScreen(
+               color = textColor
+             )
+           },
+-          enabled = state.isNotDeprecatedOrUnregistered,
++          enabled = state.isNotDeprecatedOrUnregistered && !state.isLinkedDevice,
+           onClick = { onEvent(AccountSettingsEvent.DeleteAccountClicked) },
+           modifier = Modifier.testTag(AccountSettingsTestTags.ROW_DELETE_ACCOUNT)
+         )
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsState.kt b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsState.kt
+index 90df71c71029398d04c38d47a695ab9ef779d3bc..46c27950d5be483873df62a307151402ee970f43 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsState.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsState.kt
+@@ -6,6 +6,7 @@
+ package org.signal.appsettings.account
+ 
+ data class AccountSettingsState(
++  val isLinkedDevice: Boolean = false,
+   val hasPin: Boolean = false,
+   val hasRestoredAep: Boolean = false,
+   val pinRemindersEnabled: Boolean = false,
+@@ -13,6 +14,7 @@ data class AccountSettingsState(
+   val userUnregistered: Boolean = false,
+   val clientDeprecated: Boolean = false,
+   val canTransferWhileUnregistered: Boolean = true,
++  val canTransferWhileLinked: Boolean = false,
+   val isPhoneNumberless: Boolean = false,
+   val arePasskeysSupported: Boolean = false,
+   val signalLogin: SignalLogin? = null,
+@@ -22,6 +24,9 @@ data class AccountSettingsState(
+   val isNotDeprecatedOrUnregistered: Boolean
+     get() = !(userUnregistered || clientDeprecated)
+ 
++  val canTransferAccount: Boolean
++    get() = if (isLinkedDevice) canTransferWhileLinked else canTransferWhileUnregistered || isNotDeprecatedOrUnregistered
++
+   /**
+    * The Signal Login and two-factor authentication sections, which only exist for phone-numberless accounts. Null means
+    * the sections aren't shown at all.
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsEvent.kt b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsEvent.kt
+index 20d57e12d78d89b884651558b6b230736172c174..b73c6580e42295239b249dd1d1b191665226c3d9 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsEvent.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsEvent.kt
+@@ -61,6 +61,8 @@ sealed interface AppSettingsEvent {
+   /** The user tapped the data and storage row. */
+   data object DataAndStorageClicked : AppSettingsEvent
+ 
++  data object NetworkClicked : AppSettingsEvent
++
+   /** The user tapped the app updates row. */
+   data object AppUpdatesClicked : AppSettingsEvent
+ 
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsScreen.kt
+index 0a68000fd79049f507375f984019c85d6cbf892a..91b77bae3aac6ef0e98e10a90ec9cf8f50355673 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsScreen.kt
+@@ -98,7 +98,9 @@ fun AppSettingsScreen(
+   contentColor: Color = MaterialTheme.colorScheme.contentColorFor(containerColor).takeOrElse { MaterialTheme.colorScheme.onSurface },
+   selectedRoute: AppSettingsRoute? = null,
+   avatar: @Composable () -> Unit = {},
+-  banner: @Composable () -> Unit = {}
++  banner: @Composable () -> Unit = {},
++  profileExtra: @Composable () -> Unit = {},
++  networkRow: @Composable (() -> Unit)? = null
+ ) {
+   LifecycleResumeEffect(Unit) {
+     onEvent(AppSettingsEvent.ScreenResumed)
+@@ -137,6 +139,7 @@ fun AppSettingsScreen(
+               profile = state.profile,
+               avatar = avatar,
+               onEvent = onEvent,
++              extra = profileExtra,
+               modifier = Modifier.selectionHighlight(selectedRoute.isProfile())
+             )
+           }
+@@ -166,7 +169,7 @@ fun AppSettingsScreen(
+           )
+         }
+ 
+-        if (state.isPrimaryDevice) {
++        if (state.isPrimaryDevice && !state.isLinkedDevice) {
+           item {
+             Rows.TextRow(
+               text = stringResource(R.string.AppSettingsScreen__linked_devices),
+@@ -287,6 +290,10 @@ fun AppSettingsScreen(
+           )
+         }
+ 
++        if (networkRow != null) {
++          item { networkRow() }
++        }
++
+         item {
+           Rows.TextRow(
+             text = stringResource(R.string.preferences__data_and_storage),
+@@ -311,7 +318,7 @@ fun AppSettingsScreen(
+           }
+         }
+ 
+-        if (state.isPrimaryDevice && state.showPayments) {
++        if (state.isPrimaryDevice && !state.isLinkedDevice && state.showPayments) {
+           item {
+             Dividers.Default()
+           }
+@@ -488,6 +495,7 @@ private fun ProfileRow(
+   profile: AppSettingsState.Profile,
+   avatar: @Composable () -> Unit,
+   onEvent: (AppSettingsEvent) -> Unit,
++  extra: @Composable () -> Unit = {},
+   modifier: Modifier = Modifier
+ ) {
+   val hasUsername = profile.username.isNotBlank()
+@@ -553,6 +561,8 @@ private fun ProfileRow(
+           )
+         }
+       }
++
++      extra()
+     }
+ 
+     if (hasUsername) {
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsState.kt b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsState.kt
+index 22008820fbe2cbd6512a9bdf7aaf127a416c940e..58ee9ef091621ef038d5688d5fb4cb8bee73d165 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsState.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/home/AppSettingsState.kt
+@@ -15,6 +15,8 @@ import org.signal.core.util.censor
+ data class AppSettingsState(
+   val profile: Profile? = null,
+   val isPrimaryDevice: Boolean = true,
++  val isLinkedDevice: Boolean = false,
++  val linkedDeviceCount: Int? = null,
+   val unreadPaymentsCount: Int = 0,
+   val hasExpiredGiftBadge: Boolean = false,
+   val allowUserToGoToDonationManagementScreen: Boolean = false,
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/account/AccountSettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/account/AccountSettingsScreenTest.kt
+index 4ff1bc38d1ac666b0deaeb2828df0b312a39a4f4..9114ab04a28f89e334a9663887675828efde926f 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/account/AccountSettingsScreenTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/account/AccountSettingsScreenTest.kt
+@@ -74,6 +74,32 @@ class AccountSettingsScreenTest {
+     assertThat(events).contains(AccountSettingsEvent.ModifyPinClicked)
+   }
+ 
++  @Test
++  fun linkedRoleHidesPinAndMfaAndDoesNotEnablePrimaryAccountCapabilities() {
++    setContent(createState().copy(isLinkedDevice = true, signalLogin = AccountSettingsState.SignalLogin()))
++
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_MODIFY_PIN).assertDoesNotExist()
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.CARD_SIGNAL_LOGIN).assertDoesNotExist()
++    scrollTo(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER)
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_CHANGE_PHONE_NUMBER).assertIsNotEnabled()
++    scrollTo(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT).assertIsNotEnabled()
++    scrollTo(AccountSettingsTestTags.ROW_DELETE_ALL_DATA)
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_DELETE_ALL_DATA).assertIsEnabled()
++    scrollTo(AccountSettingsTestTags.ROW_DELETE_ACCOUNT)
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_DELETE_ACCOUNT).assertIsNotEnabled()
++  }
++
++  @Test
++  fun mollyLinkedTransferFlagEnablesTheExistingTransferAction() {
++    setContent(createState().copy(isLinkedDevice = true, canTransferWhileLinked = true))
++
++    scrollTo(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT)
++    composeTestRule.onNodeWithTag(AccountSettingsTestTags.ROW_TRANSFER_ACCOUNT).assertIsEnabled().performClick()
++
++    assertThat(events).contains(AccountSettingsEvent.TransferAccountClicked)
++  }
++
+   @Test
+   fun givenUserWithPin_whenPinReminderToggleClicked_thenIExpectToggleEvent() {
+     setContent(createState(hasPin = true, pinRemindersEnabled = true))
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/home/AppSettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/home/AppSettingsScreenTest.kt
+index 5a9f53990e0a68398dade6b1fb91ce3ddf28387e..fc90e6916d29183a9ee82a6dfe649a8b5f75899e 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/home/AppSettingsScreenTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/home/AppSettingsScreenTest.kt
+@@ -55,6 +55,14 @@ class AppSettingsScreenTest {
+     assertThat(events).containsExactly(AppSettingsEvent.ScreenResumed)
+   }
+ 
++  @Test
++  fun `linked role suppresses primary-only home rows even during a role transition`() {
++    setContent(createState(showPayments = true).copy(isLinkedDevice = true))
++
++    composeTestRule.onNodeWithTag(AppSettingsTestTags.ROW_LINKED_DEVICES).assertDoesNotExist()
++    composeTestRule.onNodeWithTag(AppSettingsTestTags.ROW_PAYMENTS).assertDoesNotExist()
++  }
++
+   @Test
+   fun `clicking the profile emits ProfileClicked`() {
+     setContent(createState())
 diff --git a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java
-index 1d8a61d28c527c8aecb11686229c8b4e647391d7..16a01f9f3ebc8b085bb930ea01f1d51c4ff521a5 100644
+index 27cbd7261469f9f7fe46bbc9bb57617aea376733..22d6559ecc495a849df7d35614fc048c5662c0bc 100644
 --- a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java
 +++ b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java
 @@ -7,7 +7,10 @@
@@ -2595,10 +3344,10 @@ index 1d8a61d28c527c8aecb11686229c8b4e647391d7..16a01f9f3ebc8b085bb930ea01f1d51c
      this.pushServiceSocket.pingStorageService();
    }
 diff --git a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java
-index e4b9a178828128e6279bc82ec7d7972c8fbd72f2..83bb2dc7adccfd78e78e2672c79cf81c7304317f 100644
+index ab89848e584c9c133fa77ecc74ab59e71ad820f0..31404a0641db6b50a384226ad297d14e35e59b4f 100644
 --- a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java
 +++ b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java
-@@ -2850,7 +2850,7 @@ public class SignalServiceMessageSender {
+@@ -2942,7 +2942,7 @@ public class SignalServiceMessageSender {
        throws IOException, InvalidKeyException, UntrustedIdentityException, NoSessionException
    {
      List<OutgoingPushMessage> messages   = new LinkedList<>();
@@ -2607,7 +3356,7 @@ index e4b9a178828128e6279bc82ec7d7972c8fbd72f2..83bb2dc7adccfd78e78e2672c79cf81c
      Set<Integer>              deviceIds  = subDevices.stream()
                                                       .filter((id) -> aciStore.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), id)))
                                                       .collect(Collectors.toSet());
-@@ -2872,6 +2872,10 @@ public class SignalServiceMessageSender {
+@@ -2964,6 +2964,10 @@ public class SignalServiceMessageSender {
      return new OutgoingPushMessageList(recipient.getIdentifier(), timestamp, messages, online, urgent);
    }
  

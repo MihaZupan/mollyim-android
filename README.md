@@ -8,9 +8,8 @@ This branch contains the maintained patch series, tooling and documentation.
 | `v8.34.2/molly-patches` | Ordinary history forked from `73f836adf03a20f6a2641676d18f907712e29197`, retaining ancestry to fixed 8.19.2 commit `644daeb9f02cba0203baef5f9eee4ef4cde7345d`. |
 | `v8.34.2/molly` | The direct source port; current source/tree pins are recorded in the manifest. |
 
-**Port in progress, not an accepted version checkpoint.** The 35 retained
-boundaries have been ported directly; patch synchronization is in progress
-and strict reconstruction is still required.
+**Port in progress, not an accepted version checkpoint.** The regenerated
+35-patch series reconstructs the recorded 8.34.2 candidate source tree.
 A synchronized series establishes tree agreement, not runtime acceptance.
 The 8.19.2 and 8.20.4 refs and original reference/source histories remain unchanged.
 The legacy-search deletion is upstreamed and no longer needs a patch. The selected

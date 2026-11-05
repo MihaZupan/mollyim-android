@@ -3,24 +3,22 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:09:59 +0100
 Subject: [PATCH] privacy: preserve unknown-sender blocking
 
-Keep the current distinction between traffic filtering, requests, calls and user-visible block settings.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-UNKNOWN-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 3cbc91d5a2fb963fee59b69d1a75ab001cfbd268
+Semantic-boundary: 14/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
-index db1de4345eca3ecce3e839e02092a7904f74734b..23beb3315296f5893600192e1b9b0d34d52349c8 100644
+index a85a2691b8c6513798bb2635437eb7cffa199c34..82b25dcc09766435c621dc7cfa61247c0a82fe4f 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/MessageContentProcessor.kt
-@@ -43,6 +43,7 @@ import org.thoughtcrime.securesms.mms.IncomingMessage
+@@ -44,6 +44,7 @@ import org.thoughtcrime.securesms.messages.SignalServiceProtoUtil.toDecryptionEr
+ import org.thoughtcrime.securesms.mms.IncomingMessage
  import org.thoughtcrime.securesms.notifications.v2.ConversationId
  import org.thoughtcrime.securesms.recipients.Recipient
- import org.thoughtcrime.securesms.recipients.RecipientId
 +import org.thoughtcrime.securesms.recipients.RecipientUtil
  import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
  import org.thoughtcrime.securesms.util.RemoteConfig

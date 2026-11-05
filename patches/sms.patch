@@ -3,15 +3,13 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:06 +0100
 Subject: [PATCH] compat: preserve supported SMS import and legacy boundaries
 
-Retain existing readable data/import behavior without reintroducing removed messaging functionality.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-SMS-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: d44559c532b3bf24e91e89f7840389bf956ab03e
+Semantic-boundary: 19/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java b/app/src/main/java/org/thoughtcrime/securesms/contacts/ContactSelectionDisplayMode.java
 index 2c0170125fc0d8510bfe7a3b0389c1db13bc9bbb..de101d768a6f1bb5ba7a4054481e8cedcb9b4e2f 100644
@@ -27,10 +25,10 @@ index 2c0170125fc0d8510bfe7a3b0389c1db13bc9bbb..de101d768a6f1bb5ba7a4054481e8ced
    public static Builder all() {
      return new Builder(FLAG_ALL);
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
-index 8a6754b2a6870b5671467159718363ad838c36dd..da292a157fffedc7b47d771c2b0fcc02cea850e8 100644
+index 63ddb2b02b0a90b894aa3ac36cb2eacfe854edf2..103075e95ead7c6447728667dae25ca8148f02d1 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationSecurityInfo.kt
-@@ -5,9 +5,7 @@ import org.thoughtcrime.securesms.recipients.RecipientId
+@@ -5,9 +5,7 @@ import org.signal.core.models.recipients.RecipientId
  data class ConversationSecurityInfo(
    val recipientId: RecipientId = RecipientId.UNKNOWN,
    val isPushAvailable: Boolean = false,
@@ -61,18 +59,52 @@ index c0e3724566c6492008ff4fa9526e9b1f5d383255..3af45e6cf24d127fe313e460b79c73cc
 -  fun withMmsEnabled(isMmsEnabled: Boolean) = copy(isMmsEnabled = isMmsEnabled)
    fun withSecurityInfo(securityInfo: ConversationSecurityInfo) = copy(securityInfo = securityInfo)
  }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
+index 4e161061238e8ede111adb1d9328c66c40419a7c..c834f45be24bad235a9fda6a4b14469299ed3b86 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt
+@@ -2012,7 +2012,7 @@ class ConversationFragment :
+       inputReadyState.isActiveGroup == false -> disabledInputView.showAsNoLongerAMember()
+       inputReadyState.isAnnouncementGroup == true && inputReadyState.isAdmin == false -> disabledInputView.showAsAnnouncementGroupAdminsOnly()
+       isReleaseNotes -> Unit
+-      inputReadyState.shouldShowInviteToSignal() -> disabledInputView.showAsInviteToSignal(requireContext(), inputReadyState.conversationRecipient, inputReadyState.threadContainsSms)
++      inputReadyState.shouldShowInviteToSignal() -> disabledInputView.showAsInviteToSignal(requireContext(), inputReadyState.conversationRecipient)
+       else -> inputDisabled = false
+     }
+ 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
-index ee827a1efcaea8b51e50a7f422059b25bef3ec4e..967e8741a5650f0c9d932c52e5dd1f66213d9375 100644
+index 416af3596158d30358404e5b98065a9959d8ac13..5003d726b799c10417f10a42abb5a002579d557a 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationViewModel.kt
-@@ -311,7 +311,6 @@ class ConversationViewModel(
+@@ -353,7 +353,6 @@ class ConversationViewModel(
          groupRecord = groupRecord.orNull(),
          isClientExpired = SignalStore.misc.isClientDeprecated,
-         isUnauthorized = TextSecurePreferences.isUnauthorizedReceived(AppDependencies.application),
+         isUnauthorized = SignalStore.account.isUnauthorizedReceived,
 -        threadContainsSms = !recipient.isRegistered && !recipient.isPushGroup && !recipient.isSelf && messageRequestRepository.threadContainsSms(threadId)
        )
      }.doOnNext {
        hasMessageRequestStateSubject.onNext(it.messageRequestState)
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/DisabledInputView.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/DisabledInputView.kt
+index ae37b691081784ca779d3366df7f32afb75afaed..f7a47ee4df2cafd76e43c6f4d32cd6f1a9c106fa 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/DisabledInputView.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/DisabledInputView.kt
+@@ -201,15 +201,13 @@ class DisabledInputView @JvmOverloads constructor(
+     )
+   }
+ 
+-  fun showAsInviteToSignal(context: Context, recipient: Recipient, threadContainsSms: Boolean) {
++  fun showAsInviteToSignal(context: Context, recipient: Recipient) {
+     inviteToSignal = show(
+       existingView = inviteToSignal,
+       create = { inflater.inflate(R.layout.conversation_activity_sms_export_stub, this, false) },
+       bind = {
+         findViewById<TextView>(R.id.export_sms_message).text = if (recipient.isMmsGroup) {
+           context.getString(R.string.ConversationActivity__sms_messaging_is_no_longer_supported)
+-        } else if (threadContainsSms) {
+-          context.getString(R.string.ConversationActivity__sms_messaging_is_no_longer_supported_in_signal_invite_s_to_to_signal_to_keep_the_conversation_here, recipient.getDisplayName(context))
+         } else if (recipient.hasAci) {
+           context.getString(R.string.ConversationActivity__this_person_is_no_longer_using_signal)
+         } else {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt
 index 3c2cb6c6ce0960374168511a9b12839bce2b061a..4e0dbb15657eda997455807c5d9ed2426f663d71 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/InputReadyState.kt

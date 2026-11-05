@@ -3,22 +3,20 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:11 +0100
 Subject: [PATCH] policy: preserve remote-config safety and product defaults
 
-Retain reviewed default and internal/test ordering contracts. Existing support choices remain runtime-pending, not retired.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-DEFAULTS-001, MOL-CONFIG-POLICY-001, MOL-SAFETY-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 6a63ddcea0c94f1280246c27cb064c7fa30c642b
+Semantic-boundary: 23/36
 
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt b/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt
 deleted file mode 100644
-index b46f8d021f19dc962200d51a4f5e1a1b4032bb26..0000000000000000000000000000000000000000
+index 3de850a4e0d8f016fc720ba0708792e1c4ff180a..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkSetupActivity.kt
 +++ /dev/null
-@@ -1,275 +0,0 @@
+@@ -1,274 +0,0 @@
 -package org.signal.benchmark
 -
 -import android.os.Bundle
@@ -47,7 +45,6 @@ index b46f8d021f19dc962200d51a4f5e1a1b4032bb26..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.profiles.ProfileName
 -import org.thoughtcrime.securesms.recipients.Recipient
 -import org.thoughtcrime.securesms.registration.util.RegistrationUtil
--import org.thoughtcrime.securesms.util.TextSecurePreferences
 -
 -class BenchmarkSetupActivity : BaseActivity() {
 -
@@ -290,51 +287,20 @@ index b46f8d021f19dc962200d51a4f5e1a1b4032bb26..00000000000000000000000000000000
 -    }
 -
 -    if (enableReadReceipts) {
--      TextSecurePreferences.setReadReceiptsEnabled(this, true)
+-      SignalStore.settings.isReadReceiptsEnabled = true
 -    }
 -  }
 -}
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java b/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
-index 3d077a615b67cf6091b20196802710f747a8b066..06c16f131dd702ccfac2b94f4d21d3dff8347dd2 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/groups/GroupsV2ProcessingLock.java
-@@ -4,9 +4,6 @@ import androidx.annotation.WorkerThread;
- 
- import org.signal.core.util.ThreadUtil;
- import org.signal.core.util.logging.Log;
--import org.thoughtcrime.securesms.crypto.ReentrantSessionLock;
--import org.thoughtcrime.securesms.database.SignalDatabase;
--import org.thoughtcrime.securesms.util.RemoteConfig;
- 
- import java.io.Closeable;
- import java.util.concurrent.TimeUnit;
-@@ -23,16 +20,6 @@ public final class GroupsV2ProcessingLock {
- 
-   @WorkerThread
-   public static Closeable acquireGroupProcessingLock() throws GroupChangeBusyException {
--    if (RemoteConfig.internalUser()) {
--      if (!lock.isHeldByCurrentThread()) {
--        if (SignalDatabase.inTransaction()) {
--          throw new AssertionError("Tried to acquire the group lock inside of a database transaction!");
--        }
--        if (ReentrantSessionLock.INSTANCE.isHeldByCurrentThread()) {
--          throw new AssertionError("Tried to acquire the group lock inside of the ReentrantSessionLock!!");
--        }
--      }
--    }
-     return acquireGroupProcessingLock(5000);
-   }
- 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
-index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3a8b14962 100644
+index eed9944f2ccb27e077cccf58cad939cf9d242495..de7d48943aca0d2984d923fe22a27fe2651449ad 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
-@@ -618,17 +618,14 @@ object RemoteConfig {
+@@ -737,17 +737,13 @@ object RemoteConfig {
    /** Whether or not the user is an 'internal' one, which activates certain developer tools. */
    @JvmStatic
    @get:JvmName("internalUser")
 -  val internalUser: Boolean by remoteValue(
--    key = "android.internalUser",
+-    key = INTERNAL_USER_KEY,
 -    hotSwappable = true
 -  ) { value ->
 -    when {
@@ -348,11 +314,10 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
 +      else -> false
      }
 -  }
-+
  
    /** The raw client expiration JSON string.  */
    @JvmStatic
-@@ -657,13 +654,7 @@ object RemoteConfig {
+@@ -776,13 +772,7 @@ object RemoteConfig {
      inSeconds.seconds.inWholeMilliseconds
    }
  
@@ -367,7 +332,7 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
  
    /** Whether or not to allow automatic session resets.  */
    @JvmStatic
-@@ -855,15 +846,6 @@ object RemoteConfig {
+@@ -942,15 +932,6 @@ object RemoteConfig {
      hotSwappable = false
    )
  
@@ -383,7 +348,7 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
    /** Serialized list of regions in which Google Pay is disabled for donations */
    @JvmStatic
    @get:JvmName("googlePayDisabledRegions")
-@@ -921,16 +903,6 @@ object RemoteConfig {
+@@ -1008,16 +989,6 @@ object RemoteConfig {
      hotSwappable = false
    )
  
@@ -400,7 +365,7 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
    /** Maximum number of attachments allowed to be sent/received.  */
    val maxAttachmentCount: Int by remoteInt(
      key = "android.attachments.maxCount",
-@@ -1007,15 +979,6 @@ object RemoteConfig {
+@@ -1102,15 +1073,6 @@ object RemoteConfig {
      hotSwappable = true
    )
  
@@ -416,7 +381,7 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
    /** Whether or not SEPA debit payments for donations are enabled. */
    val sepaDebitDonations: Boolean by remoteBoolean(
      key = "android.sepa.debit.donations.5",
-@@ -1215,14 +1178,6 @@ object RemoteConfig {
+@@ -1297,14 +1259,6 @@ object RemoteConfig {
      hotSwappable = true
    )
  
@@ -431,7 +396,7 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
    @JvmStatic
    @get:JvmName("pinLimit")
    val pinLimit: Int by remoteInt(
-@@ -1231,22 +1186,6 @@ object RemoteConfig {
+@@ -1313,22 +1267,6 @@ object RemoteConfig {
      hotSwappable = true
    )
  
@@ -452,5 +417,5 @@ index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3
 -  )
 -
    /**
-    * Whether or not to receive admin delete messages.
+    * Maximum time that passes where a message can still be regularly deleted
     */

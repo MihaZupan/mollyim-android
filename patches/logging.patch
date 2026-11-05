@@ -4,19 +4,17 @@ Date: Wed, 4 Nov 2026 08:10:00 +0100
 Subject: [PATCH] logging: preserve opt-in logs and diagnostic privacy
  boundaries
 
-Retain optional persistent logging, scrubbers and diagnostics. These are existing shipping product paths, not M1 diagnostic harness code.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-LOG-001, MOL-DIAG-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 728110a91af4d0cacdc960407cdf18a7872d71eb
+Semantic-boundary: 15/36
 
 diff --git a/app/src/androidTest/java/org/thoughtcrime/securesms/database/LogDatabaseTest.kt b/app/src/androidTest/java/org/thoughtcrime/securesms/database/LogDatabaseTest.kt
 deleted file mode 100644
-index 1d077f119a67c0c77833fc6b430f9326eaec0aeb..0000000000000000000000000000000000000000
+index eb7260c8f3c6c0795a60ccafa786c00d6d58016f..0000000000000000000000000000000000000000
 --- a/app/src/androidTest/java/org/thoughtcrime/securesms/database/LogDatabaseTest.kt
 +++ /dev/null
 @@ -1,291 +0,0 @@
@@ -32,11 +30,11 @@ index 1d077f119a67c0c77833fc6b430f9326eaec0aeb..00000000000000000000000000000000
 -import assertk.assertions.isFalse
 -import assertk.assertions.isTrue
 -import org.junit.Test
+-import org.signal.core.database.select
+-import org.signal.core.database.updateAll
 -import org.signal.core.util.forEach
 -import org.signal.core.util.requireLong
 -import org.signal.core.util.requireNonNullString
--import org.signal.core.util.select
--import org.signal.core.util.updateAll
 -import org.thoughtcrime.securesms.crash.CrashConfig
 -import org.thoughtcrime.securesms.dependencies.AppDependencies
 -
@@ -311,6 +309,18 @@ index 1d077f119a67c0c77833fc6b430f9326eaec0aeb..00000000000000000000000000000000
 -      }
 -  }
 -}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
+index 35530b02c836f82b7e9af872a14f86cd87425979..19c45cbe65fbfb43623ec6f4c538c57e5dbb6b57 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
+@@ -105,7 +105,6 @@ import org.thoughtcrime.securesms.calls.YouAreAlreadyInACallSnackbar.show
+ import org.thoughtcrime.securesms.calls.log.CallLogFilter
+ import org.thoughtcrime.securesms.calls.log.CallLogFragment
+ import org.thoughtcrime.securesms.calls.new.NewCallActivity
+-import org.thoughtcrime.securesms.components.DebugLogsPromptDialogFragment
+ import org.thoughtcrime.securesms.components.PromptBatterySaverDialogFragment
+ import org.thoughtcrime.securesms.components.compose.DeviceSpecificNotificationBottomSheet
+ import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQuality.kt b/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQuality.kt
 deleted file mode 100644
 index 3a58139a8c1a96cfe6e2331956b82fed434c0fc3..0000000000000000000000000000000000000000
@@ -459,7 +469,7 @@ index 3a58139a8c1a96cfe6e2331956b82fed434c0fc3..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityBottomSheetFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityBottomSheetFragment.kt
 deleted file mode 100644
-index d02b8d0c828094cd2aca6c633458373a8f8c78b0..0000000000000000000000000000000000000000
+index 8a3b0423658692a177901b33021157803c8b99f8..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityBottomSheetFragment.kt
 +++ /dev/null
 @@ -1,113 +0,0 @@
@@ -481,10 +491,10 @@ index d02b8d0c828094cd2aca6c633458373a8f8c78b0..00000000000000000000000000000000
 -import androidx.fragment.app.setFragmentResultListener
 -import androidx.lifecycle.compose.collectAsStateWithLifecycle
 -import org.signal.core.ui.compose.ComposeBottomSheetDialogFragment
+-import org.signal.core.ui.viewModel
 -import org.signal.storageservice.protos.calls.quality.SubmitCallQualitySurveyRequest
 -import org.thoughtcrime.securesms.keyvalue.SignalStore
 -import org.thoughtcrime.securesms.logsubmit.SubmitDebugLogActivity
--import org.thoughtcrime.securesms.util.viewModel
 -import kotlin.time.Duration.Companion.milliseconds
 -
 -/**
@@ -789,7 +799,7 @@ index 8811e171fc32797583bba60e0c4a2bc0db510d0d..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityScreens.kt b/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityScreens.kt
 deleted file mode 100644
-index 9816068e40595f76ad70b7250006a30a8dbca2d8..0000000000000000000000000000000000000000
+index eaa3bc4ce3667f916a82f49237eb7a149d32fc8f..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/calls/quality/CallQualityScreens.kt
 +++ /dev/null
 @@ -1,800 +0,0 @@
@@ -1525,7 +1535,7 @@ index 9816068e40595f76ad70b7250006a30a8dbca2d8..00000000000000000000000000000000
 -  val isUserSatisfiedWithCall: Boolean = false,
 -  val selectedQualityIssues: Set<CallQualityIssue> = emptySet(),
 -  val somethingElseDescription: String = "",
--  val isShareDebugLogSelected: Boolean = false,
+-  val isShareDebugLogSelected: Boolean = true,
 -  val failedDueToNetworkAvailability: Boolean = false
 -) {
 -  fun canContinueAfterIssueSelection(): Boolean {
@@ -1570,10 +1580,10 @@ index 9816068e40595f76ad70b7250006a30a8dbca2d8..00000000000000000000000000000000
 -enum class CallQualityIssueCategory(
 -  @param:DrawableRes val icon: Int
 -) {
--  AUDIO(icon = R.drawable.symbol_speaker_24),
+-  AUDIO(icon = CoreUiR.drawable.symbol_speaker_24),
 -  VIDEO(icon = R.drawable.symbol_video_24),
 -  CALL_DROPPED(icon = R.drawable.symbol_x_circle_24),
--  SOMETHING_ELSE(icon = R.drawable.symbol_error_circle_24)
+-  SOMETHING_ELSE(icon = CoreUiR.drawable.symbol_error_circle_24)
 -}
 -
 -enum class CallQualityIssue(
@@ -1768,7 +1778,7 @@ index 868e95f9baafd90e062d2ffbd09e086e34497192..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/DebugLogsPromptDialogFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/DebugLogsPromptDialogFragment.kt
 deleted file mode 100644
-index 7b191568284cf06e2de74d1782e017a19ac5d1f1..0000000000000000000000000000000000000000
+index 471e1e5226ba5bffeb2df69fa7309eb79a77584a..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/DebugLogsPromptDialogFragment.kt
 +++ /dev/null
 @@ -1,193 +0,0 @@
@@ -1791,6 +1801,7 @@ index 7b191568284cf06e2de74d1782e017a19ac5d1f1..00000000000000000000000000000000
 -import androidx.lifecycle.Lifecycle
 -import org.signal.core.ui.BottomSheetUtil
 -import org.signal.core.ui.FixedRoundedCornerBottomSheetDialogFragment
+-import org.signal.core.util.DeviceProperties
 -import org.signal.core.util.concurrent.LifecycleDisposable
 -import org.signal.core.util.logging.Log
 -import org.thoughtcrime.securesms.R
@@ -1799,7 +1810,6 @@ index 7b191568284cf06e2de74d1782e017a19ac5d1f1..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.keyvalue.SignalStore
 -import org.thoughtcrime.securesms.notifications.SlowNotificationHeuristics
 -import org.thoughtcrime.securesms.util.CommunicationActions
--import org.thoughtcrime.securesms.util.DeviceProperties
 -import org.thoughtcrime.securesms.util.NetworkUtil
 -import org.thoughtcrime.securesms.util.PowerManagerCompat
 -import org.thoughtcrime.securesms.util.SupportEmailUtil
@@ -2034,7 +2044,7 @@ index cd6972a73d22f7c235e04ece385075c1d944bbe1..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/RatingManager.java b/app/src/main/java/org/thoughtcrime/securesms/components/RatingManager.java
 deleted file mode 100644
-index 9b3d1f3cb5e63e632ef262d8bdc4857275175cae..0000000000000000000000000000000000000000
+index ab4e9c39d2df3e5daf6d3bea52ce3ce8eeee5573..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/RatingManager.java
 +++ /dev/null
 @@ -1,63 +0,0 @@
@@ -2048,8 +2058,8 @@ index 9b3d1f3cb5e63e632ef262d8bdc4857275175cae..00000000000000000000000000000000
 -import org.signal.core.util.logging.Log;
 -import org.thoughtcrime.securesms.BuildConfig;
 -import org.thoughtcrime.securesms.R;
+-import org.thoughtcrime.securesms.keyvalue.SignalStore;
 -import org.thoughtcrime.securesms.util.PlayStoreUtil;
--import org.thoughtcrime.securesms.util.TextSecurePreferences;
 -import org.thoughtcrime.securesms.util.VersionTracker;
 -
 -import java.util.concurrent.TimeUnit;
@@ -2062,10 +2072,10 @@ index 9b3d1f3cb5e63e632ef262d8bdc4857275175cae..00000000000000000000000000000000
 -  private static final String TAG = Log.tag(RatingManager.class);
 -
 -  public static void showRatingDialogIfNecessary(Context context) {
--    if (!TextSecurePreferences.isRatingEnabled(context) || BuildConfig.MANAGES_APP_UPDATES) return;
+-    if (!SignalStore.misc().getRatingEnabled() || BuildConfig.MANAGES_APP_UPDATES) return;
 -
 -    long daysSinceInstall = VersionTracker.getDaysSinceFirstInstalled(context);
--    long laterTimestamp   = TextSecurePreferences.getRatingLaterTimestamp(context);
+-    long laterTimestamp   = SignalStore.misc().getRatingLaterTimestamp();
 -
 -    if (daysSinceInstall >= DAYS_SINCE_INSTALL_THRESHOLD &&
 -        System.currentTimeMillis() >= laterTimestamp)
@@ -2081,191 +2091,343 @@ index 9b3d1f3cb5e63e632ef262d8bdc4857275175cae..00000000000000000000000000000000
 -       .setPositiveButton(R.string.RatingManager_rate_now, new DialogInterface.OnClickListener() {
 -         @Override
 -         public void onClick(DialogInterface dialog, int which) {
--           TextSecurePreferences.setRatingEnabled(context, false);
+-           SignalStore.misc().setRatingEnabled(false);
 -           PlayStoreUtil.openPlayStoreOrOurApkDownloadPage(context);
 -         }
 -       })
 -       .setNegativeButton(R.string.RatingManager_no_thanks, new DialogInterface.OnClickListener() {
 -         @Override
 -         public void onClick(DialogInterface dialog, int which) {
--           TextSecurePreferences.setRatingEnabled(context, false);
+-           SignalStore.misc().setRatingEnabled(false);
 -         }
 -       })
 -       .setNeutralButton(R.string.RatingManager_later, new DialogInterface.OnClickListener() {
 -         @Override
 -         public void onClick(DialogInterface dialog, int which) {
 -           long waitUntil = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(DAYS_UNTIL_REPROMPT_THRESHOLD);
--           TextSecurePreferences.setRatingLaterTimestamp(context, waitUntil);
+-           SignalStore.misc().setRatingLaterTimestamp(waitUntil);
 -         }
 -       })
 -       .show();
 -  }
 -}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+index 030c1321234195a4eaeae34e5b2f931a860c5cb3..af977fce147339b9668a9c6e2813fde319b99293 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+@@ -26,6 +26,7 @@ import org.thoughtcrime.securesms.PassphraseRequiredActivity
+ import org.thoughtcrime.securesms.components.enableSettingsEdgeToEdge
+ import org.thoughtcrime.securesms.components.settings.app.appearance.registerAppearanceRoutes
+ import org.thoughtcrime.securesms.components.settings.app.chats.registerChatsRoutes
++import org.thoughtcrime.securesms.components.settings.app.help.registerHelpRoutes
+ import org.thoughtcrime.securesms.components.settings.app.notifications.registerNotificationsRoutes
+ import org.thoughtcrime.securesms.components.settings.app.privacy.registerPrivacyRoutes
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
+@@ -74,6 +75,7 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
+             registerChatsRoutes(router::onEvent)
+             registerNotificationsRoutes()
+             registerRoleSettingsRoutes(router::onEvent)
++            registerHelpRoutes(router::onEvent)
+             registerPrivacyRoutes(router::onEvent)
+ 
+             // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsEntry.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsEntry.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..bd8a3d5ded239a37462e4beaf123e7c0fb55578a
+--- /dev/null
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsEntry.kt
+@@ -0,0 +1,47 @@
++package org.thoughtcrime.securesms.components.settings.app.help
++
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.res.stringResource
++import androidx.lifecycle.compose.LifecycleResumeEffect
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
++import androidx.lifecycle.viewmodel.compose.viewModel
++import im.molly.app.base.ApkInfo
++import org.signal.appsettings.help.HelpSettingsAction
++import org.signal.appsettings.help.HelpSettingsEvent
++import org.signal.appsettings.help.HelpSettingsScreen
++import org.signal.appsettings.help.HelpSettingsViewModel
++import org.signal.core.ui.compose.CollectActions
++import org.signal.core.util.logging.Log
++import org.thoughtcrime.securesms.R
++import org.thoughtcrime.securesms.util.TextSecurePreferences
++
++@Composable
++fun HelpSettingsEntry(onAction: (HelpSettingsAction) -> Unit) {
++  val context = LocalContext.current.applicationContext
++  val viewModel: HelpSettingsViewModel = viewModel {
++    HelpSettingsViewModel(
++      versionName = ApkInfo.versionName,
++      readLogEnabled = { TextSecurePreferences.isLogEnabled(context) },
++      writeLogEnabled = { enabled ->
++        TextSecurePreferences.setLogEnabled(context, enabled)
++        Log.setLogging(enabled)
++        if (!enabled) Log.wipeLogs()
++      }
++    )
++  }
++  val state by viewModel.state.collectAsStateWithLifecycle()
++  LifecycleResumeEffect(Unit) {
++    viewModel.onEvent(HelpSettingsEvent.ScreenResumed)
++    onPauseOrDispose {}
++  }
++  CollectActions(viewModel.actions) { onAction(it) }
++  HelpSettingsScreen(
++    state = state,
++    onEvent = viewModel::onEvent,
++    websiteLabel = stringResource(R.string.HelpSettingsFragment__molly_im_website),
++    logEnableLabel = stringResource(R.string.preferences__enable_debug_log),
++    disableLogConfirmation = stringResource(R.string.HelpSettingsFragment_disable_and_delete_debug_log)
++  )
++}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsFragment.kt
-index 2c0c55bbb9f0aec78727bfce1683f0383334dfd6..33815d75a7b333f417643d2f4ff3028329856909 100644
+index 59e6cda29ce8969631522632352ab8f09bfb80ec..86e2d17572a78f901f16190f1e4c884d67d641b8 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsFragment.kt
-@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
- import androidx.compose.foundation.layout.padding
- import androidx.compose.foundation.lazy.LazyColumn
+@@ -7,48 +7,40 @@ package org.thoughtcrime.securesms.components.settings.app.help
+ 
+ import android.widget.Toast
  import androidx.compose.runtime.Composable
-+import androidx.compose.runtime.getValue
- import androidx.compose.runtime.remember
- import androidx.compose.ui.Alignment.Companion.CenterVertically
- import androidx.compose.ui.Modifier
-@@ -18,8 +19,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
- import androidx.compose.ui.platform.LocalContext
- import androidx.compose.ui.res.stringResource
- import androidx.compose.ui.res.vectorResource
-+import androidx.fragment.app.viewModels
-+import androidx.lifecycle.compose.collectAsStateWithLifecycle
- import androidx.navigation.NavController
+-import androidx.compose.runtime.getValue
+-import androidx.lifecycle.compose.collectAsStateWithLifecycle
++import androidx.core.os.bundleOf
  import androidx.navigation.fragment.findNavController
-+import com.google.android.material.dialog.MaterialAlertDialogBuilder
-+import im.molly.app.base.ApkInfo
+ import org.signal.appsettings.help.HelpSettingsAction
+-import org.signal.appsettings.help.HelpSettingsScreen
+-import org.signal.appsettings.help.HelpSettingsViewModel
+-import org.signal.core.ui.compose.CollectActions
  import org.signal.core.ui.compose.ComposeFragment
- import org.signal.core.ui.compose.Dividers
- import org.signal.core.ui.compose.Rows
-@@ -28,15 +33,17 @@ import org.signal.core.ui.compose.Rows.defaultPadding
- import org.signal.core.ui.compose.Scaffolds
- import org.signal.core.ui.compose.SignalIcons
+-import org.signal.core.ui.viewModel
  import org.signal.core.util.Util
 -import org.thoughtcrime.securesms.BuildConfig
  import org.thoughtcrime.securesms.R
  import org.thoughtcrime.securesms.util.CommunicationActions
++import org.thoughtcrime.securesms.util.TextSecurePreferences
  import org.thoughtcrime.securesms.util.navigation.safeNavigate
+ import org.signal.appsettings.R as AppSettingsR
  
  class HelpSettingsFragment : ComposeFragment() {
- 
-+  private val viewModel: HelpSettingsViewModel by viewModels()
-+
+-
+-  private val viewModel: HelpSettingsViewModel by viewModel { HelpSettingsViewModel(versionName = BuildConfig.VERSION_NAME) }
+-
    @Composable
    override fun FragmentContent() {
-+    val state by viewModel.state.collectAsStateWithLifecycle()
-     val navController: NavController = remember { findNavController() }
+-    val state by viewModel.state.collectAsStateWithLifecycle()
+-
+-    CollectActions(viewModel.actions) { handleAction(it) }
+-
+-    HelpSettingsScreen(
+-      state = state,
+-      onEvent = viewModel::onEvent
+-    )
++    HelpSettingsEntry(::handleAction)
+   }
  
-     val context = LocalContext.current
-@@ -50,6 +57,16 @@ class HelpSettingsFragment : ComposeFragment() {
-       LazyColumn(
-         modifier = Modifier.padding(contentPadding)
-       ) {
-+        item {
-+          Rows.LinkRow(
-+            text = stringResource(R.string.HelpSettingsFragment__molly_im_website),
-+            icon = ImageVector.vectorResource(R.drawable.symbol_open_20),
-+            onClick = {
-+              CommunicationActions.openBrowserLink(context, getString(R.string.website_url))
-+            }
-+          )
-+        }
-+
-         item {
-           Rows.LinkRow(
-             text = stringResource(R.string.HelpSettingsFragment__support_center),
-@@ -76,16 +93,41 @@ class HelpSettingsFragment : ComposeFragment() {
-         item {
-           Rows.TextRow(
-             text = stringResource(R.string.HelpSettingsFragment__version),
--            label = BuildConfig.VERSION_NAME,
-+            onClick = {
-+              navController.safeNavigate(R.id.action_helpSettingsFragment_to_appUpdatesFragment)
-+            },
-+            label = ApkInfo.versionName,
-             onLongClick = {
--              Util.copyToClipboard(context, BuildConfig.VERSION_NAME)
-+              Util.copyToClipboard(context, ApkInfo.versionName)
-               Toast.makeText(context, R.string.HelpSettingsFragment__copied_to_clipboard, Toast.LENGTH_SHORT).show()
-             }
-           )
-         }
- 
-+        item {
-+          Rows.ToggleRow(
-+            checked = state.logEnabled,
-+            text = stringResource(id = R.string.preferences__enable_debug_log),
-+            onCheckChanged = { checked ->
-+              if (!checked) {
-+                MaterialAlertDialogBuilder(requireContext())
-+                  .setMessage(R.string.HelpSettingsFragment_disable_and_delete_debug_log)
-+                  .setPositiveButton(android.R.string.ok) { dialog, _ ->
-+                    viewModel.setLogEnabled(false)
-+                    dialog.dismiss()
-+                  }
-+                  .setNegativeButton(android.R.string.cancel, null)
-+                  .show()
-+              } else {
-+                viewModel.setLogEnabled(true)
-+              }
-+            }
-+          )
-+        }
-+
-         item {
-           Rows.TextRow(
-+            enabled = state.logEnabled,
-             text = stringResource(id = R.string.HelpSettingsFragment__debug_log),
-             onClick = {
-               navController.safeNavigate(R.id.action_helpSettingsFragment_to_submitDebugLogActivity)
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsState.kt
+   private fun handleAction(action: HelpSettingsAction) {
+     when (action) {
+-      HelpSettingsAction.NavigateBack -> findNavController().popBackStack()
++      HelpSettingsAction.NavigateBack -> requireActivity().onBackPressedDispatcher.onBackPressed()
++      HelpSettingsAction.OpenWebsite -> CommunicationActions.openBrowserLink(requireContext(), getString(R.string.website_url))
+       HelpSettingsAction.OpenSupportCenter -> CommunicationActions.openBrowserLink(requireContext(), getString(R.string.support_center_url))
+-      HelpSettingsAction.NavigateToContactUs -> findNavController().safeNavigate(R.id.action_helpSettingsFragment_to_helpFragment)
++      HelpSettingsAction.NavigateToAppUpdates -> findNavController().safeNavigate(R.id.action_helpSettingsFragment_to_appUpdatesFragment)
++      HelpSettingsAction.NavigateToContactUs -> findNavController().safeNavigate(
++        R.id.action_helpSettingsFragment_to_helpFragment,
++        bundleOf("start_category_index" to (arguments?.getInt("start_category_index") ?: 0))
++      )
+       is HelpSettingsAction.CopyVersionToClipboard -> {
+         Util.copyToClipboard(requireContext(), action.versionName)
+         Toast.makeText(requireContext(), AppSettingsR.string.HelpSettingsFragment__copied_to_clipboard, Toast.LENGTH_SHORT).show()
+       }
+-      HelpSettingsAction.NavigateToDebugLog -> findNavController().safeNavigate(R.id.action_helpSettingsFragment_to_submitDebugLogActivity)
++      HelpSettingsAction.NavigateToDebugLog -> {
++        if (TextSecurePreferences.isLogEnabled(requireContext())) findNavController().safeNavigate(R.id.action_helpSettingsFragment_to_submitDebugLogActivity)
++      }
+       HelpSettingsAction.NavigateToLicenses -> findNavController().safeNavigate(R.id.action_helpSettingsFragment_to_licenseFragment)
+       HelpSettingsAction.OpenTermsAndPrivacyPolicy -> CommunicationActions.openBrowserLink(requireContext(), getString(R.string.terms_and_privacy_policy_url))
+     }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsNavigation.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsNavigation.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..d57a5f8b425a5c64427747b6fd3012c5e562d507
+index 0000000000000000000000000000000000000000..03efb63d22a582dc24ed577e210329ab636bd4a2
 --- /dev/null
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsState.kt
-@@ -0,0 +1,5 @@
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsNavigation.kt
+@@ -0,0 +1,79 @@
 +package org.thoughtcrime.securesms.components.settings.app.help
 +
-+data class HelpSettingsState(
-+  val logEnabled: Boolean,
-+)
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsViewModel.kt
-new file mode 100644
-index 0000000000000000000000000000000000000000..a2f755f9255363f6dec1098f80d35cc138cb802b
---- /dev/null
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/help/HelpSettingsViewModel.kt
-@@ -0,0 +1,38 @@
-+package org.thoughtcrime.securesms.components.settings.app.help
-+
-+import android.app.Application
-+import androidx.lifecycle.ViewModel
-+import kotlinx.coroutines.flow.MutableStateFlow
-+import kotlinx.coroutines.flow.StateFlow
-+import kotlinx.coroutines.flow.update
-+import org.signal.core.util.logging.Log
-+import org.thoughtcrime.securesms.dependencies.AppDependencies
++import android.content.Intent
++import android.os.Bundle
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.remember
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.platform.LocalContext
++import androidx.core.os.bundleOf
++import androidx.navigation.fragment.NavHostFragment
++import androidx.navigation3.runtime.EntryProviderScope
++import androidx.navigation3.runtime.NavKey
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.map
++import org.signal.appsettings.routes.AppSettingsNavigationEvent
++import org.signal.appsettings.routes.AppSettingsRoute
++import org.signal.core.ui.compose.split.detailEntry
++import org.thoughtcrime.securesms.R
++import org.thoughtcrime.securesms.compose.AndroidNavHostFragment
++import org.thoughtcrime.securesms.compose.FragmentBackHandler
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfo
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfoProvider
++import org.thoughtcrime.securesms.compose.FragmentBackPressedState
++import org.thoughtcrime.securesms.logsubmit.SubmitDebugLogActivity
 +import org.thoughtcrime.securesms.util.TextSecurePreferences
 +
-+class HelpSettingsViewModel : ViewModel() {
-+
-+  private val application: Application = AppDependencies.application
-+
-+  private val internalState = MutableStateFlow(getState())
-+
-+  val state: StateFlow<HelpSettingsState> = internalState
-+
-+  fun setLogEnabled(enabled: Boolean) {
-+    TextSecurePreferences.setLogEnabled(application, enabled)
-+    Log.setLogging(enabled)
-+    if (!enabled) {
-+      Log.wipeLogs()
++fun EntryProviderScope<NavKey>.registerHelpRoutes(parentEventEmitter: (AppSettingsNavigationEvent) -> Unit) {
++  detailEntry<AppSettingsRoute.HelpRoute.Settings> { route ->
++    HelpFragmentEntry(R.id.helpSettingsFragment, bundleOf("start_category_index" to route.startCategoryIndex))
++  }
++  detailEntry<AppSettingsRoute.HelpRoute.Help> {
++    HelpFragmentEntry(R.id.helpFragment)
++  }
++  detailEntry<AppSettingsRoute.HelpRoute.Licenses> {
++    HelpFragmentEntry(R.id.licenseFragment)
++  }
++  detailEntry<AppSettingsRoute.HelpRoute.DebugLog> {
++    val context = LocalContext.current
++    LaunchedEffect(Unit) {
++      if (TextSecurePreferences.isLogEnabled(context)) {
++        context.startActivity(Intent(context, SubmitDebugLogActivity::class.java))
++      }
++      parentEventEmitter(AppSettingsNavigationEvent.NavigateBack)
 +    }
-+    refresh()
-+  }
-+
-+  fun refresh() {
-+    internalState.update { getState() }
-+  }
-+
-+  private fun getState(): HelpSettingsState {
-+    return HelpSettingsState(
-+      logEnabled = TextSecurePreferences.isLogEnabled(application),
-+    )
 +  }
 +}
++
++@Composable
++private fun HelpFragmentEntry(destination: Int, startArgs: Bundle = Bundle.EMPTY) {
++  val backPressedState = remember { FragmentBackPressedState() }
++  FragmentBackHandler(backPressedState)
++  AndroidNavHostFragment(
++    clazz = HelpSettingsNavHostFragment::class.java,
++    modifier = Modifier.fillMaxSize(),
++    arguments = bundleOf(HelpSettingsNavHostFragment.START_DESTINATION to destination, HelpSettingsNavHostFragment.START_ARGUMENTS to startArgs),
++    onUpdate = { backPressedState.attach(it) }
++  )
++}
++
++class HelpSettingsNavHostFragment : NavHostFragment(), FragmentBackPressedInfoProvider {
++  companion object {
++    const val START_DESTINATION = "help.start.destination"
++    const val START_ARGUMENTS = "help.start.arguments"
++  }
++
++  override fun onCreate(savedInstanceState: Bundle?) {
++    val args = requireArguments()
++    val graph = navController.navInflater.inflate(R.navigation.app_settings_with_change_number)
++    graph.setStartDestination(args.getInt(START_DESTINATION))
++    navController.setGraph(graph, args.getBundle(START_ARGUMENTS))
++    super.onCreate(savedInstanceState)
++  }
++
++  override fun getFragmentBackPressedInfo(): Flow<FragmentBackPressedInfo> = navController.currentBackStackEntryFlow.map {
++    if (navController.previousBackStackEntry != null) FragmentBackPressedInfo.Enabled { navController.popBackStack() } else FragmentBackPressedInfo.Disabled
++  }
++}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
+index 63d0a3ab0dcdcf8620bed2ee3618781ca70fb301..f681f20e1368991b4fb001093b6866c659640880 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
+@@ -14,7 +14,6 @@ import android.widget.EditText
+ import android.widget.Toast
+ import androidx.appcompat.widget.SearchView
+ import androidx.appcompat.widget.Toolbar
+-import androidx.fragment.app.setFragmentResultListener
+ import androidx.lifecycle.ViewModelProvider
+ import androidx.lifecycle.lifecycleScope
+ import androidx.navigation.fragment.findNavController
+@@ -23,7 +22,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+-import org.signal.core.ui.BottomSheetUtil
+ import org.signal.core.ui.permissions.PermissionDeniedBottomSheet
+ import org.signal.core.ui.permissions.RationaleDialog
+ import org.signal.core.util.AppUtil
+@@ -35,18 +33,14 @@ import org.signal.core.util.readToList
+ import org.signal.core.util.requireLong
+ import org.signal.core.util.requireString
+ import org.signal.ringrtc.CallManager
+-import org.signal.storageservice.protos.calls.quality.SubmitCallQualitySurveyRequest
+ import org.thoughtcrime.securesms.BuildConfig
+ import org.thoughtcrime.securesms.R
+-import org.thoughtcrime.securesms.calls.quality.CallQualityBottomSheetFragment
+ import org.thoughtcrime.securesms.components.settings.DSLConfiguration
+ import org.thoughtcrime.securesms.components.settings.DSLSettingsFragment
+ import org.thoughtcrime.securesms.components.settings.DSLSettingsText
+ import org.thoughtcrime.securesms.components.settings.app.privacy.advanced.AdvancedPrivacySettingsRepository
+ import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
+ import org.thoughtcrime.securesms.components.settings.configure
+-import org.thoughtcrime.securesms.components.snackbars.SnackbarState
+-import org.thoughtcrime.securesms.components.snackbars.makeSnackbar
+ import org.thoughtcrime.securesms.conversation.ConversationIntents
+ import org.thoughtcrime.securesms.database.JobDatabase
+ import org.thoughtcrime.securesms.database.LocalMetricsDatabase
+@@ -117,16 +111,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+     super.onViewCreated(view, savedInstanceState)
+     scrollToPosition = SignalStore.internal.lastScrollPosition
+     initializeSearch(view)
+-
+-    setFragmentResultListener(CallQualityBottomSheetFragment.REQUEST_KEY) { _, bundle ->
+-      if (bundle.getBoolean(CallQualityBottomSheetFragment.REQUEST_KEY, false)) {
+-        makeSnackbar(
+-          SnackbarState(
+-            message = getString(R.string.CallQualitySheet__thanks_for_your_feedback)
+-          )
+-        )
+-      }
+-    }
+   }
+ 
+   override fun bindAdapter(adapter: MappingAdapter) {
+@@ -397,15 +381,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+         }
+       )
+ 
+-      switchPref(
+-        title = DSLSettingsText.from("Shake to Report"),
+-        summary = DSLSettingsText.from("Shake your phone to easily submit and share a debug log."),
+-        isChecked = state.shakeToReport,
+-        onClick = {
+-          viewModel.setShakeToReport(!state.shakeToReport)
+-        }
+-      )
+-
+       switchPref(
+         title = DSLSettingsText.from("Show archive status hint"),
+         summary = DSLSettingsText.from("Shows a color square based on archive status, green good, red bad."),
+@@ -733,15 +708,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+ 
+       sectionHeaderPref(DSLSettingsText.from("Calling options"))
+ 
+-      clickPref(
+-        title = DSLSettingsText.from("Display call quality survey"),
+-        onClick = {
+-          CallQualityBottomSheetFragment
+-            .create(SubmitCallQualitySurveyRequest())
+-            .show(parentFragmentManager, BottomSheetUtil.STANDARD_BOTTOM_SHEET_FRAGMENT_TAG)
+-        }
+-      )
+-
+       radioListPref(
+         title = DSLSettingsText.from("Bandwidth mode"),
+         listItems = CallManager.DataMode.entries.map { it.name }.toTypedArray(),
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
-index 4e6accf7f04bbc92f0bc662608db9ffe5ae2afba..072533b25135b0f62c61244f2ad92f3c6c925621 100644
+index 5be9255b32f11d20824d9b2762e96e512618a478..3013d1af0c886911b21b94c9fe2aab1c42a626d9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
-@@ -5,7 +5,6 @@ import org.thoughtcrime.securesms.emoji.EmojiFiles
+@@ -5,7 +5,6 @@ import org.signal.ringrtc.CallManager
  
  data class InternalSettingsState(
    val seeMoreUserDetails: Boolean,
@@ -2273,16 +2435,16 @@ index 4e6accf7f04bbc92f0bc662608db9ffe5ae2afba..072533b25135b0f62c61244f2ad92f3c
    val showArchiveStateHint: Boolean,
    val gv2forceInvites: Boolean,
    val gv2ignoreP2PChanges: Boolean,
-@@ -25,7 +24,6 @@ data class InternalSettingsState(
+@@ -33,7 +32,6 @@ data class InternalSettingsState(
    val delayResends: Boolean,
    val disableStorageService: Boolean,
    val canClearOnboardingState: Boolean,
 -  val pnpInitialized: Boolean,
    val useConversationItemV2ForMedia: Boolean,
    val hasPendingOneTimeDonation: Boolean,
-   val forceSplitPane: Boolean,
+   val disableInternalUser: Boolean,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
-index e7052474734ce097479e1f99ded9622287832331..3a4a8a77f0575b4039158f72d98b3385cf8850cf 100644
+index 4d4a7ae4d7f448f4c015756eac741c07aa2f6150..2f71fe420d2680109812ed4dd28bbc7a5e375d46 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
 @@ -47,11 +47,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
@@ -2309,7 +2471,7 @@ index e7052474734ce097479e1f99ded9622287832331..3a4a8a77f0575b4039158f72d98b3385
    fun setUseBuiltInEmoji(enabled: Boolean) {
      preferenceDataStore.putBoolean(InternalValues.FORCE_BUILT_IN_EMOJI, enabled)
      refresh()
-@@ -160,10 +150,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -195,10 +185,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
      repository.addRemoteMegaphone(RemoteMegaphoneRecord.ActionId.DONATE)
    }
  
@@ -2320,7 +2482,7 @@ index e7052474734ce097479e1f99ded9622287832331..3a4a8a77f0575b4039158f72d98b3385
    fun enqueueSubscriptionRedemption() {
      repository.enqueueSubscriptionRedemption()
    }
-@@ -214,7 +200,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -249,7 +235,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
  
    private fun getState() = InternalSettingsState(
      seeMoreUserDetails = SignalStore.internal.recipientDetails,
@@ -2328,16 +2490,16 @@ index e7052474734ce097479e1f99ded9622287832331..3a4a8a77f0575b4039158f72d98b3385
      showArchiveStateHint = SignalStore.internal.showArchiveStateHint,
      gv2forceInvites = SignalStore.internal.gv2ForceInvites,
      gv2ignoreP2PChanges = SignalStore.internal.gv2IgnoreP2PChanges,
-@@ -234,7 +219,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -277,7 +262,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
      delayResends = SignalStore.internal.delayResends,
      disableStorageService = SignalStore.internal.storageServiceDisabled,
      canClearOnboardingState = SignalStore.story.hasDownloadedOnboardingStory && Stories.isFeatureEnabled(),
 -    pnpInitialized = SignalStore.misc.hasPniInitializedDevices,
      useConversationItemV2ForMedia = SignalStore.internal.useConversationItemV2Media,
      hasPendingOneTimeDonation = SignalStore.inAppPayments.getPendingOneTimeDonation() != null,
-     forceSplitPane = SignalStore.internal.forceSplitPane,
+     disableInternalUser = RemoteConfig.internalUserDisabled
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java b/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
-index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf76ace11a 100644
+index 8d78f9e60f38af27d5690cc4ae884dafc8d72144..7a26ab568878e167beaf32f8ced32f50e354b4b9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
 @@ -45,7 +45,6 @@ import androidx.annotation.Nullable;
@@ -2348,7 +2510,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
  import androidx.core.view.ViewCompat;
  import androidx.lifecycle.ViewModelProvider;
  import androidx.recyclerview.widget.DefaultItemAnimator;
-@@ -67,6 +66,7 @@ import org.greenrobot.eventbus.ThreadMode;
+@@ -65,6 +64,7 @@ import org.signal.core.models.recipients.RecipientId;
  import org.signal.core.ui.BottomSheetUtil;
  import org.signal.core.ui.WindowSizeClassExtensionsKt;
  import org.signal.core.ui.compose.Snackbars;
@@ -2360,21 +2522,20 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlert;
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlertBottomSheet;
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlertDelegate;
--import org.thoughtcrime.securesms.badges.models.Badge;
+-import org.signal.core.models.badges.Badge;
 -import org.thoughtcrime.securesms.badges.self.expired.ExpiredOneTimeBadgeBottomSheetDialogFragment;
 -import org.thoughtcrime.securesms.badges.self.expired.MonthlyDonationCanceledBottomSheetDialogFragment;
  import org.thoughtcrime.securesms.banner.Banner;
  import org.thoughtcrime.securesms.banner.BannerManager;
  import org.thoughtcrime.securesms.banner.banners.ArchiveRestoreStatusBanner;
-@@ -103,7 +100,6 @@ import org.thoughtcrime.securesms.banner.banners.OutdatedBuildBanner;
+@@ -103,15 +100,12 @@ import org.thoughtcrime.securesms.banner.banners.OutdatedBuildBanner;
  import org.thoughtcrime.securesms.banner.banners.ServiceOutageBanner;
  import org.thoughtcrime.securesms.banner.banners.UnauthorizedBanner;
  import org.thoughtcrime.securesms.banner.banners.UsernameOutOfSyncBanner;
 -import org.thoughtcrime.securesms.components.RatingManager;
  import org.thoughtcrime.securesms.components.SignalProgressDialog;
- import org.thoughtcrime.securesms.components.compose.DeleteSyncEducationDialog;
  import org.thoughtcrime.securesms.components.menu.ActionItem;
-@@ -111,8 +107,6 @@ import org.thoughtcrime.securesms.components.menu.SignalBottomActionBar;
+ import org.thoughtcrime.securesms.components.menu.SignalBottomActionBar;
  import org.thoughtcrime.securesms.components.menu.SignalContextMenu;
  import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity;
  import org.thoughtcrime.securesms.components.settings.app.chats.folders.ChatFolderRecord;
@@ -2389,17 +2550,17 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
  import org.thoughtcrime.securesms.main.Material3OnScrollHelperBinder;
 -import org.thoughtcrime.securesms.megaphone.Megaphones;
  import org.thoughtcrime.securesms.notifications.MarkReadReceiver;
- import org.thoughtcrime.securesms.profiles.manage.UsernameEditFragment;
+ import org.thoughtcrime.securesms.profiles.manage.username.UsernameEditFragment;
  import org.thoughtcrime.securesms.ratelimit.RecaptchaProofBottomSheetFragment;
-@@ -166,7 +159,6 @@ import org.thoughtcrime.securesms.util.CachedInflater;
+@@ -165,7 +158,6 @@ import org.thoughtcrime.securesms.util.CachedInflater;
  import org.thoughtcrime.securesms.util.ConversationUtil;
  import org.thoughtcrime.securesms.util.RemoteConfig;
  import org.thoughtcrime.securesms.util.SignalLocalMetrics;
 -import org.thoughtcrime.securesms.util.SignalProxyUtil;
  import org.thoughtcrime.securesms.util.SnapToTopDataObserver;
- import org.thoughtcrime.securesms.util.TextSecurePreferences;
- import org.thoughtcrime.securesms.util.ViewUtil;
-@@ -317,7 +309,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
+ import org.signal.core.ui.util.ViewUtil;
+ import org.thoughtcrime.securesms.util.adapter.mapping.PagingMappingAdapter;
+@@ -315,7 +307,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
  
    @Override
    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -2407,7 +2568,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
      BackupAlertDelegate.delegate(getParentFragmentManager(), getViewLifecycleOwner().getLifecycle());
  
      lifecycleDisposable = new LifecycleDisposable();
-@@ -418,7 +409,9 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -416,7 +407,9 @@ public class ConversationListFragment extends MainFragment implements Conversati
        pullView.onUserDrag(progress);
      });
  
@@ -2418,7 +2579,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
      itemAnimator      = new ConversationListItemAnimator();
  
      chatFolderAdapter = new ChatFolderAdapter(this);
-@@ -431,12 +424,13 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -429,12 +422,13 @@ public class ConversationListFragment extends MainFragment implements Conversati
      list.setLayoutManager(new LinearLayoutManager(requireActivity()));
      list.setItemAnimator(itemAnimator);
      list.addItemDecoration(archiveDecoration);
@@ -2434,7 +2595,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
  
      initializeViewModel();
      initializeListAdapters();
-@@ -459,8 +453,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -462,8 +456,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
        SelfVerificationFailureSheet.show(getParentFragmentManager());
      }
  
@@ -2443,7 +2604,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
      chatListBackHandler = new ChatListBackHandler(false);
      requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), chatListBackHandler);
  
-@@ -553,48 +545,11 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -556,43 +548,11 @@ public class ConversationListFragment extends MainFragment implements Conversati
        setAdapter(defaultAdapter);
      }
  
@@ -2481,30 +2642,13 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
 -      SignalStore.inAppPayments().setExpiredBadge(null);
 -
 -      Log.w(TAG, "Displaying bottom sheet for an expired badge", true);
--      ExpiredOneTimeBadgeBottomSheetDialogFragment.show(
--          expiredBadge,
--          unexpectedSubscriptionCancellation,
--          SignalStore.inAppPayments().getUnexpectedSubscriptionCancelationChargeFailure(),
--          getParentFragmentManager()
--      );
+-      ExpiredOneTimeBadgeBottomSheetDialogFragment.show(expiredBadge, getParentFragmentManager());
 -    }
 -
      if (this.bannerManager != null) {
        this.bannerManager.updateContent(bannerView.get());
      }
-@@ -835,10 +790,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
-         new UnauthorizedBanner(requireContext()),
-         new ServiceOutageBanner(requireContext()),
-         new OutdatedBuildBanner(),
--        new DozeBanner(requireContext(), () -> {
--          bannerManager.updateContent(bannerView.get());
--          return Unit.INSTANCE;
--        }),
-+        new DozeBanner(requireContext()),
-         new CdsTemporaryErrorBanner(getChildFragmentManager()),
-         new CdsPermanentErrorBanner(getChildFragmentManager()),
-         new UsernameOutOfSyncBanner((usernameSyncState) -> {
-@@ -1354,17 +1306,10 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -1346,17 +1306,10 @@ public class ConversationListFragment extends MainFragment implements Conversati
    void updateEmptyState(boolean isConversationEmpty) {
      if (isConversationEmpty) {
        Log.i(TAG, "Received an empty data set.");
@@ -2522,7 +2666,7 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
    }
  
    @Override
-@@ -1896,7 +1841,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -1895,7 +1848,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
          if (absoluteDx > 0) {
            if (archiveDrawable == null) {
              archiveDrawable = Objects.requireNonNull(AppCompatResources.getDrawable(requireContext(), getArchiveIconRes()));
@@ -2531,6 +2675,12 @@ index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf
              archiveDrawable.setBounds(0, 0, archiveDrawable.getIntrinsicWidth(), archiveDrawable.getIntrinsicHeight());
            }
  
+@@ -2055,5 +2008,3 @@ public class ConversationListFragment extends MainFragment implements Conversati
+   }
+ 
+ }
+-
+-
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/crash/CrashConfig.kt b/app/src/main/java/org/thoughtcrime/securesms/crash/CrashConfig.kt
 deleted file mode 100644
 index 9c63a7fdf0cd949e2adee281aeea00b1c5fbfd3e..0000000000000000000000000000000000000000
@@ -2663,18 +2813,18 @@ index 9c63a7fdf0cd949e2adee281aeea00b1c5fbfd3e..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/GroupTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/GroupTable.kt
-index 354212203067c181fdb16c16fb60bec56115b604..f263f36675365c2ddc868925fa541b851184618b 100644
+index 6344cc4ae3b0e39e9b7b7e548880c1f7b66a0b23..d046f76449203ed990a8b61cc5a5b331d11c29a6 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/GroupTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/GroupTable.kt
-@@ -4,6 +4,7 @@ import android.content.ContentValues
- import android.content.Context
+@@ -5,6 +5,7 @@ import android.content.Context
  import android.database.Cursor
  import android.text.TextUtils
+ import androidx.annotation.VisibleForTesting
 +import androidx.annotation.CheckResult
  import androidx.annotation.WorkerThread
  import androidx.core.content.contentValuesOf
  import okio.ByteString
-@@ -79,7 +80,6 @@ import java.security.SecureRandom
+@@ -82,7 +83,6 @@ import java.security.SecureRandom
  import java.time.Instant
  import java.util.Optional
  import java.util.stream.Collectors
@@ -2682,7 +2832,7 @@ index 354212203067c181fdb16c16fb60bec56115b604..f263f36675365c2ddc868925fa541b85
  import kotlin.math.abs
  
  class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
-@@ -618,7 +618,7 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
+@@ -650,7 +650,7 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
      return null
    }
  
@@ -2691,7 +2841,7 @@ index 354212203067c181fdb16c16fb60bec56115b604..f263f36675365c2ddc868925fa541b85
    fun create(groupId: GroupId.V1, title: String?, members: Collection<RecipientId>, avatar: SignalServiceAttachmentPointer?): Boolean {
      if (groupExists(groupId.deriveV2MigrationGroupId())) {
        throw LegacyGroupInsertException(groupId)
-@@ -627,12 +627,12 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
+@@ -659,12 +659,12 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
      return create(groupId, title, members, avatar, null, null, null, null)
    }
  
@@ -2706,7 +2856,7 @@ index 354212203067c181fdb16c16fb60bec56115b604..f263f36675365c2ddc868925fa541b85
    @JvmOverloads
    fun create(
      groupMasterKey: GroupMasterKey,
-@@ -682,7 +682,7 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
+@@ -714,7 +714,7 @@ class GroupTable(context: Context?, databaseHelper: SignalDatabase?) :
    /**
     * @param groupMasterKey null for V1, must be non-null for V2 (presence dictates group version).
     */
@@ -2716,13 +2866,13 @@ index 354212203067c181fdb16c16fb60bec56115b604..f263f36675365c2ddc868925fa541b85
      groupId: GroupId,
      title: String?,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/LogDatabase.kt b/app/src/main/java/org/thoughtcrime/securesms/database/LogDatabase.kt
-index 1f5ee0e119f69ab06ab222d600e7b0343fc6e81d..78d391e61121530807728de0c6379dc45c7d59a6 100644
+index c4ed12de76e9f46e357320d2e982d7ff565da8c4..7eb1515fe527370e5ee31ab5c5a1a6dc20baac26 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/LogDatabase.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/LogDatabase.kt
-@@ -27,7 +27,6 @@ import org.signal.core.util.requireString
- import org.signal.core.util.select
- import org.signal.core.util.update
- import org.signal.core.util.withinTransaction
+@@ -27,7 +27,6 @@ import org.signal.core.util.requireLong
+ import org.signal.core.util.requireLongOrNull
+ import org.signal.core.util.requireNonNullString
+ import org.signal.core.util.requireString
 -import org.thoughtcrime.securesms.crash.CrashConfig
  import org.thoughtcrime.securesms.crypto.DatabaseSecret
  import org.thoughtcrime.securesms.crypto.DatabaseSecretProvider
@@ -3066,18 +3216,18 @@ index 5ee36e818556bdfba4ba4512e843c91a9574f3c0..00000000000000000000000000000000
 -  public override fun getKeysToIncludeInBackup(): List<String> = emptyList()
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
-index b3c4824e4362726df38089daa6bc3be0d9a9a218..ae7c73efb9567df55e3569f8ea60d97766617f8f 100644
+index a61332f0eae0c557319b1a8e0081568e1917ef4f..7ab0507add697a9cf4e519bf5019fa827a13e1d8 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
-@@ -25,7 +25,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
-     const val CALLING_USE_SOFTWARE_NS: String = "internal.calling_use_software_ns"
-     const val CALLING_USE_INPUT_LOW_LATENCY: String = "internal.calling_use_input_low_latency"
-     const val CALLING_USE_INPUT_VOICE_COMM: String = "internal.calling_use_input_voice_comm"
+@@ -35,7 +35,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
+     const val CALLING_ENABLE_SVC: String = "internal.calling_enable_svc"
+     const val CALLING_STATS_INTERVAL_SECS: String = "internal.calling_stats_interval_secs"
+     const val CALLING_MINIMUM_CAPTURE_FPS: String = "internal.calling_minimum_capture_fps"
 -    const val SHAKE_TO_REPORT: String = "internal.shake_to_report"
      const val DISABLE_STORAGE_SERVICE: String = "internal.disable_storage_service"
      const val LAST_SCROLL_POSITION: String = "internal.last_scroll_position"
      const val CONVERSATION_ITEM_V2_MEDIA: String = "internal.conversation_item_v2_media"
-@@ -92,11 +91,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
+@@ -89,11 +88,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
     */
    var delayResends by booleanValue(DELAY_RESENDS, false).defaultForExternalUsers()
  
@@ -3090,10 +3240,10 @@ index b3c4824e4362726df38089daa6bc3be0d9a9a218..ae7c73efb9567df55e3569f8ea60d977
     * Whether or not storage service is manually disabled.
     */
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MiscellaneousValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MiscellaneousValues.kt
-index c9afb24813c697e585b2e93e790a4e46f93a5f3f..8a9996fca9626884d0fa1a3aca3f7cb07ded55ff 100644
+index 27623b8bc913ebc8d1c6c5d452cc8ddc0a2d34f1..4aa18b37b015116c68c287bb5183afcb28776a1b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MiscellaneousValues.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/MiscellaneousValues.kt
-@@ -38,8 +38,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore) : SignalSto
+@@ -44,8 +44,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore, context: Co
      private const val LEAST_ACTIVE_LINKED_DEVICE = "misc.linked_device.least_active"
      private const val NEXT_DATABASE_ANALYSIS_TIME = "misc.next_database_analysis_time"
      private const val LAST_NETWORK_RESET_TIME = "misc.last_network_reset_time"
@@ -3102,7 +3252,7 @@ index c9afb24813c697e585b2e93e790a4e46f93a5f3f..8a9996fca9626884d0fa1a3aca3f7cb0
      private const val NEW_LINKED_DEVICE_ID = "misc.new_linked_device_id"
      private const val NEW_LINKED_DEVICE_CREATED_TIME = "misc.new_linked_device_created_time"
      private const val STARTED_QUOTE_THUMBNAIL_MIGRATION = "misc.started_quote_thumbnail_migration"
-@@ -195,11 +193,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore) : SignalSto
+@@ -276,11 +274,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore, context: Co
     */
    var lastForegroundTime by longValue(LAST_FOREGROUND_TIME, 0)
  
@@ -3114,7 +3264,7 @@ index c9afb24813c697e585b2e93e790a4e46f93a5f3f..8a9996fca9626884d0fa1a3aca3f7cb0
    /**
     * Whether or not we should show a reminder for the user to relink their devices after re-registering.
     */
-@@ -288,16 +281,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore) : SignalSto
+@@ -376,16 +369,6 @@ class MiscellaneousValues internal constructor(store: KeyValueStore, context: Co
  
    var lastNetworkResetDueToStreamResets: Long by longValue(LAST_NETWORK_RESET_TIME, 0L)
  
@@ -3233,7 +3383,7 @@ index b406f11480ee9a6d19c1f68b79c4a18930af370b..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBadges.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBadges.java
 deleted file mode 100644
-index f74ea4a81bb32fd77459495a08f01b430c4f3df0..0000000000000000000000000000000000000000
+index c2392f2315d95eed8d9486faf2055ab77e8fdef4..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBadges.java
 +++ /dev/null
 @@ -1,94 +0,0 @@
@@ -3265,7 +3415,7 @@ index f74ea4a81bb32fd77459495a08f01b430c4f3df0..00000000000000000000000000000000
 -      return "Unregistered";
 -    }
 -
--    if (SignalStore.account().getE164() == null || SignalStore.account().getAci() == null) {
+-    if (SignalStore.account().getAci() == null) {
 -      return "Self not yet available!";
 -    }
 -
@@ -3332,7 +3482,7 @@ index f74ea4a81bb32fd77459495a08f01b430c4f3df0..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBattery.kt b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBattery.kt
-index c7687fe433ee4d567fa900dffe72fc95664e812d..69c2c06cc88ec550459cd2690dc97a1fa1e1eb28 100644
+index a66aa5c82be64457a85402bd963b79edfeaae11b..5eb3beb533df164a23f8abf02ae98b58dbab6f3e 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBattery.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionBattery.kt
 @@ -71,4 +71,6 @@ class LogSectionBattery : LogSection {
@@ -3357,10 +3507,10 @@ index 3ccd6deaddc575cc3462afae5bd9287db290b91a..c25e95b21c301bba65e6f44cfef19431
 +  }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
-index 87be2c74c283bb32c4556c47bbd504e97f43b24d..b8c67b3a08bbf92956573df3c1a6f490418b20c1 100644
+index 43931fef81e2db07000fe88ef4731f79adfec47a..dd2a047915bedd8cd645f295f11f6690ece27f91 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
-@@ -19,9 +19,10 @@ final class LogSectionKeyPreferences implements LogSection {
+@@ -18,9 +18,10 @@ final class LogSectionKeyPreferences implements LogSection {
  
    @Override
    public @NonNull CharSequence getContent(@NonNull Context context) {
@@ -3375,10 +3525,10 @@ index 87be2c74c283bb32c4556c47bbd504e97f43b24d..b8c67b3a08bbf92956573df3c1a6f490
                                .append("Call Data Mode           : ").append(SignalStore.settings().getCallDataMode()).append("\n")
                                .append("Media Quality            : ").append(SignalStore.settings().getSentMediaQuality()).append("\n")
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionLogcat.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionLogcat.java
-index 40086d370e7e0036779a469716288361888dea08..ab3aa46e9d502528127e562cca5a734fbbfed888 100644
+index 61b51bac5fdf39780df6f68e31bd8880abea1a52..ab3aa46e9d502528127e562cca5a734fbbfed888 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionLogcat.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionLogcat.java
-@@ -4,9 +4,7 @@ import android.content.Context;
+@@ -4,15 +4,10 @@ import android.content.Context;
  
  import androidx.annotation.NonNull;
  
@@ -3389,12 +3539,18 @@ index 40086d370e7e0036779a469716288361888dea08..ab3aa46e9d502528127e562cca5a734f
  
  public class LogSectionLogcat implements LogSection {
  
-@@ -17,20 +15,12 @@ public class LogSectionLogcat implements LogSection {
+-  /** Silences the View tag, which some OEM builds spam once per draw pass, while leaving every other tag at verbose. */
+-  private static final String FILTER_SPEC = "View:S *:V";
+-
+   @Override
+   public @NonNull String getTitle() {
+     return "LOGCAT";
+@@ -20,20 +15,12 @@ public class LogSectionLogcat implements LogSection {
  
    @Override
    public @NonNull CharSequence getContent(@NonNull Context context) {
 -    try {
--      final Process        process        = Runtime.getRuntime().exec("logcat -d");
+-      final Process        process        = Runtime.getRuntime().exec("logcat -d " + FILTER_SPEC);
 -      final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 -      final StringBuilder  log            = new StringBuilder();
 -      final String         separator      = System.lineSeparator();
@@ -3485,25 +3641,27 @@ index faa1870da2a7057ee6b4aed29f59d1295b47b6b7..06bc073cbd57b800a6a6451f10fba5d2
 +  }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionSystemInfo.kt b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionSystemInfo.kt
-index ba0e5eebc11d6ae4be1f6d91af88a674cc205a07..dbe47eacb994904af8ce63d532e78f32ccb63290 100644
+index 553b793e840f655b38a0b92eed0993c676e7fde5..2846d65abbe7d9c6d71541a79d80160f3f8ad7c1 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionSystemInfo.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionSystemInfo.kt
-@@ -8,12 +8,12 @@ import android.util.DisplayMetrics
+@@ -8,6 +8,7 @@ import android.util.DisplayMetrics
  import androidx.core.app.NotificationManagerCompat
  import com.google.android.gms.common.ConnectionResult
  import com.google.android.gms.common.GoogleApiAvailability
 +import im.molly.app.base.ApkInfo
  import org.signal.core.ui.getWindowSizeClass
  import org.signal.core.util.BidiUtil
- import org.signal.core.util.DiskUtil
+ import org.signal.core.util.DeviceProperties
+@@ -15,7 +16,6 @@ import org.signal.core.util.DiskUtil
  import org.signal.core.util.FontUtil.canRenderEmojiAtFontSize
+ import org.signal.core.util.ScreenDensity
  import org.signal.core.util.ServiceUtil
 -import org.signal.core.util.Util
  import org.signal.core.util.bytes
  import org.signal.core.util.getAnimationScale
  import org.signal.core.util.roundedString
-@@ -35,13 +35,19 @@ import org.thoughtcrime.securesms.util.VersionTracker.getDaysSinceFirstInstalled
- import java.util.Locale
+@@ -36,13 +36,19 @@ import kotlin.math.roundToLong
+ import kotlin.time.Duration.Companion.hours
  import kotlin.time.Duration.Companion.milliseconds
  
 +private const val LOCKED = "Locked"
@@ -3523,7 +3681,7 @@ index ba0e5eebc11d6ae4be1f6d91af88a674cc205a07..dbe47eacb994904af8ce63d532e78f32
      return """
        Time              : ${System.currentTimeMillis()}
        Manufacturer      : ${Build.MANUFACTURER}
-@@ -60,32 +66,32 @@ class LogSectionSystemInfo : LogSection {
+@@ -61,31 +67,31 @@ class LogSectionSystemInfo : LogSection {
        MemInfo           : ${getMemoryInfo(context)}
        Disk Space        : ${getDiskSpaceInfo(context)}
        OS Host           : ${Build.HOST}
@@ -3541,8 +3699,9 @@ index ba0e5eebc11d6ae4be1f6d91af88a674cc205a07..dbe47eacb994904af8ce63d532e78f32
 +      UnifiedPush       : ${if (locked) LOCKED else SignalStore.unifiedpush.enabled}
        Locale            : ${Locale.getDefault()}
 -      Linked Devices    : ${SignalStore.account.isMultiDevice}
+-      First Version     : ${SignalStore.misc.firstInstallVersion}
 +      Linked Devices    : ${if (locked) LOCKED else SignalStore.account.isMultiDevice}
-       First Version     : ${TextSecurePreferences.getFirstInstallVersion(context)}
++      First Version     : ${TextSecurePreferences.getFirstInstallVersion(context)}
        Days Installed    : ${getDaysSinceFirstInstalled(context)}
 -      Last Registration : ${getTimeRegistered()}
 -      Build Variant     : ${BuildConfig.BUILD_DISTRIBUTION_TYPE}${BuildConfig.BUILD_ENVIRONMENT_TYPE}${BuildConfig.BUILD_VARIANT_TYPE}
@@ -3562,9 +3721,7 @@ index ba0e5eebc11d6ae4be1f6d91af88a674cc205a07..dbe47eacb994904af8ce63d532e78f32
        IgnoringBatteryOpt: ${PowerManagerCompat.isIgnoringBatteryOptimizations(context)}
        BkgRestricted     : ${if (Build.VERSION.SDK_INT >= 28) DeviceProperties.isBackgroundRestricted(context) else "N/A"}
        Data Saver        : ${DeviceProperties.getDataSaverState(context)}
--      APNG Animation    : ${DeviceProperties.shouldAllowApngStickerAnimation(context)}
 -      ApkManifestUrl    : ${BuildConfig.APK_UPDATE_MANIFEST_URL?.takeIf { BuildConfig.MANAGES_APP_UPDATES } ?: "N/A"}
-+      APNG Animation    : ${if (locked) LOCKED else DeviceProperties.shouldAllowApngStickerAnimation(context)}
 +      Update Check URL  : ${BuildConfig.FDROID_UPDATE_URL?.takeIf { BuildConfig.MANAGE_MOLLY_UPDATES } ?: "N/A"}
        App               : ${getAppInfo(context)}
        Package           : ${BuildConfig.APPLICATION_ID} (${getSigningString(context)})
@@ -3620,7 +3777,7 @@ index a37f20711864eddd3e334bbddf2acfde6829671f..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
-index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d67834c16 100644
+index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977364fbbce 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
 @@ -1,5 +1,6 @@
@@ -3630,15 +3787,15 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  import android.app.Activity;
  import android.content.Intent;
  import android.content.res.ColorStateList;
-@@ -20,7 +21,6 @@ import androidx.annotation.Nullable;
- import androidx.appcompat.app.AlertDialog;
- import androidx.core.app.ActivityCompat;
- import androidx.core.app.ShareCompat;
--import androidx.core.content.ContextCompat;
- import androidx.lifecycle.ViewModelProvider;
+@@ -15,6 +16,7 @@ import android.widget.ImageButton;
+ import android.widget.TextView;
+ import android.widget.Toast;
  
- import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-@@ -33,9 +33,12 @@ import org.thoughtcrime.securesms.R;
++import androidx.activity.OnBackPressedCallback;
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+ import androidx.appcompat.app.AlertDialog;
+@@ -36,9 +38,12 @@ import org.thoughtcrime.securesms.R;
  import org.thoughtcrime.securesms.components.ConversationSearchBottomBar;
  import org.thoughtcrime.securesms.components.ProgressCard;
  import org.thoughtcrime.securesms.components.SearchView;
@@ -3649,9 +3806,9 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  import org.thoughtcrime.securesms.util.LongClickMovementMethod;
 +import org.thoughtcrime.securesms.util.SupportEmailUtil;
  import org.signal.core.ui.util.ThemeUtil;
- import org.thoughtcrime.securesms.util.ViewUtil;
+ import org.signal.core.ui.util.ViewUtil;
  import org.thoughtcrime.securesms.util.views.CircularProgressMaterialButton;
-@@ -47,6 +50,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable;
+@@ -50,6 +55,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable;
  import io.reactivex.rxjava3.disposables.Disposable;
  import io.reactivex.rxjava3.schedulers.Schedulers;
  
@@ -3659,7 +3816,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  public class SubmitDebugLogActivity extends BaseActivity {
  
    private static final int CODE_SAVE = 24601;
-@@ -71,7 +75,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -74,7 +80,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
    private TextView    searchPosition;
    private ImageButton searchUpButton;
    private ImageButton searchDownButton;
@@ -3668,7 +3825,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
    private TextView uncaughtButton;
    private TextView verboseButton;
    private TextView debugButton;
-@@ -88,8 +92,8 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -91,8 +97,8 @@ public class SubmitDebugLogActivity extends BaseActivity {
    private boolean isWarning;
    private boolean isError;
  
@@ -3679,7 +3836,28 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  
    @Override
    protected void onCreate(Bundle savedInstanceState) {
-@@ -111,6 +115,11 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -113,6 +119,20 @@ public class SubmitDebugLogActivity extends BaseActivity {
+ 
+     initView();
+     initViewModel();
++    getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
++      @Override
++      public void handleOnBackPressed() {
++        if (!viewModel.onBackPressed()) {
++          setEnabled(false);
++          getOnBackPressedDispatcher().onBackPressed();
++          Intent nextIntent = getIntent().getParcelableExtra("next_intent");
++          if (nextIntent != null) {
++            startActivity(nextIntent);
++          }
++          finish();
++        }
++      }
++    });
+   }
+ 
+   @Override
+@@ -121,6 +141,11 @@ public class SubmitDebugLogActivity extends BaseActivity {
      dynamicTheme.onResume(this);
    }
  
@@ -3691,7 +3869,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
    @Override
    public boolean onCreateOptionsMenu(Menu menu) {
      getMenuInflater().inflate(R.menu.submit_debug_log_normal, menu);
-@@ -241,7 +250,6 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -251,7 +276,6 @@ public class SubmitDebugLogActivity extends BaseActivity {
        isUncaught = !isUncaught;
        onFilterLevel(v, isUncaught);
      });
@@ -3699,7 +3877,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  
      if (viewModel.getMode().getValue() != null) {
        presentMode(viewModel.getMode().getValue());
-@@ -251,15 +259,15 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -261,15 +285,15 @@ public class SubmitDebugLogActivity extends BaseActivity {
    }
  
    private void onFilterLevel(View view, boolean isChecked) {
@@ -3721,7 +3899,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
      if (isUncaught) selectedLevels.add("\" SignalUncaughtException:\"");
  
      DebugLogsViewer.onFilterLevel(logWebView, "[" + String.join(",", selectedLevels) + "]");
-@@ -274,12 +282,14 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -284,12 +308,14 @@ public class SubmitDebugLogActivity extends BaseActivity {
      isError    = false;
      isUncaught = false;
  
@@ -3742,12 +3920,12 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
  
      DebugLogsViewer.onFilterLevel(logWebView, "[]");
    }
-@@ -289,24 +299,33 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -299,20 +325,24 @@ public class SubmitDebugLogActivity extends BaseActivity {
      super.onOptionsItemSelected(item);
  
      if (item.getItemId() == android.R.id.home) {
 -      finish();
-+      onBackPressed();
++      getOnBackPressedDispatcher().onBackPressed();
        return true;
      } else if (item.getItemId() == R.id.menu_save) {
 -      Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
@@ -3772,18 +3950,9 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
 +  }
 +
    @Override
-   public void onBackPressed() {
-     if (!viewModel.onBackPressed()) {
-       super.onBackPressed();
-+      final Intent nextIntent = getIntent().getParcelableExtra("next_intent");
-+      if (nextIntent != null) {
-+        startActivity(nextIntent);
-+      }
-+      finish();
-     }
-   }
- 
-@@ -341,7 +360,12 @@ public class SubmitDebugLogActivity extends BaseActivity {
+   protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+     super.onActivityResult(requestCode, resultCode, data);
+@@ -344,7 +374,12 @@ public class SubmitDebugLogActivity extends BaseActivity {
        submitButton.setText(R.string.SubmitDebugLogActivity_close);
        submitButton.setOnClickListener(v -> ActivityCompat.finishAfterTransition(this));
      } else {
@@ -3797,7 +3966,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
      }
  
      scrollToTopButton.setOnClickListener(v -> DebugLogsViewer.scrollToTop(logWebView));
-@@ -367,13 +391,13 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -370,13 +405,13 @@ public class SubmitDebugLogActivity extends BaseActivity {
  
    private void subscribeToLogLines() {
      Disposable disposable = viewModel.getLogLinesObservable()
@@ -3818,7 +3987,7 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
      disposables.add(disposable);
    }
  
-@@ -448,7 +472,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -451,7 +486,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
            ShareCompat.IntentBuilder.from(this)
                                     .setText(url)
                                     .setType("text/plain")
@@ -3828,10 +3997,10 @@ index efa680ff95bb0de38e36fa414b0d5a454b44e3a0..2e8621b206d7dff2c91157842489369d
          });
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogRepository.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogRepository.java
-index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a957d32f2 100644
+index be5855f661a83d4e63d8644fb1e96edd7b20d644..5f3b45a5670dea8b323683b3ca3887192a60c813 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogRepository.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogRepository.java
-@@ -17,12 +17,12 @@ import org.signal.core.util.StreamUtil;
+@@ -17,10 +17,12 @@ import org.signal.core.util.StreamUtil;
  import org.signal.core.util.concurrent.SignalExecutors;
  import org.signal.core.util.logging.Log;
  import org.signal.core.util.logging.Scrubber;
@@ -3840,13 +4009,12 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
  import org.thoughtcrime.securesms.database.LogDatabase;
  import org.thoughtcrime.securesms.dependencies.AppDependencies;
 +import org.thoughtcrime.securesms.net.Networking;
- import org.thoughtcrime.securesms.net.StandardUserAgentInterceptor;
--import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess;
++import org.thoughtcrime.securesms.net.StandardUserAgentInterceptor;
 +import org.thoughtcrime.securesms.service.KeyCachingService;
  import org.thoughtcrime.securesms.util.RemoteConfig;
  
  import java.io.IOException;
-@@ -90,11 +90,9 @@ public class SubmitDebugLogRepository {
+@@ -88,11 +90,9 @@ public class SubmitDebugLogRepository {
      add(new LogSectionExoPlayerPool());
      add(new LogSectionKeyPreferences());
      add(new LogSectionStories());
@@ -3858,7 +4026,7 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
      add(new LogSectionThreads());
      add(new LogSectionSuspiciousThreadDump());
      add(new LogSectionCurrentThreadDump());
-@@ -104,9 +102,9 @@ public class SubmitDebugLogRepository {
+@@ -102,9 +102,9 @@ public class SubmitDebugLogRepository {
      add(new LogSectionDatabaseSchema());
      add(new LogSectionRemappedRecords());
      add(new LogSectionDatabaseIssues());
@@ -3869,7 +4037,7 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
    }};
  
    private final Application     context;
-@@ -125,17 +123,10 @@ public class SubmitDebugLogRepository {
+@@ -123,17 +123,10 @@ public class SubmitDebugLogRepository {
      SignalExecutors.UNBOUNDED.execute(() -> {
        Log.blockUntilAllWritesFinished();
        LogDatabase.getInstance(context).logs().trimToSize();
@@ -3888,7 +4056,7 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
    public void submitLogFromReader(DebugLogsViewer.LogReader logReader, @Nullable byte[] trace, Consumer<Optional<String>> callback) {
      SignalExecutors.UNBOUNDED.execute(() -> callback.accept(submitLogFromReaderInternal(logReader, trace)));
    }
-@@ -154,15 +145,16 @@ public class SubmitDebugLogRepository {
+@@ -152,15 +145,16 @@ public class SubmitDebugLogRepository {
              outputStream.write("\n".getBytes());
            }
          } catch (IllegalStateException e) {
@@ -3909,7 +4077,7 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
          outputStream.closeEntry();
  
          callback.accept(true);
-@@ -248,7 +240,7 @@ public class SubmitDebugLogRepository {
+@@ -246,7 +240,7 @@ public class SubmitDebugLogRepository {
    @WorkerThread
    private @NonNull Optional<String> submitLogInternal(long untilTime, @NonNull List<LogLine> prefixLines, @Nullable byte[] trace) {
      String traceUrl = null;
@@ -3918,18 +4086,27 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
        try {
          traceUrl = uploadContent("application/octet-stream", RequestBody.create(MediaType.get("application/octet-stream"), trace));
        } catch (IOException e) {
-@@ -322,7 +314,9 @@ public class SubmitDebugLogRepository {
+@@ -318,10 +312,15 @@ public class SubmitDebugLogRepository {
+ 
+   @WorkerThread
    private @NonNull String uploadContent(@NonNull String contentType, @NonNull RequestBody requestBody) throws IOException {
-     OkHttpClient client = new OkHttpClient.Builder()
-         .addInterceptor(new StandardUserAgentInterceptor())
--        .dns(SignalServiceNetworkAccess.DNS)
+-    OkHttpClient client = AppDependencies.getOkHttpClient().newBuilder()
+-                                             .readTimeout(30, TimeUnit.SECONDS)
+-                                             .writeTimeout(30, TimeUnit.SECONDS)
+-                                             .build();
++    OkHttpClient.Builder builder = AppDependencies.isInitialized() ? AppDependencies.getOkHttpClient().newBuilder() : new OkHttpClient.Builder()
++        .addInterceptor(new StandardUserAgentInterceptor())
 +        .socketFactory(Networking.getSocketFactory())
 +        .proxySelector(Networking.getProxySelectorForSocks())
-+        .dns(Networking.getDns())
-         .readTimeout(30, TimeUnit.SECONDS)
-         .writeTimeout(30, TimeUnit.SECONDS)
-         .build();
-@@ -417,7 +411,7 @@ public class SubmitDebugLogRepository {
++        .dns(Networking.getDns());
++    OkHttpClient client = builder
++        .readTimeout(30, TimeUnit.SECONDS)
++        .writeTimeout(30, TimeUnit.SECONDS)
++        .build();
+ 
+     try (Response response = client.newCall(new Request.Builder().url(API_ENDPOINT).get().build()).execute()) {
+       ResponseBody body = response.body();
+@@ -413,7 +412,7 @@ public class SubmitDebugLogRepository {
      out.add(new SimpleLogLine(formatTitle(section.getTitle(), maxTitleLength), LogLine.Style.NONE, LogLine.Placeholder.NONE));
  
      if (section.hasContent()) {
@@ -3939,7 +4116,7 @@ index 2e00175e076cab6596d5087094b31c9832ee31ad..cbaf8106908e70620a34c7de986eb56a
        List<LogLine> lines = Stream.of(Pattern.compile("\\n").split(content))
                                    .map(s -> new SimpleLogLine(s, LogStyleParser.parseStyle(s), LogStyleParser.parsePlaceholderType(s)))
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogViewModel.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogViewModel.java
-index 635279d9922782ed201b2e5c5e64bb10fa2de001..9c57d8969af061edcb202d00e282bba4ccf5bcc9 100644
+index 7ac9e181504bc34d9f27a9de54de41bfabcf0632..85c48db27d680a75a21f00dedf9d2b244bd3236b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogViewModel.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogViewModel.java
 @@ -11,7 +11,6 @@ import androidx.lifecycle.ViewModelProvider;
@@ -3992,19 +4169,26 @@ index 635279d9922782ed201b2e5c5e64bb10fa2de001..9c57d8969af061edcb202d00e282bba4
            } catch (Exception e) {
              if (!emitter.isDisposed()) {
                Log.e(TAG, "Error loading log lines", e);
+@@ -187,4 +190,4 @@ public class SubmitDebugLogViewModel extends ViewModel {
+       return modelClass.cast(new SubmitDebugLogViewModel());
+     }
+   }
+-}
+\ No newline at end of file
++}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/SignalCallManager.java b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/SignalCallManager.java
-index 7999886f173f1d51d204888f1b638f223b091fd2..9df20511d03923d70b429f38ff12af3507004808 100644
+index e52a1499e87f33e4227a4da7e2fa32219d8934ce..ad10e3378a4fd7e073d27ff5f3cebfed0585752c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/SignalCallManager.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/SignalCallManager.java
-@@ -38,7 +38,6 @@ import org.signal.ringrtc.NetworkRoute;
+@@ -40,7 +40,6 @@ import org.signal.ringrtc.NetworkRoute;
  import org.signal.ringrtc.PeekInfo;
  import org.signal.ringrtc.Remote;
  import org.signal.storageservice.storage.protos.groups.ExternalGroupCredential;
 -import org.thoughtcrime.securesms.calls.quality.CallQuality;
  import org.thoughtcrime.securesms.components.webrtc.v2.CallIntent;
  import org.thoughtcrime.securesms.crypto.SealedSenderAccessUtil;
- import org.thoughtcrime.securesms.database.CallLinkTable;
-@@ -644,8 +643,6 @@ public final class SignalCallManager implements CallManager.Observer, GroupCall.
+ import org.thoughtcrime.securesms.crypto.storage.SignalServiceAccountDataStoreImpl;
+@@ -665,8 +664,6 @@ public final class SignalCallManager implements CallManager.Observer, GroupCall.
  
          CameraState cameraState          = s.getLocalDeviceState().getCameraState();
          boolean     isLocalVideoEnabled  = cameraState.isEnabled() && cameraState.getCameraCount() > 0;
@@ -4013,7 +4197,7 @@ index 7999886f173f1d51d204888f1b638f223b091fd2..9df20511d03923d70b429f38ff12af35
        }
  
        switch (reason) {
-@@ -1069,7 +1066,6 @@ public final class SignalCallManager implements CallManager.Observer, GroupCall.
+@@ -1090,7 +1087,6 @@ public final class SignalCallManager implements CallManager.Observer, GroupCall.
  
    @Override
    public void onEnded(@NonNull GroupCall groupCall, @NonNull CallManager.CallEndReason reason, @NonNull CallSummary summary) {
@@ -4023,39 +4207,25 @@ index 7999886f173f1d51d204888f1b638f223b091fd2..9df20511d03923d70b429f38ff12af35
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/shakereport/ShakeToReport.java b/app/src/main/java/org/thoughtcrime/securesms/shakereport/ShakeToReport.java
 deleted file mode 100644
-index c43431a6ed5d7f830fe2a0af5a40582e77174ddb..0000000000000000000000000000000000000000
+index 44af7a23e2a39047788f96ba6a3291a8bb0abc92..0000000000000000000000000000000000000000
 --- a/app/src/main/java/org/thoughtcrime/securesms/shakereport/ShakeToReport.java
 +++ /dev/null
-@@ -1,150 +0,0 @@
+@@ -1,78 +0,0 @@
 -package org.thoughtcrime.securesms.shakereport;
 -
 -import android.app.Application;
--import android.widget.TextView;
--import android.widget.Toast;
 -
 -import androidx.annotation.NonNull;
--import androidx.appcompat.app.AlertDialog;
 -import androidx.appcompat.app.AppCompatActivity;
 -import androidx.lifecycle.Lifecycle;
 -
--import com.google.android.material.dialog.MaterialAlertDialogBuilder;
--
 -import org.signal.core.util.ShakeDetector;
--import org.signal.core.util.ThreadUtil;
 -import org.signal.core.util.logging.Log;
--import org.thoughtcrime.securesms.R;
--import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectForwardFragment;
--import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectForwardFragmentArgs;
--import org.thoughtcrime.securesms.dependencies.AppDependencies;
 -import org.thoughtcrime.securesms.keyvalue.SignalStore;
--import org.thoughtcrime.securesms.logsubmit.SubmitDebugLogRepository;
--import org.thoughtcrime.securesms.sharing.MultiShareArgs;
 -import org.signal.core.util.AppForegroundObserver;
 -import org.signal.core.util.ServiceUtil;
--import org.thoughtcrime.securesms.util.views.SimpleProgressDialog;
 -
 -import java.lang.ref.WeakReference;
--import java.util.Collections;
 -
 -/**
 - * A class that will detect a shake and then prompts the user to submit a debuglog. Basically a
@@ -4107,71 +4277,13 @@ index c43431a6ed5d7f830fe2a0af5a40582e77174ddb..00000000000000000000000000000000
 -    if (activity.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
 -      disable();
 -
--      new MaterialAlertDialogBuilder(activity)
--          .setTitle(R.string.ShakeToReport_shake_detected)
--          .setMessage(R.string.ShakeToReport_submit_debug_log)
--          .setNegativeButton(android.R.string.cancel, (d, i) -> {
--            d.dismiss();
--            enableIfVisible();
--          })
--          .setPositiveButton(R.string.ShakeToReport_submit, (d, i) -> {
--            d.dismiss();
--            submitLog(activity);
--          })
--          .show();
+-      if (!ShakeToReportDialogFragment.show(activity.getSupportFragmentManager())) {
+-        enableIfVisible();
+-      }
 -    }
 -  }
 -
--  private void submitLog(@NonNull AppCompatActivity activity) {
--    AlertDialog              spinner = SimpleProgressDialog.show(activity);
--    SubmitDebugLogRepository repo    = new SubmitDebugLogRepository();
--
--    Log.i(TAG, "Submitting log...");
--
--    repo.buildAndSubmitLog(url -> {
--      Log.i(TAG, "Logs uploaded!");
--
--      ThreadUtil.runOnMain(() -> {
--        spinner.dismiss();
--
--        if (url.isPresent()) {
--          showPostSubmitDialog(activity, url.get());
--        } else {
--          Toast.makeText(activity, R.string.ShakeToReport_failed_to_submit, Toast.LENGTH_SHORT).show();
--          enableIfVisible();
--        }
--      });
--    });
--  }
--
--  private void showPostSubmitDialog(@NonNull AppCompatActivity activity, @NonNull String url) {
--    AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
--        .setTitle(R.string.ShakeToReport_success)
--        .setMessage(url)
--        .setNegativeButton(android.R.string.cancel, (d, i) -> {
--          d.dismiss();
--          enableIfVisible();
--        })
--        .setPositiveButton(R.string.ShakeToReport_share, (d, i) -> {
--          d.dismiss();
--          enableIfVisible();
--
--          MultiselectForwardFragment.showFullScreen(
--              activity.getSupportFragmentManager(),
--              new MultiselectForwardFragmentArgs(
--                  Collections.singletonList(new MultiShareArgs.Builder()
--                                                .withDraftText(url)
--                                                .build()),
--                  R.string.MultiselectForwardFragment__share_with
--              )
--          );
--        })
--        .show();
--
--    ((TextView) dialog.findViewById(android.R.id.message)).setTextIsSelectable(true);
--  }
--
--  private void enableIfVisible() {
+-  public void enableIfVisible() {
 -    if (AppForegroundObserver.isForegrounded()) {
 -      enable();
 -    }
@@ -4209,10 +4321,10 @@ index dbcc8438c69f09b026dce602f9b846b1882fcd11..8562d7cbeaf36b93e30efada8609df78
      @JsonProperty val thresholdHours: Int?,
      @JsonProperty val percentDebugPrompt: Float?
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/LocaleRemoteConfig.java b/app/src/main/java/org/thoughtcrime/securesms/util/LocaleRemoteConfig.java
-index 139044857c3a957cacc8efdec7e04f679fa3b7b2..e96eb1f04de5b4de76760954d74bd36d02d6aec6 100644
+index 2b98f09a1de8e9e30eba46b4754f91e7b9b639ed..c755ae05d9c3f2af44b048619fd350e81aff6f59 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/LocaleRemoteConfig.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/LocaleRemoteConfig.java
-@@ -84,10 +84,6 @@ public final class LocaleRemoteConfig {
+@@ -97,10 +97,6 @@ public final class LocaleRemoteConfig {
      return isEnabledPartsPerMillion(RemoteConfig.DEVICE_SPECIFIC_NOTIFICATION_CONFIG, DeviceSpecificNotificationConfig.getCurrentConfig().getLocalePercent());
    }
  
@@ -4224,7 +4336,7 @@ index 139044857c3a957cacc8efdec7e04f679fa3b7b2..e96eb1f04de5b4de76760954d74bd36d
     * Parses a comma-separated list of country codes and area codes to check if self's e164 starts with
     * one of them. For example, "33,1555" will return turn for e164's that start with 33 or look like 1-555-xxx-xxx.
 diff --git a/app/src/main/protowire/JobData.proto b/app/src/main/protowire/JobData.proto
-index 0129b0f07f1ec860852b8822d7cd220df7e28376..eda1556fa7f7f5a10abf8a799ed9b7d4e1a80efd 100644
+index 08c57079d8da673bc10dbbd87b7b9834266a52da..0ca4cdbc29852c4a6c55953233dd15521748ed85 100644
 --- a/app/src/main/protowire/JobData.proto
 +++ b/app/src/main/protowire/JobData.proto
 @@ -3,7 +3,6 @@ syntax = "proto3";
@@ -4235,7 +4347,7 @@ index 0129b0f07f1ec860852b8822d7cd220df7e28376..eda1556fa7f7f5a10abf8a799ed9b7d4
  
  option java_package        = "org.thoughtcrime.securesms.jobs.protos";
  option java_multiple_files = true;
-@@ -268,11 +267,6 @@ message UnpinJobData {
+@@ -270,11 +269,6 @@ message UnpinJobData {
    uint32 initialRecipientCount = 3;
  }
  
@@ -4562,10 +4674,10 @@ index 6a7c5b7b04cf1cc515112b384d21e0c8da435606..00000000000000000000000000000000
 -  private class SignalAnrException : RuntimeException()
 -}
 diff --git a/core/util/src/main/java/org/signal/core/util/logging/AndroidLogger.kt b/core/util/src/main/java/org/signal/core/util/logging/AndroidLogger.kt
-index b0d37d7b95f44d847ab50cbceb267772a9702112..ab98fa250442b44260128fcbd7eeb8b85e8cdfd3 100644
+index b0d37d7b95f44d847ab50cbceb267772a9702112..a2985bdf49cb5dc041720533b716c9410db4723f 100644
 --- a/core/util/src/main/java/org/signal/core/util/logging/AndroidLogger.kt
 +++ b/core/util/src/main/java/org/signal/core/util/logging/AndroidLogger.kt
-@@ -1,60 +1,53 @@
+@@ -1,60 +1,54 @@
  package org.signal.core.util.logging
  
  import android.annotation.SuppressLint
@@ -4641,7 +4753,8 @@ index b0d37d7b95f44d847ab50cbceb267772a9702112..ab98fa250442b44260128fcbd7eeb8b8
 +  @get:WorkerThread
 +  val logcatDump: CharSequence?
 +    get() = runCatching {
-+      val process = Runtime.getRuntime().exec("logcat -d")
++      // Some OEMs emit a View log on every draw.
++      val process = Runtime.getRuntime().exec("logcat -d View:S *:V")
 +      val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
 +      val log = StringBuilder()
 +      val separator = System.lineSeparator()
@@ -5095,6 +5208,409 @@ index 646001b716a1a1e16dfd1dd1b5bc50db41233082..00000000000000000000000000000000
 -    NestedValue nested_value  = 8;
 -  }
 -}
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsAction.kt b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsAction.kt
+index 73022ba3b58d601cd25a52aa299423c876df4819..a4bbec463fdee4a3f36e4b36bc9131eb21a6f49f 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsAction.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsAction.kt
+@@ -12,6 +12,8 @@ package org.signal.appsettings.help
+  * Actions are logged, so be sure `toString()` contains nothing sensitive.
+  */
+ sealed interface HelpSettingsAction {
++  data object OpenWebsite : HelpSettingsAction
++  data object NavigateToAppUpdates : HelpSettingsAction
+ 
+   /** Leave the screen. */
+   data object NavigateBack : HelpSettingsAction
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsEvent.kt b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsEvent.kt
+index a502a838c029dedf1599042f4319f3ec786fabbd..381d694703b17b4726b9debbc91581349be3b186 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsEvent.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsEvent.kt
+@@ -9,6 +9,12 @@ package org.signal.appsettings.help
+  * Reminder that these events are logged, so don't include anything sensitive in the toString.
+  */
+ sealed interface HelpSettingsEvent {
++  data object ScreenResumed : HelpSettingsEvent
++  data object WebsiteClicked : HelpSettingsEvent
++  data object VersionClicked : HelpSettingsEvent
++  data class LogEnabledChanged(val enabled: Boolean) : HelpSettingsEvent
++  data object DisableLoggingConfirmed : HelpSettingsEvent
++  data object DialogDismissed : HelpSettingsEvent
+ 
+   /** The user tapped the navigation (back) icon. */
+   data object NavigateBackClicked : HelpSettingsEvent
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsScreen.kt
+index 835fac4a18e3d907990a004e26e3a012d334c1c4..ed2f83d07641c317f1e0fb8b24bd3646e47ea208 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsScreen.kt
+@@ -23,6 +23,7 @@ import org.signal.appsettings.AppSettingsLazyColumn
+ import org.signal.appsettings.R
+ import org.signal.core.ui.compose.DayNightPreviews
+ import org.signal.core.ui.compose.Dividers
++import org.signal.core.ui.compose.Dialogs
+ import org.signal.core.ui.compose.Rows
+ import org.signal.core.ui.compose.Rows.TextAndLabel
+ import org.signal.core.ui.compose.Scaffolds
+@@ -34,6 +35,8 @@ import org.signal.core.ui.R as CoreUiR
+ object HelpSettingsTestTags {
+   const val SCROLLER = "scroller"
+   const val ROW_SUPPORT_CENTER = "row-support-center"
++  const val ROW_WEBSITE = "row-website"
++  const val ROW_LOG_ENABLED = "row-log-enabled"
+   const val ROW_CONTACT_US = "row-contact-us"
+   const val ROW_VERSION = "row-version"
+   const val ROW_DEBUG_LOG = "row-debug-log"
+@@ -48,7 +51,10 @@ object HelpSettingsTestTags {
+ fun HelpSettingsScreen(
+   state: HelpSettingsState,
+   onEvent: (HelpSettingsEvent) -> Unit,
+-  modifier: Modifier = Modifier
++  modifier: Modifier = Modifier,
++  websiteLabel: String? = null,
++  logEnableLabel: String? = null,
++  disableLogConfirmation: String = ""
+ ) {
+   Scaffolds.Settings(
+     title = stringResource(R.string.preferences__help),
+@@ -61,6 +67,17 @@ fun HelpSettingsScreen(
+       scaffoldPadding = contentPadding,
+       modifier = Modifier.testTag(HelpSettingsTestTags.SCROLLER)
+     ) {
++      if (websiteLabel != null) {
++        item {
++          Rows.LinkRow(
++            text = websiteLabel,
++            icon = ImageVector.vectorResource(CoreUiR.drawable.symbol_open_20),
++            onClick = { onEvent(HelpSettingsEvent.WebsiteClicked) },
++            modifier = Modifier.testTag(HelpSettingsTestTags.ROW_WEBSITE)
++          )
++        }
++      }
++
+       item {
+         Rows.LinkRow(
+           text = stringResource(R.string.HelpSettingsFragment__support_center),
+@@ -86,14 +103,27 @@ fun HelpSettingsScreen(
+         Rows.TextRow(
+           text = stringResource(R.string.HelpSettingsFragment__version),
+           label = state.versionName,
++          onClick = { onEvent(HelpSettingsEvent.VersionClicked) },
+           onLongClick = { onEvent(HelpSettingsEvent.VersionLongClicked) },
+           modifier = Modifier.testTag(HelpSettingsTestTags.ROW_VERSION)
+         )
+       }
+ 
++      if (logEnableLabel != null) {
++        item {
++          Rows.ToggleRow(
++            checked = state.logEnabled,
++            text = logEnableLabel,
++            onCheckChanged = { onEvent(HelpSettingsEvent.LogEnabledChanged(it)) },
++            modifier = Modifier.testTag(HelpSettingsTestTags.ROW_LOG_ENABLED)
++          )
++        }
++      }
++
+       item {
+         Rows.TextRow(
+           text = stringResource(R.string.HelpSettingsFragment__debug_log),
++          enabled = state.logEnabled,
+           onClick = { onEvent(HelpSettingsEvent.DebugLogClicked) },
+           modifier = Modifier.testTag(HelpSettingsTestTags.ROW_DEBUG_LOG)
+         )
+@@ -121,6 +151,17 @@ fun HelpSettingsScreen(
+         LegalNotice()
+       }
+     }
++    if (state.confirmDisableLogging) {
++      Dialogs.SimpleAlertDialog(
++        title = "",
++        body = disableLogConfirmation,
++        confirm = stringResource(android.R.string.ok),
++        dismiss = stringResource(android.R.string.cancel),
++        onConfirm = { onEvent(HelpSettingsEvent.DisableLoggingConfirmed) },
++        onDeny = { onEvent(HelpSettingsEvent.DialogDismissed) },
++        onDismissRequest = { onEvent(HelpSettingsEvent.DialogDismissed) }
++      )
++    }
+   }
+ }
+ 
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsState.kt b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsState.kt
+index a9d888771b49644b330f9f5c53c7b9603ea72500..f3b11cf3b3c38f79bfe4c8dd4068c35793b3c72a 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsState.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsState.kt
+@@ -12,5 +12,7 @@ package org.signal.appsettings.help
+  */
+ data class HelpSettingsState(
+   /** The installed app version, shown on the version row and copied when it is long-pressed. */
+-  val versionName: String = ""
++  val versionName: String = "",
++  val logEnabled: Boolean = false,
++  val confirmDisableLogging: Boolean = false
+ )
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsViewModel.kt b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsViewModel.kt
+index 98477eca366587ad35194b1b064d7c5d946fd2e6..1f63c77311ad6978fcdbefb73a68f37387b0ef2d 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsViewModel.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/help/HelpSettingsViewModel.kt
+@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.receiveAsFlow
++import kotlinx.coroutines.flow.update
+ import org.signal.core.ui.compose.EventDrivenViewModel
+ import org.signal.core.util.logging.Log
+ 
+@@ -18,14 +19,16 @@ import org.signal.core.util.logging.Log
+  * Drives [HelpSettingsScreen].
+  */
+ class HelpSettingsViewModel(
+-  versionName: String
++  versionName: String,
++  private val readLogEnabled: () -> Boolean = { false },
++  private val writeLogEnabled: (Boolean) -> Unit = {}
+ ) : EventDrivenViewModel<HelpSettingsEvent>(TAG) {
+ 
+   companion object {
+     private val TAG = Log.tag(HelpSettingsViewModel::class)
+   }
+ 
+-  private val _state = MutableStateFlow(HelpSettingsState(versionName = versionName))
++  private val _state = MutableStateFlow(HelpSettingsState(versionName = versionName, logEnabled = readLogEnabled()))
+   private val _actions = Channel<HelpSettingsAction>(Channel.BUFFERED)
+ 
+   val state: StateFlow<HelpSettingsState> = _state.asStateFlow()
+@@ -33,13 +36,37 @@ class HelpSettingsViewModel(
+ 
+   override suspend fun processEvent(event: HelpSettingsEvent) {
+     when (event) {
++      HelpSettingsEvent.ScreenResumed -> refreshLogging()
++      HelpSettingsEvent.WebsiteClicked -> _actions.send(HelpSettingsAction.OpenWebsite)
++      HelpSettingsEvent.VersionClicked -> _actions.send(HelpSettingsAction.NavigateToAppUpdates)
++      is HelpSettingsEvent.LogEnabledChanged -> {
++        if (event.enabled) {
++          writeLogEnabled(true)
++          refreshLogging()
++        } else {
++          _state.update { it.copy(confirmDisableLogging = true) }
++        }
++      }
++      HelpSettingsEvent.DisableLoggingConfirmed -> {
++        if (!_state.value.confirmDisableLogging) return
++        writeLogEnabled(false)
++        _state.update { it.copy(confirmDisableLogging = false, logEnabled = readLogEnabled()) }
++      }
++      HelpSettingsEvent.DialogDismissed -> _state.update { it.copy(confirmDisableLogging = false) }
+       HelpSettingsEvent.NavigateBackClicked -> _actions.send(HelpSettingsAction.NavigateBack)
+       HelpSettingsEvent.SupportCenterClicked -> _actions.send(HelpSettingsAction.OpenSupportCenter)
+       HelpSettingsEvent.ContactUsClicked -> _actions.send(HelpSettingsAction.NavigateToContactUs)
+       HelpSettingsEvent.VersionLongClicked -> _actions.send(HelpSettingsAction.CopyVersionToClipboard(_state.value.versionName))
+-      HelpSettingsEvent.DebugLogClicked -> _actions.send(HelpSettingsAction.NavigateToDebugLog)
++      HelpSettingsEvent.DebugLogClicked -> {
++        refreshLogging()
++        if (_state.value.logEnabled) _actions.send(HelpSettingsAction.NavigateToDebugLog)
++      }
+       HelpSettingsEvent.LicensesClicked -> _actions.send(HelpSettingsAction.NavigateToLicenses)
+       HelpSettingsEvent.TermsAndPrivacyPolicyClicked -> _actions.send(HelpSettingsAction.OpenTermsAndPrivacyPolicy)
+     }
+   }
++
++  private fun refreshLogging() {
++    _state.update { it.copy(logEnabled = readLogEnabled()) }
++  }
+ }
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsLayoutTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsLayoutTest.kt
+index da0e81237c928562419849d2d3d7ff2c2283c1f0..853202ef5c8dcee4d7e1e8490554c27680ad64c6 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsLayoutTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsLayoutTest.kt
+@@ -19,4 +19,15 @@ class HelpSettingsLayoutTest : SignalLayoutStressTest() {
+   fun `populated`() = assertPassesLayoutChecks {
+     HelpSettingsScreen(state = HelpSettingsState(versionName = "8.33.1-nightly-1767-3 | Oct 19 @ 14:32 UTC"), onEvent = {})
+   }
++
++  @Test
++  fun `Molly diagnostic confirmation`() = assertPassesLayoutChecks {
++    HelpSettingsScreen(
++      state = HelpSettingsState(versionName = "Molly", logEnabled = true, confirmDisableLogging = true),
++      onEvent = {},
++      websiteLabel = "Molly website",
++      logEnableLabel = "Enable debug log",
++      disableLogConfirmation = "Disable and delete debug log"
++    )
++  }
+ }
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsScreenTest.kt
+index 063ab514e37af200247bc1eaa5215dc6083fd313..5cbe84230bede8a61a4e32cc7c525188b7a3121e 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsScreenTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsScreenTest.kt
+@@ -7,6 +7,7 @@ package org.signal.appsettings.help
+ 
+ import android.app.Application
+ import androidx.compose.ui.test.assertIsDisplayed
++import androidx.compose.ui.test.assertIsNotEnabled
+ import androidx.compose.ui.test.hasTestTag
+ import androidx.compose.ui.test.junit4.createComposeRule
+ import androidx.compose.ui.test.longClick
+@@ -67,17 +68,36 @@ class HelpSettingsScreenTest {
+   }
+ 
+   @Test
+-  fun `tapping the version does nothing`() {
++  fun `tapping the version opens Molly update details`() {
+     setContent(HelpSettingsState(versionName = "8.33.0"))
+ 
+     scrollTo(HelpSettingsTestTags.ROW_VERSION)
+     composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_VERSION).performClick()
+ 
++    assertThat(events).containsExactly(HelpSettingsEvent.VersionClicked)
++  }
++
++  @Test
++  fun `debug log entry is unavailable when logging is disabled`() {
++    setContent(HelpSettingsState(logEnabled = false))
++    scrollTo(HelpSettingsTestTags.ROW_DEBUG_LOG)
++    composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_DEBUG_LOG).assertIsNotEnabled()
+     assertThat(events).isEmpty()
+   }
+ 
++  @Test
++  fun `Molly website row emits the website action`() = assertClickEmits(HelpSettingsTestTags.ROW_WEBSITE, HelpSettingsEvent.WebsiteClicked)
++
++  @Test
++  fun `logging toggle requests disable rather than opening a log`() {
++    setContent(HelpSettingsState(logEnabled = true))
++    scrollTo(HelpSettingsTestTags.ROW_LOG_ENABLED)
++    composeTestRule.onNodeWithTag(HelpSettingsTestTags.ROW_LOG_ENABLED).performClick()
++    assertThat(events).containsExactly(HelpSettingsEvent.LogEnabledChanged(false))
++  }
++
+   private fun assertClickEmits(tag: String, expected: HelpSettingsEvent) {
+-    setContent(HelpSettingsState(versionName = "8.33.0"))
++    setContent(HelpSettingsState(versionName = "8.33.0", logEnabled = true))
+ 
+     scrollTo(tag)
+     composeTestRule.onNodeWithTag(tag).performClick()
+@@ -89,7 +109,10 @@ class HelpSettingsScreenTest {
+     composeTestRule.setContent {
+       HelpSettingsScreen(
+         state = state,
+-        onEvent = { events += it }
++        onEvent = { events += it },
++        websiteLabel = "Molly website",
++        logEnableLabel = "Enable debug log",
++        disableLogConfirmation = "Disable and delete debug log"
+       )
+     }
+   }
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsViewModelTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsViewModelTest.kt
+index 1c18847d325f5bc305557ef8accdcbfd24868c72..c4d9a2322b1ec9c7e90578d09cdc9ddd7850f3ec 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsViewModelTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/help/HelpSettingsViewModelTest.kt
+@@ -8,6 +8,9 @@ package org.signal.appsettings.help
+ import assertk.assertThat
+ import assertk.assertions.containsExactly
+ import assertk.assertions.isEqualTo
++import assertk.assertions.isEmpty
++import assertk.assertions.isFalse
++import assertk.assertions.isTrue
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.Flow
+@@ -54,6 +57,17 @@ class HelpSettingsViewModelTest {
+   @Test
+   fun `SupportCenterClicked opens the support center`() = assertEventEmits(HelpSettingsEvent.SupportCenterClicked, HelpSettingsAction.OpenSupportCenter)
+ 
++  @Test
++  fun `Molly website and version clicks expose their existing destinations`() = runTest(testDispatcher) {
++    val viewModel = createViewModel()
++    val actions = collectActions(viewModel.actions)
++
++    viewModel.onEvent(HelpSettingsEvent.WebsiteClicked)
++    viewModel.onEvent(HelpSettingsEvent.VersionClicked)
++
++    assertThat(actions).containsExactly(HelpSettingsAction.OpenWebsite, HelpSettingsAction.NavigateToAppUpdates)
++  }
++
+   @Test
+   fun `ContactUsClicked navigates to contact us`() = assertEventEmits(HelpSettingsEvent.ContactUsClicked, HelpSettingsAction.NavigateToContactUs)
+ 
+@@ -69,8 +83,66 @@ class HelpSettingsViewModelTest {
+   @Test
+   fun `TermsAndPrivacyPolicyClicked opens the terms and privacy policy`() = assertEventEmits(HelpSettingsEvent.TermsAndPrivacyPolicyClicked, HelpSettingsAction.OpenTermsAndPrivacyPolicy)
+ 
++  @Test
++  fun `disable and wipe callback requires confirmation and cancellation changes nothing`() = runTest(testDispatcher) {
++    var enabled = true
++    val writes = mutableListOf<Boolean>()
++    val viewModel = HelpSettingsViewModel(
++      VERSION_NAME,
++      readLogEnabled = { enabled },
++      writeLogEnabled = { value -> writes += value; enabled = value }
++    )
++    val actions = collectActions(viewModel.actions)
++    assertThat(writes).isEmpty()
++
++    viewModel.onEvent(HelpSettingsEvent.LogEnabledChanged(false))
++    assertThat(viewModel.state.value.confirmDisableLogging).isTrue()
++    assertThat(writes).isEmpty()
++    viewModel.onEvent(HelpSettingsEvent.DialogDismissed)
++    viewModel.onEvent(HelpSettingsEvent.DisableLoggingConfirmed)
++    assertThat(writes).isEmpty()
++
++    viewModel.onEvent(HelpSettingsEvent.LogEnabledChanged(false))
++    viewModel.onEvent(HelpSettingsEvent.DisableLoggingConfirmed)
++    viewModel.onEvent(HelpSettingsEvent.DebugLogClicked)
++    assertThat(writes).containsExactly(false)
++    assertThat(viewModel.state.value.logEnabled).isFalse()
++    assertThat(viewModel.state.value.confirmDisableLogging).isFalse()
++    assertThat(actions).isEmpty()
++  }
++
++  @Test
++  fun `refreshing consent never enables logging and stale debug clicks are rejected`() = runTest(testDispatcher) {
++    var enabled = true
++    val writes = mutableListOf<Boolean>()
++    val viewModel = HelpSettingsViewModel(VERSION_NAME, readLogEnabled = { enabled }, writeLogEnabled = { writes += it })
++    val actions = collectActions(viewModel.actions)
++    enabled = false
++
++    viewModel.onEvent(HelpSettingsEvent.ScreenResumed)
++    viewModel.onEvent(HelpSettingsEvent.DebugLogClicked)
++
++    assertThat(viewModel.state.value.logEnabled).isFalse()
++    assertThat(writes).isEmpty()
++    assertThat(actions).isEmpty()
++  }
++
++  @Test
++  fun `explicit enable persists the choice without opening or submitting a log`() = runTest(testDispatcher) {
++    var enabled = false
++    val writes = mutableListOf<Boolean>()
++    val viewModel = HelpSettingsViewModel(VERSION_NAME, readLogEnabled = { enabled }, writeLogEnabled = { writes += it; enabled = it })
++    val actions = collectActions(viewModel.actions)
++
++    viewModel.onEvent(HelpSettingsEvent.LogEnabledChanged(true))
++
++    assertThat(writes).containsExactly(true)
++    assertThat(viewModel.state.value.logEnabled).isTrue()
++    assertThat(actions).isEmpty()
++  }
++
+   private fun assertEventEmits(event: HelpSettingsEvent, expected: HelpSettingsAction) = runTest(testDispatcher) {
+-    val viewModel = createViewModel()
++    val viewModel = createViewModel(logEnabled = event == HelpSettingsEvent.DebugLogClicked)
+     val actions = collectActions(viewModel.actions)
+ 
+     viewModel.onEvent(event)
+@@ -78,7 +150,8 @@ class HelpSettingsViewModelTest {
+     assertThat(actions).containsExactly(expected)
+   }
+ 
+-  private fun createViewModel(): HelpSettingsViewModel = HelpSettingsViewModel(versionName = VERSION_NAME)
++  private fun createViewModel(logEnabled: Boolean = false): HelpSettingsViewModel =
++    HelpSettingsViewModel(versionName = VERSION_NAME, readLogEnabled = { logEnabled })
+ 
+   private fun TestScope.collectActions(actions: Flow<HelpSettingsAction>): List<HelpSettingsAction> {
+     val collected = mutableListOf<HelpSettingsAction>()
 diff --git a/feature/registration/src/main/java/org/signal/registration/util/SensitiveLog.kt b/feature/registration/src/main/java/org/signal/registration/util/SensitiveLog.kt
 index c537b368d0fa0334d48de566d2fdb7ce5bfb5f0b..b6224d59dca59a02eecab87279825ac6956bf677 100644
 --- a/feature/registration/src/main/java/org/signal/registration/util/SensitiveLog.kt

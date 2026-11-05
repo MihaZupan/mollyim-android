@@ -3,15 +3,13 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:12 +0100
 Subject: [PATCH] identity: retain Molly application and service attribution
 
-Keep application/service/accessibility references and attribution. Protocol names and Signal service identity remain as in the reference.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-IDENTITY-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: b38431b78ea4edc2bf3ff7b9580aa120212d7157
+Semantic-boundary: 24/36
 
 diff --git a/app/gradle.properties b/app/gradle.properties
 new file mode 100644
@@ -75,69 +73,18 @@ index 0000000000000000000000000000000000000000..abd3adbbf37eb63df47bae8b23fdf773
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java b/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java
-index 4dad70e374bf1019a74a8551c81c97bce95ee7cd..782ff85a30f049b97901b7a46d3c5362de1ab336 100644
+index 1526fb8e24ec597fd6344932195abb8776b4c02d..7b3cae77ef102b5c7d6fe5c88ed386dc1874bdf7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java
-@@ -201,7 +201,7 @@ public class SharedContactView extends LinearLayout implements RecipientForeverO
-     }
+@@ -314,7 +314,7 @@ public class SharedContactView extends LinearLayout implements RecipientForeverO
+     addToGroupButtonView.setOnClickListener(null);
  
-     if (!pushUsers.isEmpty()) {
--      actionButtonView.setText(R.string.SharedContactView_message);
+     if (presentation.isOnSignal()) {
+-      actionButtonView.setText(R.string.SharedContactView_message_button);
 +      actionButtonView.setText(R.string.NewConversationActivity__message);
        actionButtonView.setOnClickListener(v -> {
          if (eventListener != null) {
-           eventListener.onMessageClicked(pushUsers);
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/AppIconSelectionFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/AppIconSelectionFragment.kt
-index 7e9fddd6f28afe28494b4219bbe7973e9ead250d..782863b8b719956709be6002a2606a9bb2ff078d 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/AppIconSelectionFragment.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/AppIconSelectionFragment.kt
-@@ -6,6 +6,7 @@
- package org.thoughtcrime.securesms.components.settings.app.appearance.appicon
- 
- import android.content.Context
-+import androidx.appcompat.content.res.AppCompatResources
- import androidx.compose.animation.core.CubicBezierEasing
- import androidx.compose.animation.core.animateFloatAsState
- import androidx.compose.animation.core.tween
-@@ -36,14 +37,17 @@ import androidx.compose.runtime.remember
- import androidx.compose.runtime.setValue
- import androidx.compose.ui.Alignment
- import androidx.compose.ui.Modifier
-+import androidx.compose.ui.graphics.asImageBitmap
- import androidx.compose.ui.graphics.graphicsLayer
--import androidx.compose.ui.res.painterResource
-+import androidx.compose.ui.graphics.painter.BitmapPainter
-+import androidx.compose.ui.platform.LocalContext
- import androidx.compose.ui.res.stringResource
- import androidx.compose.ui.text.SpanStyle
- import androidx.compose.ui.text.buildAnnotatedString
- import androidx.compose.ui.text.style.TextAlign
- import androidx.compose.ui.text.withStyle
- import androidx.compose.ui.unit.dp
-+import androidx.core.graphics.drawable.toBitmap
- import androidx.navigation.fragment.findNavController
- import kotlinx.collections.immutable.ImmutableList
- import kotlinx.collections.immutable.toImmutableList
-@@ -256,11 +260,14 @@ fun AppIcon(preset: AppIconPreset, isSelected: Boolean, onClick: () -> Unit, mod
-       clip = true
-     )
-     .clickable(onClick = onClick)
--  Image(
--    painterResource(id = preset.iconPreviewResId),
--    contentDescription = stringResource(id = preset.labelResId),
--    modifier = imageModifier
--  )
-+  val adaptiveIcon = AppCompatResources.getDrawable(LocalContext.current, preset.iconPreviewResId)
-+  if (adaptiveIcon != null) {
-+    Image(
-+      BitmapPainter(adaptiveIcon.toBitmap().asImageBitmap()),
-+      contentDescription = stringResource(id = preset.labelResId),
-+      modifier = imageModifier
-+    )
-+  }
- }
- 
- /**
+           eventListener.onMessageClicked(contact, registered);
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/voice/VoiceNoteMediaItemFactory.java b/app/src/main/java/org/thoughtcrime/securesms/components/voice/VoiceNoteMediaItemFactory.java
 index 3b2aa58a6ca148cc2d1269331b205b0fc99dec3f..1408a1d6de2475eb1e7b2bee1e4dd64c67c71f3b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/voice/VoiceNoteMediaItemFactory.java
@@ -181,7 +128,7 @@ index b3066995191bd9a1eb4204937ec81bd8d569c2bc..3b78351cb0bd54b3aeba1a815d741000
      transportType = TransportType.SIGNAL,
      maxBodyByteSize = 2048
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/IssueReporter.kt b/app/src/main/java/org/thoughtcrime/securesms/database/IssueReporter.kt
-index 666beb73b7b93e2548a95789ede7c41d9650d7b2..ee5fa3f1d143b2aa75eaf58bf20916f4b9c60213 100644
+index d545b145892676deb31774d65abdde4c9fbd6c0e..b28a3df22d60b81ac970008aeb7ed6c43698b69e 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/IssueReporter.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/IssueReporter.kt
 @@ -13,8 +13,8 @@ import android.content.pm.PackageManager
@@ -194,17 +141,17 @@ index 666beb73b7b93e2548a95789ede7c41d9650d7b2..ee5fa3f1d143b2aa75eaf58bf20916f4
  import org.thoughtcrime.securesms.R
  import org.thoughtcrime.securesms.database.model.IssueEntry
  import org.thoughtcrime.securesms.database.model.IssuePriority
-@@ -84,7 +84,7 @@ object IssueReporter {
+@@ -92,7 +92,7 @@ object IssueReporter {
        lastInsertTime = now
      }
  
 -    requests.add(IssueRequest(now, BuildConfig.VERSION_NAME, name, description, throwable, priority, duration))
 +    requests.add(IssueRequest(now, ApkInfo.versionName, name, description, throwable, priority, duration))
  
-     maybeNotify(name, priority)
-   }
+     if (RemoteConfig.internalUser) {
+       maybeNotify(name, priority, notifyCooldown)
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/RemoteMegaphoneTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/RemoteMegaphoneTable.kt
-index 306b4547d5a9204c4f0f24dd093fbbe9b4a6ee9c..59948e227ebd0a1bf251dafcc117d8a1fc2fc1ad 100644
+index b1ab121e8d219d5b6d3307017f874aa08ad61fe5..382c1bcd9676f14ca265a9577c5d957bce424ab7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/RemoteMegaphoneTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/RemoteMegaphoneTable.kt
 @@ -116,7 +116,7 @@ class RemoteMegaphoneTable(context: Context, databaseHelper: SignalDatabase) : D
@@ -217,16 +164,16 @@ index 306b4547d5a9204c4f0f24dd093fbbe9b4a6ee9c..59948e227ebd0a1bf251dafcc117d8a1
        .run()
        .readToList { it.toRemoteMegaphoneRecord() }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/CreateReleaseChannelJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/CreateReleaseChannelJob.kt
-index 311baeaa5c8bc2e505d0552f0243371c5434a4cd..91245dc7af4ab396c6319ff58e0ace4656aa89d9 100644
+index 3b910565bd18459999ab56773e4e8880c5bff75d..853c615dd6913ffdef62be9c1dc39af510711e4d 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/CreateReleaseChannelJob.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/CreateReleaseChannelJob.kt
-@@ -88,7 +88,7 @@ class CreateReleaseChannelJob private constructor(parameters: Parameters) : Base
+@@ -89,7 +89,7 @@ class CreateReleaseChannelJob private constructor(parameters: Parameters) : Base
      AvatarRenderer.renderAvatar(
        context,
        Avatar.Resource(
 -        R.drawable.ic_signal_logo_large,
 +        R.drawable.logo_round_filled,
-         Avatars.ColorPair(ContextCompat.getColor(context, R.color.notification_background_ultramarine), ContextCompat.getColor(context, R.color.core_white), "")
+         Avatars.ColorPair(ContextCompat.getColor(context, R.color.notification_background_ultramarine), ContextCompat.getColor(context, CoreUiR.color.core_white), "")
        ),
        onAvatarRendered = { media ->
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/main/EmptyDetailScreen.kt b/app/src/main/java/org/thoughtcrime/securesms/main/EmptyDetailScreen.kt
@@ -243,7 +190,7 @@ index 3494c7858b04fcc3596aa608892eac729809a3ea..05652b7e80ea8c99996e66a1e798a630
        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.32f),
        modifier = Modifier
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt b/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt
-index 92684951b3b53f91047048d65ab51a5a974fb519..a387388dfa4a401f5ad869b5bde6feba62f521f3 100644
+index 82686a714d1b09ef8143e4ff596b32d80f51712e..e499a425a66e67218a3255705fef4035b6639490 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt
 @@ -44,6 +44,10 @@ private typealias BatchOperationNameCache = HashMap<Uri, HashSet<String>>
@@ -288,14 +235,14 @@ index 92684951b3b53f91047048d65ab51a5a974fb519..a387388dfa4a401f5ad869b5bde6feba
  
      return storage?.let { ensureExternalPath(storage) }?.absolutePath
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/SupportEmailUtil.java b/app/src/main/java/org/thoughtcrime/securesms/util/SupportEmailUtil.java
-index 8387d606a15e6e33e58d27bd34db35b525647fe1..9b5c89a23017a366dffc6de1798da89051550199 100644
+index 1031a2b787b24703b13237b0fd03e8956796279c..9b5c89a23017a366dffc6de1798da89051550199 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/SupportEmailUtil.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/SupportEmailUtil.java
 @@ -11,13 +11,13 @@ import org.signal.core.util.ResourceUtil;
  import org.signal.core.util.Util;
  import org.thoughtcrime.securesms.BuildConfig;
  import org.thoughtcrime.securesms.R;
--import org.thoughtcrime.securesms.dependencies.AppDependencies;
+-import org.thoughtcrime.securesms.backup.v2.MessageBackupTier;
  import org.thoughtcrime.securesms.keyvalue.SignalStore;
 -import org.thoughtcrime.securesms.recipients.Recipient;
  
@@ -307,7 +254,7 @@ index 8387d606a15e6e33e58d27bd34db35b525647fe1..9b5c89a23017a366dffc6de1798da890
  public final class SupportEmailUtil {
  
    private SupportEmailUtil() { }
-@@ -78,13 +78,7 @@ public final class SupportEmailUtil {
+@@ -78,15 +78,7 @@ public final class SupportEmailUtil {
             "\n" +
             context.getString(R.string.SupportEmailUtil_signal_package) + " " + getSignalPackage(context) +
             "\n" +
@@ -317,12 +264,14 @@ index 8387d606a15e6e33e58d27bd34db35b525647fe1..9b5c89a23017a366dffc6de1798da890
 -           "\n" +
 -           context.getString(R.string.SupportEmailUtil_challenge_received) + " " + getChallengeReceived() +
 -           "\n" +
--           context.getString(R.string.SupportEmailUtil_registered) + " " + getRegistered(context);
+-           context.getString(R.string.SupportEmailUtil_registered) + " " + getRegistered() +
+-           "\n" +
+-           context.getString(R.string.SupportEmailUtil_backups) + " " + getBackupTier();
 +           context.getString(R.string.SupportEmailUtil_locale) + " " + Locale.getDefault();
    }
  
    private static CharSequence getDeviceInfo() {
-@@ -96,7 +90,7 @@ public final class SupportEmailUtil {
+@@ -98,7 +90,7 @@ public final class SupportEmailUtil {
    }
  
    private static CharSequence getSignalVersion() {
@@ -331,14 +280,28 @@ index 8387d606a15e6e33e58d27bd34db35b525647fe1..9b5c89a23017a366dffc6de1798da890
    }
  
    private static CharSequence getSignalPackage(@NonNull Context context) {
-@@ -113,9 +107,4 @@ public final class SupportEmailUtil {
+@@ -115,23 +107,4 @@ public final class SupportEmailUtil {
  
      return receivedRecently ? "yes" : "no";
    }
 -
--  private static String getRegistered(Context context) {
--    boolean registered = SignalStore.account().isRegistered() && !TextSecurePreferences.isUnauthorizedReceived(context);
+-  private static String getRegistered() {
+-    boolean registered = SignalStore.account().isRegistered() && !SignalStore.account().isUnauthorizedReceived();
 -    return registered ? "yes" : "no";
+-  }
+-
+-  private static String getBackupTier() {
+-    MessageBackupTier tier = SignalStore.backup().getBackupTier();
+-
+-    if (tier == null) {
+-      return "D1";
+-    }
+-
+-    switch (tier) {
+-      case FREE: return "U1";
+-      case PAID: return "P1";
+-      default:   return "D1";
+-    }
 -  }
  }
 diff --git a/app/src/main/res/drawable/logo_round_filled.xml b/app/src/main/res/drawable/logo_round_filled.xml
@@ -399,202 +362,72 @@ index 0000000000000000000000000000000000000000..103b96b12376985b1db703e673f06af3
 +    </group>
 +</vector>
 diff --git a/app/src/main/res/drawable/qrcode_logo.png b/app/src/main/res/drawable/qrcode_logo.png
-index 142c8a134fc19ca7678b0b16ea6c44b19bdc4d49..8943cf136102ab0b5f8f71b7e5c770b563064c39 100644
+new file mode 100644
+index 0000000000000000000000000000000000000000..8943cf136102ab0b5f8f71b7e5c770b563064c39
 GIT binary patch
-delta 2716
-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
-Wckl!4olyAz0000<MNUMnLSTYQqYjk-
+literal 2731
+zcmV;c3RLxpP)<h;3K|Lk000e1NJLTq005Q%005Q<1^@s6JOOdy00009a7bBm000XU
+z000XU0RWnu7ytkO0drDELIAGL9O(c600d`2O+f$vv5yP<VFdsH3P4FjK~#7F?VZ1#
+z+%yo!e+d+H935T66C`v{o$2UENw@BxOG-NX4es8+mnQ&9DjgkN?mDPso*<W!DtON8
+z+~#8YR?=91?D>8^zuV-pS<OmgN!Cc?N7y#1)3Z(|ou2MrPxik*Ie5<)?Z_+XrqlKQ
+z^$Hv15w-(4(CPk_q;TgvOEEatplfWz+1Bh>gCjl1U9Xe^<ZPFF{fQ0tYB^DKI_vbN
+z)4NP$IyHOSg@h=OpEEt=WX~W(frhmgoiy@t92>pvw1W@?h4u7Kw!N5wz)pd6_fE&E
+zfjAfo3gS@WV2scl>Ku7Bb_~@J2RoXV*w!4%R|Yc4pQS*5CzL~DrYNdA1>rq1?D49G
+zaJvv_kXOUyAcGC}UNo1=rJ-`vn|&Q`1{(S_@@k}<b%t~T@Qa}!LthLTtaxao?JKg3
+z5ZAd@7u>FqS0k)htC@Gz$gASFpc<JY>r>)f>|7wPiWcW$<P$8z1tflz0|okX50_wO
+z3CE)0?<WYkP+%eF;-p4iLxCv3u;@#Tyed-kv35udTKvqV@<j7uSw!VHu&U7S1zLSP
+zY9q9rzQbMW04E;94~0IUEKao^RHt9z*`~gCg-xe#AgqlqJAKya4>;oESaqkLA*>bZ
+zFy40h3l6x>u@w4fxv*|1fyvi!m~Xkxu{4A&K=Z5y4!8`3HTvZRVH+qo42iZwp@Iy7
+zTf}-uv>gg%2;3&tL!!-4NIMUIM0n_G`FpQ+|MxGkEn4)M|JuE%p+7@d)V}O%FrpCl
+z5CrXwr_&{;Gxn5N_rVORgR0Y$i8`RrOB2B+*2VCUUqHj|L`fCUwotM;vZc_kl!vmd
+z0uu@dX7m}{C<E9QN-y9>705p7wG<d=5XRsJeyrhSbp=1p7PgP8t%CJd20T|m$RQ!Q
+z#zH@Q8Z2)sNx_2#VT{~?2L&u{YmyChKmjantJj5~5XQha;6(#L?B<jPFCk8x&)y-<
+zEs$0S!zFlmh5Yypyl{Ws7(+_*QKlSAp}*4#0rw+6a(skHu5~~+OryQllw%bLM+;tV
+zkRL60d5bWRQ|-q7Val;W4TD1djP7(9bF2bkb15nClH>k+?({;RBOC=rMz}G@8tvK^
+zgu7C6%mJmqOXxZ{J?2dYVQ;m$1DiQ6l4|f`fFO1sw&5&AV1ou#;6VY4+q#qr@K6Ga
+z+iGop6Uiv9UMrUU9MbS7WJu?}W;YPTGK%yo{HU?4eIZoCkC=(>%#=~jA{sTQfg5E2
+z+fsL~6tX8i88hrf0)~+cj=xJ<>*G=yi#nk9=}30o*Jy|*72^&ox4?8|)>wCXZ-e>g
+zLl;QzX|wOAGl$2&*!MFtK_QxU|4Q~LY%d83efJ^$mvSADonO!&2FIeS;xz=pA3A?{
+zHLSd!LJ)X(N<Rk2$}tQgq{*!>iDL=e6!c@5W4(hQ@NheUryfgsD}fWbTYd5=(!X^-
+zTy7xfLI`bhi@RN(CkTHrrcehq+}2MjEAEF%A$NmDzc+2H0Z;bj>jleCF?YkU+5ze1
+zKG3iW>2TXm4f-6%Q-a^YQ_kIRj4Cp$Nys4A+zl_8$~SP^&8fiWTov4?n9Ao+Lk8(Y
+zjPczz<Lg`oep`eU{Nr{N{0No1;i$IM2^eA!KX=0p{`frl#rMJ@Vs7+1)NOb$1w(e=
+zK{=MM!H0IVL4k+Tv3yP$AiiUzkh@_AJ_?8OHF$}=mBt{l0VIwg;E>Y62F^916NmC$
+zldVnBIM~1{--k4Da0Om$Kabvj13reuOj{c`;r={pQgEymyx2Mkr&A5Iu%iVpp>j7&
+zl7eFiD<lQS;*NRQex3q9wl?IPyJ3_R9IF5?wvD8~KY4etfs^PvR>-kh#H9dl!~Ot!
+zT>j4#HgQIu|1(E{xU}@cAo8s#;^%JA;6ppwP=JThv3yP$GURmvhNO_Yfuq+bJ<8Yc
+zCzX)S?RQCK%SG%UwC@ua6#N^th9Bpi<+D0glZY{-*pEChh`(*7h8s0g`5bD<peiAQ
+zNE&f-HyGH(4rvJGj?JAR&)f}zDl)80%&0*P;^uD9nBSUQVA%#W`|qeQPJ#4tHw@a*
+z@h`gKxC6nQ9Of+`6v8Io1wM=?DugdTm)s2l1v!?2Jm*>9<%{9KYO0xLg#37aV3lYg
+z2t3>l*^dwZA_xqKV+o6JNk0b1`V)e{!@u++w^WftjJyRc(#hSB@^VAl>8ty{)JSWQ
+zt-*Be25MMZ95f4-ukmp1h9%1%ayLvl@hQ^F-7vZyno4pI4ZCm#_vzmpb2n(_@?Eu?
+zGBCDb4czeE*)YgJayR%$O&Mn*8YQ_K{5L#ac$V*@*{s{Kl1dox#NV`s4LkVble<B~
+zpO_o{W)IyKk&N1b2jy741|Qnd1_d5U$MSup9x^QSHjK69ZYUkf*We{|8-6qljvfEH
+zKv*up%Wtsfcktm-zRUj!`FRg<e*YI^j>TEY$G{y<vW+50?goE8s`D|&x&(hOGDizu
+zBzHsD+zr$_w)cPec;?N5a17^TznpTcS6Jps9z$|BjKtSG36;B{#l+NO%CX3)&JhOg
+zfNqYt8=iufP(kt<4!C5db6sxWY*?2AxCQtq9m?0>#W>htD+3Q2EN>u*D^;R$EMJ2U
+z?Px;*9!kgZZMB033So>ih@ZQmfIp>2`5HVJ4;yUSOTm){%NzO*?mHU>QV2pDPa9ss
+zk5IWAc3?muT!^5C8zocu2JyGexH?zORQ@q_#6|@KF`A^2SMG)aaX0$W`$A?6+JO-=
+zK6GHS!Sro2*;8Zr+zroX$}g~d?uH%ab2roo+b#x2@(9OM!has*LTb4iVjN~@@nP5`
+z#(@&zD=c)lStH!lAxcYDxyx*NEJC5*dlTbo5#rHy`WhBtzE5BWeei#szK5_SXs-DW
+z0-%vsH!cb^1P<5^g#!vQByNEgjyo@Ghr$6F64wv4@waf?KIQ6I#9!!ptZyK!kzYFf
+zfk>p1uwKNg3Xv(1SA~fl*6fMqV{x6l4;X}B1s9g1?erZOR@Z$VD_26CYE86Yaw@`S
+zxj{o5Yc0^7AFZsnV8XS>svu6a7RagCda41J9!o(UIItE5r@8_&E<INCTTy|9#hl88
+z5_#P^i^fHp0~bAeXgd@d$lNM-S}ZW9x{u9JSVEjCcUlB+DjO6ebd$U2z(sPqQ5xh`
+ziJ}ixAwd-KszlM9Y;)EJr9obmDe9$>@SM0rUX>~8RUvT<@~Y6Si?+Ok%8lhriM%Rx
+z%Nic&lm!}jRqj@$k=goUE)~0FhdM=ODCAYiTarP-O9%s>Ldb<n^iK_Wh0F<^wn#KC
+zjSPppIYK7$5`8GTsOf0?DON~<yc%N-(w%<522vMXAg_kWP1G}K^y$b~<xCH4^rJ6J
+zUp)EM+>D^Dz?bNsS9FbVkCq9_F*``fxoEsEA=uKQccQDkR_jRjvDuoe(1#74L3*$o
+l+&M_Q*UiD}^}(Mv$^Qv=@B{6gQ277=002ovPDHLkV1g6g2=)K~
 
-literal 5676
-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
-ShQlua0000<MNUMnLSTZV=)6b(
+literal 0
+HcmV?d00001
 
-diff --git a/app/src/main/res/layout/activity_shared_contact_details.xml b/app/src/main/res/layout/activity_shared_contact_details.xml
-index 3b941ca90156af4d23588ea049b73752fcf1fb52..b65556f0ef567da172704bab84928af6fd9416ea 100644
---- a/app/src/main/res/layout/activity_shared_contact_details.xml
-+++ b/app/src/main/res/layout/activity_shared_contact_details.xml
-@@ -104,7 +104,7 @@
-                             <TextView
-                                 android:layout_width="wrap_content"
-                                 android:layout_height="wrap_content"
--                                android:text="@string/SharedContactDetailsActivity_signal_message"
-+                                android:text="@string/NewConversationActivity__message"
-                                 android:textColor="?attr/colorAccent"/>
- 
-                         </LinearLayout>
-@@ -128,7 +128,7 @@
-                             <TextView
-                                 android:layout_width="wrap_content"
-                                 android:layout_height="wrap_content"
--                                android:text="@string/SharedContactDetailsActivity_signal_call"
-+                                android:text="@string/NewConversationActivity__video_call"
-                                 android:textColor="?attr/colorAccent"/>
- 
-                         </LinearLayout>
 diff --git a/app/src/main/res/layout/client_deprecated_activity.xml b/app/src/main/res/layout/client_deprecated_activity.xml
-index 0411a8d85dcd8049c7cfad009ca8bccb7701a4bd..5d7fd2aa7ca1a5a8aac9c817f4a6ededb9aadf14 100644
+index 138495e6b79d56c3d59a0702fa618d3df067598a..10d408c8278125b896d5f797c57362c3b0923222 100644
 --- a/app/src/main/res/layout/client_deprecated_activity.xml
 +++ b/app/src/main/res/layout/client_deprecated_activity.xml
-@@ -24,13 +24,14 @@
+@@ -25,13 +25,14 @@
      <ImageView
          android:layout_width="wrap_content"
          android:layout_height="wrap_content"
@@ -610,7 +443,7 @@ index 0411a8d85dcd8049c7cfad009ca8bccb7701a4bd..5d7fd2aa7ca1a5a8aac9c817f4a6eded
          style="@style/Signal.Text.Headline"
          android:textStyle="bold"
          android:gravity="center" />
-@@ -40,6 +41,7 @@
+@@ -41,6 +42,7 @@
          android:layout_height="wrap_content"
          android:layout_marginTop="12dp"
          android:text="@string/ClientDeprecatedActivity_this_version_of_the_app_is_no_longer_supported"
@@ -618,7 +451,7 @@ index 0411a8d85dcd8049c7cfad009ca8bccb7701a4bd..5d7fd2aa7ca1a5a8aac9c817f4a6eded
          style="@style/Signal.Text.Body"
          android:gravity="center" />
  
-@@ -59,7 +61,6 @@
+@@ -60,7 +62,6 @@
        android:layout_height="wrap_content"
        android:text="@string/ClientDeprecatedActivity_dont_update"
        style="@style/Signal.Widget.Button.Large.Secondary"
@@ -679,10 +512,10 @@ index 9e369a00aee5e5a7a2079f87a53ed7f3f5e98b3b..00000000000000000000000000000000
 -              android:isAlwaysSyncable="true"/>
 \ No newline at end of file
 diff --git a/core/ui/src/main/java/org/signal/core/ui/CoreUiDependencies.kt b/core/ui/src/main/java/org/signal/core/ui/CoreUiDependencies.kt
-index 93b5479ee208918f21b3a5110dfa9d64c0b4e711..679854310ae9871c7eb21bba5ebcc7c687811d37 100644
+index ab1a2731611b1aeacb8a8a6a1ecef91b364c3625..a9adc25fb7bad6a6a4688acc149fb1053aa21633 100644
 --- a/core/ui/src/main/java/org/signal/core/ui/CoreUiDependencies.kt
 +++ b/core/ui/src/main/java/org/signal/core/ui/CoreUiDependencies.kt
-@@ -24,8 +24,8 @@ object CoreUiDependencies {
+@@ -34,8 +34,8 @@ object CoreUiDependencies {
    val application: Application
      get() = _application
  
@@ -693,15 +526,15 @@ index 93b5479ee208918f21b3a5110dfa9d64c0b4e711..679854310ae9871c7eb21bba5ebcc7c6
  
    val isIncognitoKeyboardEnabled: Boolean
      get() = _provider.provideIsIncognitoKeyboardEnabled()
-@@ -37,7 +37,7 @@ object CoreUiDependencies {
-     get() = _provider.provideForceSplitPane()
+@@ -44,7 +44,7 @@ object CoreUiDependencies {
+     get() = _provider.provideIsScreenSecurityEnabled()
  
    interface Provider {
 -    fun providePackageId(): String
 +    fun provideBackupBaseDirName(): String
      fun provideIsIncognitoKeyboardEnabled(): Boolean
      fun provideIsScreenSecurityEnabled(): Boolean
-     fun provideForceSplitPane(): Boolean
+   }
 diff --git a/core/ui/src/main/java/org/signal/core/ui/util/StorageUtil.java b/core/ui/src/main/java/org/signal/core/ui/util/StorageUtil.java
 index 42e05262da18700b0242ac9857991d5288b53d6b..63c5a1c5157c60ac71e359676e59c7181fd59a99 100644
 --- a/core/ui/src/main/java/org/signal/core/ui/util/StorageUtil.java
@@ -767,3 +600,74 @@ index 42e05262da18700b0242ac9857991d5288b53d6b..63c5a1c5157c60ac71e359676e59c718
      return backups;
    }
  
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
+index faa7696f479cc7bf8dc7f3036f744b4157124c29..9d995bf2a6e22b597f3b1a65e9535cc41dcda0ba 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
+@@ -6,6 +6,7 @@
+ package org.signal.appsettings.appicon
+ 
+ import androidx.annotation.VisibleForTesting
++import androidx.appcompat.content.res.AppCompatResources
+ import androidx.compose.animation.core.CubicBezierEasing
+ import androidx.compose.animation.core.animateFloatAsState
+ import androidx.compose.animation.core.tween
+@@ -33,11 +34,12 @@ import androidx.compose.runtime.remember
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.graphicsLayer
++import androidx.compose.ui.graphics.asImageBitmap
++import androidx.compose.ui.graphics.painter.BitmapPainter
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.platform.LocalDensity
+ import androidx.compose.ui.platform.LocalInspectionMode
+ import androidx.compose.ui.platform.testTag
+-import androidx.compose.ui.res.painterResource
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.text.SpanStyle
+ import androidx.compose.ui.text.buildAnnotatedString
+@@ -48,6 +50,7 @@ import androidx.compose.ui.text.withStyle
+ import androidx.compose.ui.tooling.preview.PreviewWrapper
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.dp
++import androidx.core.graphics.drawable.toBitmap
+ import org.signal.appsettings.R
+ import org.signal.appsettings.appSettingsScreen
+ import org.signal.core.ui.compose.DayNightPreviews
+@@ -261,18 +264,24 @@ private fun AppIcon(preset: AppIconPreset, isSelected: Boolean, onClick: () -> U
+     animationSpec = tween(durationMillis = 150, easing = CubicBezierEasing(0.17f, 0.17f, 0f, 1f))
+   )
+ 
+-  Image(
+-    painter = painterResource(preset.iconPreviewResId),
+-    contentDescription = presetLabel(preset),
+-    modifier = modifier
+-      .size(bitmapSize.dp)
+-      .graphicsLayer(
+-        shape = CircleShape,
+-        shadowElevation = if (isSelected) 4f else 8f,
+-        clip = true
+-      )
+-      .clickable(onClick = onClick)
+-  )
++  val context = LocalContext.current
++  val icon = remember(context, preset.iconPreviewResId) {
++    AppCompatResources.getDrawable(context, preset.iconPreviewResId)?.toBitmap()?.asImageBitmap()
++  }
++  if (icon != null) {
++    Image(
++      painter = BitmapPainter(icon),
++      contentDescription = presetLabel(preset),
++      modifier = modifier
++        .size(bitmapSize.dp)
++        .graphicsLayer(
++          shape = CircleShape,
++          shadowElevation = if (isSelected) 4f else 8f,
++          clip = true
++        )
++        .clickable(onClick = onClick)
++    )
++  }
+ }
+ 
+ /**

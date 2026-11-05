@@ -3,51 +3,14 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:13 +0100
 Subject: [PATCH] icons: preserve launcher aliases and persisted icon choices
 
-Retain all qualified icon resources and alias contracts; PackageManager component state is not treated as an ordinary preference.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-ICON-STATE-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 2db7deee400e4a774df0cdede1936124d65b7da4
+Semantic-boundary: 25/36
 
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/util/AppIconPreset.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/util/AppIconPreset.kt
-index dd2588a8f86d4d3e2dd6ecee6ac6ed5a2fb89d3a..0f06cd1c5b6bddecd4687da8d5583211d05b70ee 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/util/AppIconPreset.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/appearance/appicon/util/AppIconPreset.kt
-@@ -12,18 +12,18 @@ import androidx.annotation.StringRes
- import org.thoughtcrime.securesms.R
- 
- enum class AppIconPreset(private val componentName: String, @DrawableRes val iconPreviewResId: Int, @StringRes val labelResId: Int) {
--  DEFAULT(".RoutingActivity", R.drawable.ic_app_icon_default_top_preview, R.string.app_name),
--  WHITE(".RoutingActivityAltWhite", R.drawable.ic_app_icon_signal_white_top_preview, R.string.app_name),
--  COLOR(".RoutingActivityAltColor", R.drawable.ic_app_icon_signal_color_top_preview, R.string.app_name),
--  DARK(".RoutingActivityAltDark", R.drawable.ic_app_icon_signal_dark_top_preview, R.string.app_name),
--  DARK_VARIANT(".RoutingActivityAltDarkVariant", R.drawable.ic_app_icon_signal_dark_variant_top_preview, R.string.app_name),
--  CHAT(".RoutingActivityAltChat", R.drawable.ic_app_icon_chat_top_preview, R.string.app_name),
--  BUBBLES(".RoutingActivityAltBubbles", R.drawable.ic_app_icon_bubbles_top_preview, R.string.app_name),
--  YELLOW(".RoutingActivityAltYellow", R.drawable.ic_app_icon_yellow_top_preview, R.string.app_name),
--  NEWS(".RoutingActivityAltNews", R.drawable.ic_app_icon_news_top_preview, R.string.app_icon_label_news),
--  NOTES(".RoutingActivityAltNotes", R.drawable.ic_app_icon_notes_top_preview, R.string.app_icon_label_notes),
--  WEATHER(".RoutingActivityAltWeather", R.drawable.ic_app_icon_weather_top_preview, R.string.app_icon_label_weather),
--  WAVES(".RoutingActivityAltWaves", R.drawable.ic_app_icon_waves_top_preview, R.string.app_icon_label_waves);
-+  DEFAULT(".RoutingActivity", R.mipmap.ic_launcher, R.string.app_name),
-+  LIGHT(".RoutingActivityAltWhite", R.mipmap.ic_launcher_alt_light, R.string.app_name),
-+  SIGNAL(".RoutingActivityAltColor", R.mipmap.ic_launcher_alt_signal, R.string.app_name),
-+  COLORFUL(".RoutingActivityAltDark", R.mipmap.ic_launcher_alt_colorful, R.string.app_name),
-+  GOLD(".RoutingActivityAltDarkVariant", R.mipmap.ic_launcher_alt_gold, R.string.app_name),
-+  NEON(".RoutingActivityAltChat", R.mipmap.ic_launcher_alt_neon, R.string.app_name),
-+  CHRISTMAS(".RoutingActivityAltBubbles", R.mipmap.ic_launcher_alt_xmas, R.string.app_name),
-+  HEART(".RoutingActivityAltYellow", R.mipmap.ic_launcher_alt_heart, R.string.app_name),
-+  ZEN(".RoutingActivityAltNews", R.mipmap.ic_launcher_alt_zen, R.string.app_icon_label_zen),
-+  NOTES(".RoutingActivityAltNotes", R.mipmap.ic_launcher_alt_notes, R.string.app_icon_label_notes),
-+  MOON(".RoutingActivityAltWeather", R.mipmap.ic_launcher_alt_moon, R.string.app_icon_label_moon),
-+  MUSIC(".RoutingActivityAltWaves", R.mipmap.ic_launcher_alt_music, R.string.app_icon_label_music);
- 
-   fun getComponentName(context: Context): ComponentName {
-     val applicationContext = context.applicationContext
 diff --git a/app/src/main/res/drawable/ic_launcher_alt_bubbles_background.xml b/app/src/main/res/drawable/ic_launcher_alt_bubbles_background.xml
 deleted file mode 100644
 index 4771fe6b5ce6d5bcaa1b8eccfcc6874c0e9d3db4..0000000000000000000000000000000000000000
@@ -2659,3 +2622,120 @@ index 0000000000000000000000000000000000000000..59926cb06dac8b557ebbd00808ad67b4
 +        android:fillColor="#000000"/>
 +  </group>
 +</vector>
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconPreset.kt b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconPreset.kt
+index 4d55c605a024c5d3edc8e61e4e6b7a5c9a197763..d3b94eecfd7381586245e1325e27a4e9e44852bb 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconPreset.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconPreset.kt
+@@ -7,6 +7,7 @@ package org.signal.appsettings.appicon
+ 
+ import android.content.ComponentName
+ import android.content.Context
++import android.content.pm.PackageManager
+ import androidx.annotation.DrawableRes
+ import androidx.annotation.StringRes
+ import org.signal.appsettings.R
+@@ -28,6 +29,23 @@ enum class AppIconPreset(private val componentName: String, @DrawableRes val ico
+   WEATHER(".RoutingActivityAltWeather", R.drawable.ic_app_icon_weather_top_preview, R.string.app_icon_label_weather),
+   WAVES(".RoutingActivityAltWaves", R.drawable.ic_app_icon_waves_top_preview, R.string.app_icon_label_waves);
+ 
++  fun getIconPreviewResourceId(context: Context): Int {
++    return try {
++      context.packageManager.getActivityInfo(getComponentName(context), PackageManager.MATCH_DISABLED_COMPONENTS).iconResource
++    } catch (_: PackageManager.NameNotFoundException) {
++      iconPreviewResId
++    }
++  }
++
++  fun getLauncherLabel(context: Context): String? {
++    return try {
++      context.packageManager.getActivityInfo(getComponentName(context), PackageManager.MATCH_DISABLED_COMPONENTS)
++        .loadLabel(context.packageManager).toString()
++    } catch (_: PackageManager.NameNotFoundException) {
++      null
++    }
++  }
++
+   fun getComponentName(context: Context): ComponentName {
+     val applicationContext = context.applicationContext
+     return ComponentName(applicationContext, "org.thoughtcrime.securesms" + componentName)
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
+index 9d995bf2a6e22b597f3b1a65e9535cc41dcda0ba..6533857668a3ed3b7967e042b56a3b01eafd598e 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/appicon/AppIconSelectionScreen.kt
+@@ -265,8 +265,8 @@ private fun AppIcon(preset: AppIconPreset, isSelected: Boolean, onClick: () -> U
+   )
+ 
+   val context = LocalContext.current
+-  val icon = remember(context, preset.iconPreviewResId) {
+-    AppCompatResources.getDrawable(context, preset.iconPreviewResId)?.toBitmap()?.asImageBitmap()
++  val icon = remember(context, preset) {
++    AppCompatResources.getDrawable(context, preset.getIconPreviewResourceId(context))?.toBitmap()?.asImageBitmap()
+   }
+   if (icon != null) {
+     Image(
+@@ -317,6 +317,10 @@ private fun CaveatWarning(onClick: () -> Unit, modifier: Modifier = Modifier) {
+ 
+ @Composable
+ private fun presetLabel(preset: AppIconPreset): String {
++  if (!LocalInspectionMode.current) {
++    preset.getLauncherLabel(LocalContext.current)?.let { return it }
++  }
++
+   if (preset.labelResId == null && LocalInspectionMode.current) {
+     return "Signal"
+   }
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/appicon/AppIconPresetTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/appicon/AppIconPresetTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..0c29f8879d4a9f2372d607d4c1023f4fabd39fea
+--- /dev/null
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/appicon/AppIconPresetTest.kt
+@@ -0,0 +1,49 @@
++package org.signal.appsettings.appicon
++
++import android.app.Application
++import android.content.ComponentName
++import android.content.Context
++import android.content.pm.ActivityInfo
++import android.content.pm.PackageManager
++import io.mockk.every
++import io.mockk.mockk
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNull
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++
++@RunWith(RobolectricTestRunner::class)
++@Config(manifest = Config.NONE, application = Application::class)
++class AppIconPresetTest {
++  @Test
++  fun `disabled launcher aliases use their installed Molly icon and label`() {
++    val context = mockk<Context>()
++    val manager = mockk<PackageManager>()
++    val info = mockk<ActivityInfo>()
++    every { context.applicationContext } returns context
++    every { context.packageName } returns "im.molly.aliasfixture"
++    every { context.packageManager } returns manager
++    every { info.iconResource } returns 123
++    every { info.loadLabel(manager) } returns "Molly alias"
++    val component = ComponentName("im.molly.aliasfixture", "org.thoughtcrime.securesms.RoutingActivityAltWhite")
++    every { manager.getActivityInfo(component, PackageManager.MATCH_DISABLED_COMPONENTS) } returns info
++
++    assertEquals(123, AppIconPreset.WHITE.getIconPreviewResourceId(context))
++    assertEquals("Molly alias", AppIconPreset.WHITE.getLauncherLabel(context))
++  }
++
++  @Test
++  fun `module previews without app aliases retain their local fallback`() {
++    val context = mockk<Context>()
++    val manager = mockk<PackageManager>()
++    every { context.applicationContext } returns context
++    every { context.packageName } returns "org.signal.appsettings"
++    every { context.packageManager } returns manager
++    every { manager.getActivityInfo(any<ComponentName>(), PackageManager.MATCH_DISABLED_COMPONENTS) } throws PackageManager.NameNotFoundException()
++
++    assertEquals(AppIconPreset.DEFAULT.iconPreviewResId, AppIconPreset.DEFAULT.getIconPreviewResourceId(context))
++    assertNull(AppIconPreset.DEFAULT.getLauncherLabel(context))
++  }
++}

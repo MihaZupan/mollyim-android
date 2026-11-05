@@ -3,21 +3,19 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:10:07 +0100
 Subject: [PATCH] stories: preserve Molly story presentation and reset policy
 
-Retain reference story visibility/query/reset behavior; no feature removal is approved by extraction.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-STORIES-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 68a0dcf4c48c1e0ad713cc8a922e3600c89e32be
+Semantic-boundary: 20/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
-index 0f241aafd67624e8a31d00c48686fdafbbfac9ae..74e712a83dfa2b5d37706859f777e3e5d2740bbd 100644
+index 89c633c102d227cf30f244f35e8891c353220034..03f83fd92d458a57b522eb86fb814dc2e539dd90 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/StoryOnboardingDownloadJob.kt
-@@ -67,6 +67,11 @@ class StoryOnboardingDownloadJob private constructor(parameters: Parameters) : B
+@@ -68,6 +68,11 @@ class StoryOnboardingDownloadJob private constructor(parameters: Parameters) : B
    override fun onFailure() = Unit
  
    override fun onRun() {
@@ -30,20 +28,20 @@ index 0f241aafd67624e8a31d00c48686fdafbbfac9ae..74e712a83dfa2b5d37706859f777e3e5
        Log.i(TAG, "Already downloaded onboarding story. Exiting.")
        return
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
-index 2560cb959a62904e0e6de0ef37ef5429fbc98eb9..3384332e6531a383f09753f944925bcfa73ba953 100644
+index b375c80d10187a19e95c917cbf203c05cde43c68..fa323a1fc5d9b347b14eee13587310a18e1dc2d0 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/OnboardingValues.java
 @@ -9,8 +9,7 @@ import java.util.List;
  
  public final class OnboardingValues extends SignalStoreValues {
  
--  private static final String SHOW_NEW_GROUP      = "onboarding.new_group";
--  private static final String SHOW_INVITE_FRIENDS = "onboarding.invite_friends";
-+  private static final String SHOW_STORIES        = "onboarding.stories_molly";
-   private static final String SHOW_APPEARANCE     = "onboarding.appearance";
-   private static final String SHOW_ADD_PHOTO      = "onboarding.add_photo";
- 
-@@ -20,8 +19,7 @@ public final class OnboardingValues extends SignalStoreValues {
+-  private static final String SHOW_NEW_GROUP       = "onboarding.new_group";
+-  private static final String SHOW_INVITE_FRIENDS  = "onboarding.invite_friends";
++  private static final String SHOW_STORIES         = "onboarding.stories_molly";
+   private static final String SHOW_APPEARANCE      = "onboarding.appearance";
+   private static final String SHOW_ADD_PHOTO       = "onboarding.add_photo";
+   private static final String SHOW_SET_UP_USERNAME = "onboarding.set_up_username";
+@@ -21,8 +20,7 @@ public final class OnboardingValues extends SignalStoreValues {
  
    @Override
    void onFirstEverAppLaunch() {
@@ -52,8 +50,8 @@ index 2560cb959a62904e0e6de0ef37ef5429fbc98eb9..3384332e6531a383f09753f944925bcf
 +    putBoolean(SHOW_STORIES, true);
      putBoolean(SHOW_APPEARANCE, true);
      putBoolean(SHOW_ADD_PHOTO, true);
-   }
-@@ -32,33 +30,23 @@ public final class OnboardingValues extends SignalStoreValues {
+     putBoolean(SHOW_SET_UP_USERNAME, true);
+@@ -34,35 +32,25 @@ public final class OnboardingValues extends SignalStoreValues {
    }
  
    public void clearAll() {
@@ -62,14 +60,16 @@ index 2560cb959a62904e0e6de0ef37ef5429fbc98eb9..3384332e6531a383f09753f944925bcf
 +    setShowStories(false);
      setShowAppearance(false);
      setShowAddPhoto(false);
+     setShowSetUpUsername(false);
    }
  
    public boolean hasOnboarding(@NonNull Context context) {
--    return shouldShowNewGroup()      ||
--           shouldShowInviteFriends() ||
-+    return shouldShowStories()       ||
-            shouldShowAppearance()    ||
-            shouldShowAddPhoto();
+-    return shouldShowNewGroup()       ||
+-           shouldShowInviteFriends()  ||
++    return shouldShowStories()        ||
+            shouldShowAppearance()     ||
+            shouldShowAddPhoto()       ||
+            shouldShowSetUpUsername();
    }
  
 -  public void setShowNewGroup(boolean value) {

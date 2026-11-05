@@ -3,19 +3,17 @@ From: MihaZupan <miha@mihubot.xyz>
 Date: Wed, 4 Nov 2026 08:09:55 +0100
 Subject: [PATCH] push: preserve MollySocket UnifiedPush and push-role control
 
-Retain transport selection, token/role handling and bootstrap callers. No linked-device UnifiedPush capability is invented.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-UP-001, MOL-PUSH-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: 776d63284b6d4d27a561fb26371abfdf4e7fd526
+Semantic-boundary: 10/36
 
 diff --git a/app/src/benchmark/java/org/thoughtcrime/securesms/BenchmarkApplicationContext.kt b/app/src/benchmark/java/org/thoughtcrime/securesms/BenchmarkApplicationContext.kt
 deleted file mode 100644
-index ab13a232035b93f3b0544f3d6568b9321d18b553..0000000000000000000000000000000000000000
+index ba4d396d785d7c4796ab3a0ff9303c40d7cbdf46..0000000000000000000000000000000000000000
 --- a/app/src/benchmark/java/org/thoughtcrime/securesms/BenchmarkApplicationContext.kt
 +++ /dev/null
 @@ -1,65 +0,0 @@
@@ -30,13 +28,13 @@ index ab13a232035b93f3b0544f3d6568b9321d18b553..00000000000000000000000000000000
 -import org.signal.benchmark.setup.NoOpJob
 -import org.signal.core.util.UptimeSleepTimer
 -import org.signal.libsignal.net.Network
+-import org.signal.network.config.SignalServiceConfiguration
 -import org.thoughtcrime.securesms.dependencies.AppDependencies
 -import org.thoughtcrime.securesms.dependencies.ApplicationDependencyProvider
 -import org.thoughtcrime.securesms.jobmanager.JobManager
 -import org.thoughtcrime.securesms.jobs.JobManagerFactories
 -import org.thoughtcrime.securesms.net.DeviceTransferBlockingInterceptor
 -import org.whispersystems.signalservice.api.websocket.SignalWebSocket
--import org.whispersystems.signalservice.internal.configuration.SignalServiceConfiguration
 -import org.whispersystems.signalservice.internal.websocket.BenchmarkWebSocketConnection
 -import java.util.function.Supplier
 -import kotlin.time.Duration.Companion.seconds
@@ -724,7 +722,7 @@ index 0000000000000000000000000000000000000000..5e5c6dad6e99c360e8e589979bbdd0c4
 +}
 diff --git a/app/src/main/java/im/molly/unifiedpush/UnifiedPushDefaultDistributorLinkActivity.kt b/app/src/main/java/im/molly/unifiedpush/UnifiedPushDefaultDistributorLinkActivity.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..0d75931b9355755c3372f793273a73e321497dde
+index 0000000000000000000000000000000000000000..418e61f7205e49ab9d831da78a62eb03bb4abf49
 --- /dev/null
 +++ b/app/src/main/java/im/molly/unifiedpush/UnifiedPushDefaultDistributorLinkActivity.kt
 @@ -0,0 +1,55 @@
@@ -783,7 +781,6 @@ index 0000000000000000000000000000000000000000..0d75931b9355755c3372f793273a73e3
 +    private const val TAG = "UnifiedPushDefaultDistributorLinkActivity"
 +  }
 +}
-\ No newline at end of file
 diff --git a/app/src/main/java/im/molly/unifiedpush/UnifiedPushDistributor.kt b/app/src/main/java/im/molly/unifiedpush/UnifiedPushDistributor.kt
 new file mode 100644
 index 0000000000000000000000000000000000000000..eee0c0f9457460b1b2519ebe64d16959110e945c
@@ -2056,80 +2053,18 @@ index 0000000000000000000000000000000000000000..604075eb408405245491a891704541e1
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/banner/banners/DozeBanner.kt b/app/src/main/java/org/thoughtcrime/securesms/banner/banners/DozeBanner.kt
-index 84627cbb30ccfe2a1f5c8c2f115a76a3ba999724..25e62b92c5ba0bd710cc61489777c3fd373ee2e4 100644
+index a1928844b91cef9049291dc52e13f628ada64ef3..76b3d7b34b7e46967c462c2d8074c87ec0c9f4ba 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/banner/banners/DozeBanner.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/banner/banners/DozeBanner.kt
-@@ -6,12 +6,16 @@
- package org.thoughtcrime.securesms.banner.banners
- 
- import android.content.Context
-+import androidx.activity.compose.rememberLauncherForActivityResult
-+import androidx.activity.result.contract.ActivityResultContracts
- import androidx.compose.foundation.layout.PaddingValues
- import androidx.compose.runtime.Composable
- import androidx.compose.ui.res.stringResource
- import androidx.compose.ui.unit.dp
- import kotlinx.coroutines.flow.Flow
-+import kotlinx.coroutines.flow.MutableStateFlow
- import kotlinx.coroutines.flow.flowOf
-+import kotlinx.coroutines.flow.map
- import org.signal.core.ui.compose.DayNightPreviews
- import org.signal.core.ui.compose.Previews
- import org.signal.core.util.ServiceUtil
-@@ -19,11 +23,12 @@ import org.thoughtcrime.securesms.R
+@@ -23,6 +23,7 @@ import org.thoughtcrime.securesms.R
  import org.thoughtcrime.securesms.banner.Banner
  import org.thoughtcrime.securesms.banner.ui.compose.Action
  import org.thoughtcrime.securesms.banner.ui.compose.DefaultBanner
 +import org.thoughtcrime.securesms.banner.ui.compose.Importance
  import org.thoughtcrime.securesms.keyvalue.SignalStore
  import org.thoughtcrime.securesms.util.PowerManagerCompat
- import org.thoughtcrime.securesms.util.TextSecurePreferences
  
--class DozeBanner(private val context: Context, private val onDismissListener: () -> Unit) : Banner<Unit>() {
-+class DozeBanner(private val context: Context) : Banner<Unit>() {
- 
-   override val enabled: Boolean
-     get() = !SignalStore.account.fcmEnabled && !TextSecurePreferences.hasPromptedOptimizeDoze(context) && !ServiceUtil.getPowerManager(context).isIgnoringBatteryOptimizations(context.packageName)
-@@ -31,30 +36,47 @@ class DozeBanner(private val context: Context, private val onDismissListener: ()
-   override val dataFlow: Flow<Unit>
-     get() = flowOf(Unit)
- 
-+  private val enabledState = MutableStateFlow(enabled)
-+
-+  override val stateUpdates: Flow<Unit>
-+    get() = enabledState.map { }
-+
-   @Composable
-   override fun DisplayBanner(model: Unit, contentPadding: PaddingValues) {
-+    val batteryOptLauncher = rememberLauncherForActivityResult(
-+      contract = ActivityResultContracts.StartActivityForResult()
-+    ) { _ ->
-+      markAsPrompted()
-+    }
-+
-     Banner(
-       contentPadding = contentPadding,
-       onDismissListener = {
--        TextSecurePreferences.setPromptedOptimizeDoze(context, true)
--        onDismissListener.invoke()
-+        markAsPrompted()
-       },
-       onOkListener = {
--        TextSecurePreferences.setPromptedOptimizeDoze(context, true)
--        PowerManagerCompat.requestIgnoreBatteryOptimizations(context)
-+        batteryOptLauncher.launch(
-+          PowerManagerCompat.buildRequestIgnoreBatteryOptimizationsIntent(context)
-+        )
-       }
-     )
-   }
-+
-+  private fun markAsPrompted() {
-+    TextSecurePreferences.setPromptedOptimizeDoze(context, true)
-+    enabledState.value = false
-+  }
- }
- 
+@@ -69,11 +70,12 @@ class DozeBanner(private val context: Context) : Banner<Unit>() {
  @Composable
  private fun Banner(contentPadding: PaddingValues, onDismissListener: () -> Unit = {}, onOkListener: () -> Unit = {}) {
    DefaultBanner(
@@ -2145,122 +2080,98 @@ index 84627cbb30ccfe2a1f5c8c2f115a76a3ba999724..25e62b92c5ba0bd710cc61489777c3fd
          onOkListener()
        }
      ),
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
-index e8ba1cca2b07e7c73e1b77b3a3c2f174d9336a29..3c9c6f3bb205df7484495c4ae97bac852f6f5778 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
-@@ -1,9 +1,5 @@
- package org.thoughtcrime.securesms.components.settings.app.internal
- 
--import android.content.ClipData
--import android.content.ClipboardManager
--import android.content.Context
--import android.content.DialogInterface
- import android.os.Build
- import android.os.Bundle
- import android.view.MenuItem
-@@ -12,7 +8,6 @@ import android.widget.EditText
- import android.widget.Toast
- import androidx.appcompat.widget.SearchView
- import androidx.appcompat.widget.Toolbar
--import androidx.fragment.app.setFragmentResultListener
- import androidx.lifecycle.ViewModelProvider
- import androidx.lifecycle.lifecycleScope
- import androidx.navigation.fragment.findNavController
-@@ -21,31 +16,25 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
- import kotlinx.coroutines.Dispatchers
- import kotlinx.coroutines.launch
- import kotlinx.coroutines.withContext
--import org.signal.core.ui.BottomSheetUtil
- import org.signal.core.ui.permissions.PermissionDeniedBottomSheet
- import org.signal.core.ui.permissions.RationaleDialog
- import org.signal.core.util.AppUtil
- import org.signal.core.util.ThreadUtil
- import org.signal.core.util.Util
--import org.signal.core.util.concurrent.SignalExecutors
- import org.signal.core.util.concurrent.SimpleTask
- import org.signal.core.util.logging.Log
- import org.signal.core.util.readToList
- import org.signal.core.util.requireLong
- import org.signal.core.util.requireString
- import org.signal.ringrtc.CallManager
--import org.signal.storageservice.protos.calls.quality.SubmitCallQualitySurveyRequest
- import org.thoughtcrime.securesms.BuildConfig
- import org.thoughtcrime.securesms.R
--import org.thoughtcrime.securesms.calls.quality.CallQualityBottomSheetFragment
- import org.thoughtcrime.securesms.components.settings.DSLConfiguration
- import org.thoughtcrime.securesms.components.settings.DSLSettingsFragment
- import org.thoughtcrime.securesms.components.settings.DSLSettingsText
- import org.thoughtcrime.securesms.components.settings.app.privacy.advanced.AdvancedPrivacySettingsRepository
- import org.thoughtcrime.securesms.components.settings.app.subscription.InAppPaymentsRepository
- import org.thoughtcrime.securesms.components.settings.configure
--import org.thoughtcrime.securesms.components.snackbars.SnackbarState
--import org.thoughtcrime.securesms.components.snackbars.makeSnackbar
- import org.thoughtcrime.securesms.conversation.ConversationIntents
- import org.thoughtcrime.securesms.database.JobDatabase
- import org.thoughtcrime.securesms.database.LocalMetricsDatabase
-@@ -71,10 +60,8 @@ import org.thoughtcrime.securesms.jobs.StorageForcePushJob
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+index f6f00f11d3434d2cef95887cf668c7b996f67484..32afcd8a828aaa3634076c940c0c47091a64412f 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsNavigationActivity.kt
+@@ -26,6 +26,7 @@ import org.thoughtcrime.securesms.PassphraseRequiredActivity
+ import org.thoughtcrime.securesms.components.enableSettingsEdgeToEdge
+ import org.thoughtcrime.securesms.components.settings.app.appearance.registerAppearanceRoutes
+ import org.thoughtcrime.securesms.components.settings.app.chats.registerChatsRoutes
++import org.thoughtcrime.securesms.components.settings.app.notifications.registerNotificationsRoutes
+ import org.thoughtcrime.securesms.components.settings.app.privacy.registerPrivacyRoutes
  import org.thoughtcrime.securesms.keyvalue.SignalStore
- import org.thoughtcrime.securesms.megaphone.MegaphoneRepository
- import org.thoughtcrime.securesms.megaphone.Megaphones
--import org.thoughtcrime.securesms.payments.DataExportUtil
- import org.thoughtcrime.securesms.recipients.Recipient
- import org.thoughtcrime.securesms.recipients.RecipientId
--import org.thoughtcrime.securesms.registration.data.QuickstartCredentialExporter
- import org.thoughtcrime.securesms.storage.StorageSyncHelper
- import org.thoughtcrime.securesms.util.ConversationUtil
- import org.thoughtcrime.securesms.util.TextSecurePreferences
-@@ -114,16 +101,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-     super.onViewCreated(view, savedInstanceState)
-     scrollToPosition = SignalStore.internal.lastScrollPosition
-     initializeSearch(view)
--
--    setFragmentResultListener(CallQualityBottomSheetFragment.REQUEST_KEY) { _, bundle ->
--      if (bundle.getBoolean(CallQualityBottomSheetFragment.REQUEST_KEY, false)) {
--        makeSnackbar(
--          SnackbarState(
--            message = getString(R.string.CallQualitySheet__thanks_for_your_feedback)
--          )
--        )
--      }
--    }
+ import org.thoughtcrime.securesms.main.EmptyDetailScreen
+@@ -71,6 +72,7 @@ class AppSettingsNavigationActivity : PassphraseRequiredActivity() {
+           detailEntries = {
+             registerAppearanceRoutes(router::onEvent)
+             registerChatsRoutes(router::onEvent)
++            registerNotificationsRoutes()
+             registerPrivacyRoutes(router::onEvent)
+ 
+             // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepository.kt
+index 6a60638558536293f15fce5fc5bc9394c7651a49..a3509e2f16a98caacb4649cbc043d6b40ad3498e 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepository.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepository.kt
+@@ -13,10 +13,10 @@ import org.signal.appsettings.dataandstorage.AutoDownloadMediaType
+ import org.signal.appsettings.dataandstorage.AutoDownloadNetwork
+ import org.signal.core.models.calls.CallDataMode
+ import org.signal.core.models.media.SentMediaQuality
+-import org.signal.core.util.PlayServicesUtil
+ import org.thoughtcrime.securesms.components.settings.app.storage.StorageUsageRepository
+ import org.thoughtcrime.securesms.dependencies.AppDependencies
+ import org.thoughtcrime.securesms.keyvalue.SettingsValues.ForceWebsocketMode
++import org.thoughtcrime.securesms.keyvalue.SettingsValues.NotificationDeliveryMethod
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
+ import org.thoughtcrime.securesms.messages.IncomingMessageObserver
+ import org.thoughtcrime.securesms.util.AttachmentUtil
+@@ -80,8 +80,13 @@ object DataAndStorageSettingsRepository {
+     }
    }
  
-   override fun bindAdapter(adapter: MappingAdapter) {
-@@ -230,16 +207,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-         }
-       )
+-  fun isPlayServicesAvailable(): Boolean {
+-    return PlayServicesUtil.getPlayServicesStatus(AppDependencies.application) == PlayServicesUtil.PlayServicesStatus.SUCCESS
++  fun isPushAvailable(): Boolean {
++    if (!SignalStore.account.pushAvailable) return false
++    return when (SignalStore.settings.preferredNotificationMethod) {
++      NotificationDeliveryMethod.FCM -> SignalStore.account.canReceiveFcm
++      NotificationDeliveryMethod.UNIFIEDPUSH -> SignalStore.unifiedpush.isAvailableOrAirGapped
++      NotificationDeliveryMethod.WEBSOCKET -> false
++    }
+   }
  
--      if (BuildConfig.DEBUG) {
--        clickPref(
--          title = DSLSettingsText.from("Export quickstart credentials"),
--          summary = DSLSettingsText.from("Export registration credentials to a JSON file for quickstart builds."),
--          onClick = {
--            exportQuickstartCredentials()
--          }
--        )
--      }
--
-       clickPref(
-         title = DSLSettingsText.from("Unregister"),
-         summary = DSLSettingsText.from("This will unregister your account without deleting it."),
-@@ -386,15 +353,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-         }
+   fun isProxyEnabled(): Boolean = AppDependencies.networkManager.isProxyEnabled
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModel.kt
+index b61fab19eef9db791823b580d090b0587fea9920..1aefdebcd787456a5e31bd69ad77a8f6330034fc 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModel.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModel.kt
+@@ -60,6 +60,10 @@ class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSetti
+         refresh()
+       }
+       is DataAndStorageSettingsEvent.StayConnectedInBackgroundToggled -> {
++        if (!DataAndStorageSettingsRepository.isPushAvailable()) {
++          refresh()
++          return
++        }
+         if (event.enabled) {
+           _state.update { it.copy(dialog = DataAndStorageSettingsState.Dialog.ConfirmStayConnectedInBackground) }
+         } else {
+@@ -70,6 +74,10 @@ class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSetti
+       DataAndStorageSettingsEvent.StayConnectedInBackgroundConfirmed -> {
+         if (_state.value.dialog != DataAndStorageSettingsState.Dialog.ConfirmStayConnectedInBackground) return
+         _state.update { it.copy(dialog = DataAndStorageSettingsState.Dialog.None) }
++        if (!DataAndStorageSettingsRepository.isPushAvailable()) {
++          refresh()
++          return
++        }
+         DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(true)
+         refresh()
+       }
+@@ -87,7 +95,7 @@ class DataAndStorageSettingsViewModel : EventDrivenViewModel<DataAndStorageSetti
+         sentMediaQuality = DataAndStorageSettingsRepository.getSentMediaQuality(),
+         callDataMode = DataAndStorageSettingsRepository.getCallDataMode(),
+         forceWebsocketMode = DataAndStorageSettingsRepository.isForceWebsocketModeEnabled(),
+-        playServicesAvailable = DataAndStorageSettingsRepository.isPlayServicesAvailable(),
++        pushAvailable = DataAndStorageSettingsRepository.isPushAvailable(),
+         isProxyEnabled = DataAndStorageSettingsRepository.isProxyEnabled()
        )
- 
--      switchPref(
--        title = DSLSettingsText.from("Shake to Report"),
--        summary = DSLSettingsText.from("Shake your phone to easily submit and share a debug log."),
--        isChecked = state.shakeToReport,
--        onClick = {
--          viewModel.setShakeToReport(!state.shakeToReport)
--        }
--      )
--
-       switchPref(
-         title = DSLSettingsText.from("Show archive status hint"),
-         summary = DSLSettingsText.from("Shows a color square based on archive status, green good, red bad."),
-@@ -442,6 +400,22 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+     }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
+index 6fe4624f12a6117650a9c1a0fca8285d8229da42..63d0a3ab0dcdcf8620bed2ee3618781ca70fb301 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
+@@ -453,6 +453,22 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
          }
        )
  
@@ -2283,42 +2194,7 @@ index e8ba1cca2b07e7c73e1b77b3a3c2f174d9336a29..3c9c6f3bb205df7484495c4ae97bac85
        clickPref(
          title = DSLSettingsText.from("Run self-check key transparency"),
          summary = DSLSettingsText.from("Automatically enqueues a job to run KT against yourself without waiting for the elapsed time."),
-@@ -512,18 +486,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
- 
-       dividerPref()
- 
--      sectionHeaderPref(DSLSettingsText.from("Payments"))
--
--      clickPref(
--        title = DSLSettingsText.from("Copy payments data"),
--        summary = DSLSettingsText.from("Copy all payment records to clipboard."),
--        onClick = {
--          copyPaymentsDataToClipboard()
--        }
--      )
--
--      dividerPref()
--
-       sectionHeaderPref(DSLSettingsText.from("Storage Service"))
- 
-       switchPref(
-@@ -698,15 +660,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
- 
-       sectionHeaderPref(DSLSettingsText.from("Calling options"))
- 
--      clickPref(
--        title = DSLSettingsText.from("Display call quality survey"),
--        onClick = {
--          CallQualityBottomSheetFragment
--            .create(SubmitCallQualitySurveyRequest())
--            .show(parentFragmentManager, BottomSheetUtil.STANDARD_BOTTOM_SHEET_FRAGMENT_TAG)
--        }
--      )
--
-       radioListPref(
-         title = DSLSettingsText.from("Bandwidth mode"),
-         listItems = CallManager.DataMode.entries.map { it.name }.toTypedArray(),
-@@ -854,7 +807,7 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -958,7 +974,7 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
            SignalDatabase.remoteMegaphones.debugRemoveAll()
            MegaphoneDatabase.getInstance(AppDependencies.application).let {
              it.delete(Megaphones.Event.REMOTE_MEGAPHONE)
@@ -2327,103 +2203,115 @@ index e8ba1cca2b07e7c73e1b77b3a3c2f174d9336a29..3c9c6f3bb205df7484495c4ae97bac85
            }
            // Force repository database cache refresh
            MegaphoneRepository(AppDependencies.application).onFirstEverAppLaunch()
-@@ -890,13 +843,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-         }
-       )
- 
--      clickPref(
--        title = DSLSettingsText.from("Add donate_friend remote megaphone"),
--        onClick = {
--          viewModel.addRemoteDonateFriendMegaphone()
--        }
--      )
--
-       dividerPref()
- 
-       sectionHeaderPref(DSLSettingsText.from("CDS"))
-@@ -965,15 +911,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
- 
-       sectionHeaderPref(DSLSettingsText.from("PNP"))
- 
--      clickPref(
--        title = DSLSettingsText.from("Reset 'PNP initialized' state"),
--        summary = DSLSettingsText.from("Current initialized state: ${state.pnpInitialized}"),
--        isEnabled = state.pnpInitialized,
--        onClick = {
--          viewModel.resetPnpInitializedState()
--        }
--      )
--
-       clickPref(
-         title = DSLSettingsText.from("Corrupt username"),
-         summary = DSLSettingsText.from("Changes our local username without telling the server so it falls out of sync. Refresh profile afterwards to trigger corruption."),
-@@ -1076,42 +1013,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-       .show()
-   }
- 
--  private fun copyPaymentsDataToClipboard() {
--    MaterialAlertDialogBuilder(requireContext())
--      .setMessage(
--        """
--    Local payments history will be copied to the clipboard.
--    It may therefore compromise privacy.
--    However, no private keys will be copied.
--        """.trimIndent()
--      )
--      .setPositiveButton(
--        "Copy"
--      ) { _: DialogInterface?, _: Int ->
--        val context: Context = AppDependencies.application
--        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
--
--        SimpleTask.run<Any?>(
--          SignalExecutors.UNBOUNDED,
--          {
--            val tsv = DataExportUtil.createTsv()
--            val clip = ClipData.newPlainText(context.getString(R.string.app_name), tsv)
--            clipboard.setPrimaryClip(clip)
--            null
--          },
--          {
--            Toast.makeText(
--              context,
--              "Payments have been copied",
--              Toast.LENGTH_SHORT
--            ).show()
--          }
--        )
--      }
--      .setNegativeButton(android.R.string.cancel, null)
--      .show()
--  }
--
-   private fun refreshAttributes() {
-     AppDependencies.jobManager
-       .startChain(RefreshAttributesJob())
-@@ -1251,21 +1152,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
-     }
-   }
- 
--  private fun exportQuickstartCredentials() {
--    MaterialAlertDialogBuilder(requireContext())
--      .setTitle("Export quickstart credentials?")
--      .setMessage("This will export your account's private keys and credentials to an unencrypted file on disk. This is very dangerous! Only use it with test accounts.")
--      .setPositiveButton("Export") { _, _ ->
--        SimpleTask.run({
--          QuickstartCredentialExporter.export(requireContext())
--        }) { file ->
--          Toast.makeText(requireContext(), "Exported to ${file.absolutePath}", Toast.LENGTH_LONG).show()
--        }
--      }
--      .setNegativeButton(android.R.string.cancel, null)
--      .show()
--  }
--
-   private fun promptUserForSentTimestamp() {
-     val input = EditText(requireContext()).apply {
-       inputType = android.text.InputType.TYPE_CLASS_NUMBER
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsNavigation.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsNavigation.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a2ba772628fb8bcf2830d667f74abc1df56f5e4
+--- /dev/null
++++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsNavigation.kt
+@@ -0,0 +1,101 @@
++package org.thoughtcrime.securesms.components.settings.app.notifications
++
++import android.os.Bundle
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.remember
++import androidx.compose.ui.Modifier
++import androidx.core.os.bundleOf
++import androidx.navigation.fragment.NavHostFragment
++import androidx.navigation3.runtime.EntryProviderScope
++import androidx.navigation3.runtime.NavKey
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.map
++import org.signal.appsettings.routes.AppSettingsRoute
++import org.signal.core.ui.compose.split.detailEntry
++import org.thoughtcrime.securesms.R
++import org.thoughtcrime.securesms.compose.AndroidNavHostFragment
++import org.thoughtcrime.securesms.compose.FragmentBackHandler
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfo
++import org.thoughtcrime.securesms.compose.FragmentBackPressedInfoProvider
++import org.thoughtcrime.securesms.compose.FragmentBackPressedState
++
++/**
++ * Keep the existing notification/profile fragment flows inside the modern detail pane, including
++ * Molly's actual UnifiedPush fragment. The stable-ID wrapper preserves their nested saved state.
++ */
++fun EntryProviderScope<NavKey>.registerNotificationsRoutes() {
++  detailEntry<AppSettingsRoute.NotificationsRoute.Notifications> {
++    NotificationsEntry(R.id.notificationsSettingsFragment)
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.PlayServicesProblem> { route ->
++    NotificationsEntry(R.id.notificationsSettingsFragment, bundleOf("play_services_error_code" to route.errorCode))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.UnifiedPushSettings> {
++    NotificationsEntry(R.id.notificationUnifiedPushFragment)
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.MutedNotifications> {
++    NotificationsEntry(R.id.mutedNotificationsFragment)
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.NotificationProfiles> {
++    NotificationsEntry(R.id.notificationProfilesFragment)
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.EditProfile> { route ->
++    NotificationsEntry(R.id.editNotificationProfileFragment, bundleOf("profileId" to route.profileId))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.ProfileDetails> { route ->
++    NotificationsEntry(R.id.notificationProfileDetailsFragment, bundleOf("profileId" to route.profileId))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.AddAllowedMembers> { route ->
++    NotificationsEntry(R.id.addAllowedMembersFragment, bundleOf("profileId" to route.profileId))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.SelectRecipients> { route ->
++    NotificationsEntry(R.id.selectRecipientsFragment, bundleOf("profileId" to route.profileId, "currentSelection" to route.currentSelection))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.EditSchedule> { route ->
++    NotificationsEntry(R.id.editNotificationProfileScheduleFragment, bundleOf("profileId" to route.profileId, "createMode" to route.createMode))
++  }
++  detailEntry<AppSettingsRoute.NotificationsRoute.Created> { route ->
++    NotificationsEntry(R.id.notificationProfileCreatedFragment, bundleOf("profileId" to route.profileId))
++  }
++}
++
++@Composable
++private fun NotificationsEntry(destination: Int, startArgs: Bundle = Bundle.EMPTY) {
++  val backPressedState = remember { FragmentBackPressedState() }
++  FragmentBackHandler(backPressedState)
++  AndroidNavHostFragment(
++    clazz = NotificationsSettingsNavHostFragment::class.java,
++    modifier = Modifier.fillMaxSize(),
++    arguments = bundleOf(
++      NotificationsSettingsNavHostFragment.START_DESTINATION to destination,
++      NotificationsSettingsNavHostFragment.START_ARGUMENTS to startArgs
++    ),
++    onUpdate = { backPressedState.attach(it) }
++  )
++}
++
++class NotificationsSettingsNavHostFragment : NavHostFragment(), FragmentBackPressedInfoProvider {
++  companion object {
++    const val START_DESTINATION = "notifications.start.destination"
++    const val START_ARGUMENTS = "notifications.start.arguments"
++  }
++
++  override fun onCreate(savedInstanceState: Bundle?) {
++    val arguments = requireArguments()
++    val graph = navController.navInflater.inflate(R.navigation.app_settings_with_change_number)
++    graph.setStartDestination(arguments.getInt(START_DESTINATION))
++    navController.setGraph(graph, arguments.getBundle(START_ARGUMENTS))
++    super.onCreate(savedInstanceState)
++  }
++
++  override fun getFragmentBackPressedInfo(): Flow<FragmentBackPressedInfo> {
++    return navController.currentBackStackEntryFlow.map {
++      if (navController.previousBackStackEntry != null) {
++        FragmentBackPressedInfo.Enabled { navController.popBackStack() }
++      } else {
++        FragmentBackPressedInfo.Disabled
++      }
++    }
++  }
++}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsState.kt
-index 81eb443c3ea1ae4dfc161e3a3d0ae5b1b694672a..b773d3ef254598cabcc7ce933a1b2baeeb1aaece 100644
+index 348d0ee23539fb287e3ef7f5d847cdec1858bc5a..1f9f427f20cfb7702df03701802c0b1b749d5802 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsState.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/notifications/NotificationsSettingsState.kt
 @@ -1,10 +1,18 @@
@@ -2445,27 +2333,6 @@ index 81eb443c3ea1ae4dfc161e3a3d0ae5b1b694672a..b773d3ef254598cabcc7ce933a1b2bae
    val notifyWhenContactJoinsSignal: Boolean
  )
  
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/routes/AppSettingsRoute.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/routes/AppSettingsRoute.kt
-index 0a6565192b46761ad11a013d24c3e114e02c1f93..6b5b440b91acb00e2c0367f9f017945918f9cef4 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/routes/AppSettingsRoute.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/routes/AppSettingsRoute.kt
-@@ -37,7 +37,6 @@ sealed interface AppSettingsRoute : Parcelable {
-     data class Username(val mode: UsernameEditMode = UsernameEditMode.NORMAL) : AccountRoute
-   }
- 
--  data object Payments : AppSettingsRoute
-   data object Invite : AppSettingsRoute
-   data object AppUpdates : AppSettingsRoute
- 
-@@ -75,6 +74,8 @@ sealed interface AppSettingsRoute : Parcelable {
-   sealed interface NotificationsRoute : AppSettingsRoute {
-     data object Notifications : NotificationsRoute
-     data object NotificationProfiles : NotificationsRoute
-+    data object UnifiedPushSettings : NotificationsRoute
-+    data class PlayServicesProblem(val errorCode: Int) : NotificationsRoute
-     data class EditProfile(val profileId: Long = -1L) : NotificationsRoute
-     data class ProfileDetails(val profileId: Long) : NotificationsRoute
-     data class AddAllowedMembers(val profileId: Long) : NotificationsRoute
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/events/NetworkAvailableEvent.java b/app/src/main/java/org/thoughtcrime/securesms/events/NetworkAvailableEvent.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..45d3120f8ac50b05d1abb09d237fa02f3f760232
@@ -2621,10 +2488,10 @@ index 59ddcbf7cd8ae4860bb1c96f735c02d610660c7b..0736adfbf10f16abe75186ccd2f4ba72
    }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/FcmRefreshJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/FcmRefreshJob.java
-index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3f3a47593 100644
+index 3a88faff5efe283da7db6e1550bf0c051ff758d9..60821fc2ba175672a8f819e053a604133fd11779 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/FcmRefreshJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/FcmRefreshJob.java
-@@ -16,26 +16,38 @@
+@@ -16,23 +16,36 @@
   */
  package org.thoughtcrime.securesms.jobs;
  
@@ -2661,13 +2528,10 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
 +import org.thoughtcrime.securesms.notifications.NotificationIds;
  import org.thoughtcrime.securesms.transport.RetryLaterException;
 -import org.signal.core.util.PlayServicesUtil;
- import org.thoughtcrime.securesms.util.TextSecurePreferences;
- import org.whispersystems.signalservice.api.NetworkResultUtil;
--import org.signal.network.exceptions.NonSuccessfulResponseCodeException;
+ import org.whispersystems.signalservice.api.RequestResultUtil;
+ import org.signal.network.exceptions.NonSuccessfulResponseCodeException;
  
- import java.io.IOException;
- import java.util.Optional;
-@@ -44,12 +56,13 @@ import java.util.concurrent.TimeUnit;
+@@ -43,12 +56,13 @@ import java.util.concurrent.TimeUnit;
  public class FcmRefreshJob extends BaseJob {
  
    public static final String KEY = "FcmRefreshJob";
@@ -2682,7 +2546,7 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
                             .addConstraint(NetworkConstraint.KEY)
                             .setMaxAttempts(3)
                             .setLifespan(TimeUnit.HOURS.toMillis(6))
-@@ -73,6 +86,21 @@ public class FcmRefreshJob extends BaseJob {
+@@ -72,6 +86,21 @@ public class FcmRefreshJob extends BaseJob {
  
    @Override
    public void onRun() throws Exception {
@@ -2691,7 +2555,7 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
 +      if (wasFcmTokenSet) {
 +        Log.i(TAG, "FCM is disabled: clearing existing token...");
 +        try {
-+          NetworkResultUtil.toBasicLegacy(SignalNetwork.account().clearFcmToken());
++          RequestResultUtil.successOrThrowNoError(SignalNetwork.accountApi().clearFcmTokenBlocking());
 +        } finally {
 +          SignalStore.account().invalidateFcmToken();
 +          FcmUtil.deleteFirebaseInstallationId(context);
@@ -2701,10 +2565,10 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
 +      return;
 +    }
 +
-     if (TextSecurePreferences.isUnauthorizedReceived(context)) {
+     if (SignalStore.account().isUnauthorizedReceived()) {
        Log.i(TAG, "No longer authorized. Ignoring.");
        return;
-@@ -80,78 +108,45 @@ public class FcmRefreshJob extends BaseJob {
+@@ -79,80 +108,45 @@ public class FcmRefreshJob extends BaseJob {
  
      Log.i(TAG, "Reregistering FCM...");
  
@@ -2735,7 +2599,7 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
 +      if (token.isPresent()) {
 +        cancelFcmFailureNotification(context);
  
--      NetworkResultUtil.toBasicLegacy(SignalNetwork.account().setFcmToken(token.get()));
+-      RequestResultUtil.successOrThrowNoError(SignalNetwork.accountApi().setFcmToken(token.get()));
 -      SignalStore.account().setFcmToken(token.get());
 +        String oldToken = SignalStore.account().getFcmToken();
  
@@ -2756,11 +2620,11 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
  
 -      if (SignalStore.settings().getForceWebsocketMode() == ForceWebsocketMode.ENABLED_AUTOMATICALLY) {
 -        Log.i(TAG, "FCM succeeded while in auto-enabled websocket mode. Reverting to disabled.");
--        SignalStore.settings().setForceWebsocketMode(ForceWebsocketMode.DISABLED);
+-        SignalStore.settings().setForceWebsocketMode(ForceWebsocketMode.DISABLED_AUTOMATICALLY);
 -        IncomingMessageObserver.stopForegroundService(context);
 -        AppDependencies.resetNetwork();
 -        AppDependencies.startNetwork();
-+        NetworkResultUtil.toBasicLegacy(SignalNetwork.account().setFcmToken(token.get()));
++        RequestResultUtil.successOrThrowNoError(SignalNetwork.accountApi().setFcmToken(token.get()));
 +        SignalStore.account().setFcmToken(token.get());
 +        if (oldToken == null) {
 +          AppDependencies.resetNetwork(true);
@@ -2798,18 +2662,20 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
 -        AppDependencies.startNetwork();
 -      }
 -    } else if (status == PlayServicesUtil.PlayServicesStatus.SUCCESS &&
--               SignalStore.settings().getForceWebsocketMode() == ForceWebsocketMode.DISABLED &&
+-               SignalStore.settings().getForceWebsocketMode() == ForceWebsocketMode.DISABLED_AUTOMATICALLY &&
 -               System.currentTimeMillis() - SignalStore.account().getFcmTokenLastSetTime() > TimeUnit.DAYS.toMillis(3))
 -    {
 -      Log.w(TAG, "FCM has been failing for over 3 days despite Play Services being available. Auto-enabling forced websocket mode so the user can still get messages.");
 -      SignalStore.settings().setForceWebsocketMode(ForceWebsocketMode.ENABLED_AUTOMATICALLY);
 -      AppDependencies.resetNetwork();
 -      AppDependencies.startNetwork();
+-    } else if (SignalStore.settings().getForceWebsocketMode() == ForceWebsocketMode.DISABLED_BY_USER) {
+-      Log.w(TAG, "FCM is failing, but the user has explicitly disabled forced websocket mode. Not auto-enabling.");
 -    }
    }
  
    @Override
-@@ -160,6 +155,28 @@ public class FcmRefreshJob extends BaseJob {
+@@ -161,6 +155,28 @@ public class FcmRefreshJob extends BaseJob {
      return true;
    }
  
@@ -2856,19 +2722,19 @@ index 20aef25c370e7e0aa89e162b1e325be7d127afcc..63734ee586eb4d82a22cc19c2b2417fd
            Log.w(TAG, "Failed to start foreground service. Running without a foreground service.");
          }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
-index 69b6af91134c8212d04b4c4b669b65cd485cfd3f..0f6a4f378b2b179f2ef5bf0b15acfe8e4163f18b 100644
+index e955ce0f562da575397839357ea30d51f8bab19b..638943a76d5c8f5798d5b132a9438a73608f2b98 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
-@@ -119,7 +119,7 @@ public class RefreshAttributesJob extends BaseJob {
+@@ -137,7 +137,7 @@ public class RefreshAttributesJob extends BaseJob {
  
    private void setPrimaryDeviceAttributes(@NonNull SvrValues svrValues, @NonNull AccountAttributes.Capabilities capabilities) throws IOException {
      int       registrationId              = SignalStore.account().getRegistrationId();
 -    boolean   fetchesMessages             = !SignalStore.account().isFcmEnabled() || SignalStore.settings().getForceWebsocketMode().isEnabled();
 +    boolean   fetchesMessages             = !SignalStore.account().isFcmEnabled();
      byte[]    unidentifiedAccessKey       = UnidentifiedAccess.deriveAccessKeyFrom(ProfileKeyUtil.getSelfProfileKey());
-     boolean   universalUnidentifiedAccess = TextSecurePreferences.isUniversalUnidentifiedAccess(context);
+     boolean   universalUnidentifiedAccess = SignalStore.settings().isUniversalUnidentifiedAccess();
      String    registrationLockV2          = null;
-@@ -136,6 +136,7 @@ public class RefreshAttributesJob extends BaseJob {
+@@ -154,6 +154,7 @@ public class RefreshAttributesJob extends BaseJob {
      byte[] encryptedDeviceName = (deviceName == null) ? null : DeviceNameCipher.encryptDeviceName(deviceName.getBytes(StandardCharsets.UTF_8), SignalStore.account().getAciIdentityKey());
  
      Log.i(TAG, "Calling setAccountAttributes() reglockV2? " + !TextUtils.isEmpty(registrationLockV2) + ", pin? " + svrValues.hasPin() + ", restoredAEP? " + SignalStore.account().restoredAccountEntropyPool() +
@@ -3146,20 +3012,36 @@ index 0000000000000000000000000000000000000000..4dca4616dff449267c496afa84ae892a
 +    private const val KEY_FROM_NEW_ENDPOINT = "fromNewEndpoint"
 +  }
 +}
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
+index d161cb259cc361aa771b6dba422b145c7ca19c71..9485614ab359214f9887b2a33147ea944fcf87eb 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/AccountValues.kt
+@@ -464,7 +464,11 @@ class AccountValues internal constructor(store: KeyValueStore, context: Context)
+ 
+   @get:JvmName("isPushAvailable")
+   val pushAvailable: Boolean
+-    get() = canReceiveFcm || SignalStore.unifiedpush.isAvailableOrAirGapped
++    get() = when (SignalStore.settings.preferredNotificationMethod) {
++      SettingsValues.NotificationDeliveryMethod.FCM -> canReceiveFcm
++      SettingsValues.NotificationDeliveryMethod.UNIFIEDPUSH -> SignalStore.unifiedpush.isAvailableOrAirGapped
++      SettingsValues.NotificationDeliveryMethod.WEBSOCKET -> false
++    }
+ 
+   fun invalidateFcmToken() {
+     putInteger(KEY_FCM_TOKEN_VERSION, 0)
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
-index f638c859a4ed20435ab8ee1d6bd21440e2f85e1c..284dd46522703c239f7bb5f7faba7d6060fe6579 100644
+index 07569f6fbbd656eed5ee1f7813c3c095854a741d..56a3dc95b37e42946bddd85f9cba263e5344ee67 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
-@@ -37,7 +37,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
-   val storyValues = StoryValues(store)
-   val apkUpdateValues = ApkUpdateValues(store)
-   val backupValues = BackupValues(store)
--  val callQualityValues = CallQualityValues(store)
+@@ -38,6 +38,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
+   val apkUpdateValues = ApkUpdateValues(store, context)
+   val backupValues = BackupValues(store, context)
+   val callQualityValues = CallQualityValues(store)
 +  val unifiedPushValues = UnifiedPushValues(store)
    val labsValues = LabsValues(store)
  
-   val plainTextValues = PlainTextSharedPrefsDataStore(context)
-@@ -86,7 +86,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
+   companion object {
+@@ -84,7 +85,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
        story.onFirstEverAppLaunch()
        apkUpdate.onFirstEverAppLaunch()
        backup.onFirstEverAppLaunch()
@@ -3168,7 +3050,7 @@ index f638c859a4ed20435ab8ee1d6bd21440e2f85e1c..284dd46522703c239f7bb5f7faba7d60
        labs.onFirstEverAppLaunch()
      }
  
-@@ -120,7 +120,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
+@@ -118,7 +119,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
            story.keysToIncludeInBackup +
            apkUpdate.keysToIncludeInBackup +
            backup.keysToIncludeInBackup +
@@ -3177,7 +3059,7 @@ index f638c859a4ed20435ab8ee1d6bd21440e2f85e1c..284dd46522703c239f7bb5f7faba7d60
            labs.keysToIncludeInBackup
        }
  
-@@ -281,9 +281,9 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
+@@ -287,9 +288,9 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
        get() = instance!!.backupValues
  
      @JvmStatic
@@ -3191,10 +3073,10 @@ index f638c859a4ed20435ab8ee1d6bd21440e2f85e1c..284dd46522703c239f7bb5f7faba7d60
      @JvmStatic
      @get:JvmName("labs")
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/UiHintValues.java b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/UiHintValues.java
-index dba675f2ac4f1f5671374df4e6bd4f30868b2309..773974a769ccdd9be48205a4bf8c45af37b8ee1d 100644
+index 3c8f3c17c595a6901c6e06e7b776a907e64e4349..b95b818272ac7934378574b0fb0f85bc5ef40661 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/UiHintValues.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/UiHintValues.java
-@@ -16,11 +16,8 @@ public class UiHintValues extends SignalStoreValues {
+@@ -22,11 +22,8 @@ public class UiHintValues extends SignalStoreValues {
    private static final String NEVER_DISPLAY_PULL_TO_FILTER_TIP                  = "uihints.never_display_pull_to_filter_tip";
    private static final String HAS_SEEN_SCHEDULED_MESSAGES_INFO_ONCE             = "uihints.has_seen_scheduled_messages_info_once";
    private static final String HAS_SEEN_SAFETY_NUMBER_NUX                        = "uihints.has_seen_safety_number_nux";
@@ -3208,7 +3090,7 @@ index dba675f2ac4f1f5671374df4e6bd4f30868b2309..773974a769ccdd9be48205a4bf8c45af
    private static final String HAS_COMPLETED_USERNAME_ONBOARDING                 = "uihints.has_completed_username_onboarding";
    private static final String HAS_SEEN_DOUBLE_TAP_EDIT_EDUCATION_SHEET          = "uihints.has_seen_double_tap_edit_education_sheet";
    private static final String DISMISSED_CONTACTS_PERMISSION_BANNER              = "uihints.dismissed_contacts_permission_banner";
-@@ -114,22 +111,6 @@ public class UiHintValues extends SignalStoreValues {
+@@ -154,22 +151,6 @@ public class UiHintValues extends SignalStoreValues {
      putBoolean(HAS_SEEN_SAFETY_NUMBER_NUX, true);
    }
  
@@ -3231,7 +3113,7 @@ index dba675f2ac4f1f5671374df4e6bd4f30868b2309..773974a769ccdd9be48205a4bf8c45af
    public void markDismissedBatterySaverPrompt() {
      putBoolean(DISMISSED_BATTERY_SAVER_PROMPT, true);
    }
-@@ -146,14 +127,6 @@ public class UiHintValues extends SignalStoreValues {
+@@ -186,14 +167,6 @@ public class UiHintValues extends SignalStoreValues {
      putLong(LAST_BATTERY_SAVER_PROMPT, time);
    }
  
@@ -3321,176 +3203,96 @@ index 0000000000000000000000000000000000000000..f12d279d7e29b9d5c8f652561f06c5b9
 +    get() = enabled && registrationStatus == RegistrationStatus.REGISTERED
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
-index 539296986b57a5dc29db98baa3278ff32d67cfff..28ad2acb3cd4bb35bd9eaaff82de124e62c737a0 100644
+index 8beafc820aee09534a56bd8344a544254ce99a73..51d2db49768a79c83fbd4d162f5f7f8d5854ade5 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
-@@ -94,7 +94,8 @@ object LinkDeviceRepository {
- 
-   private fun DeviceInfo.toDevice(): Device {
+@@ -106,7 +106,8 @@ object LinkDeviceRepository {
+   private fun DeviceInfo.toLocalDevice(): Device {
      val createdAt = this.getPlaintextCreatedAt()
--    val defaultDevice = Device(getId(), getName(), createdAt, getLastSeen(), getRegistrationId())
-+    val canRename = !SignalStore.unifiedpush.isMollySocketDevice(getId())
-+    val defaultDevice = Device(getId(), getName(), createdAt, getLastSeen(), getRegistrationId(), canRename = canRename)
+     val encodedName = name
+-    val defaultDevice = Device(id, encodedName, createdAt, lastSeen, registrationId)
++    val canRename = !SignalStore.unifiedpush.isMollySocketDevice(id)
++    val defaultDevice = Device(id, encodedName, createdAt, lastSeen, registrationId, canRename = canRename)
      try {
-       if (getName().isNullOrEmpty() || getName().length < 4) {
+       if (encodedName.isNullOrEmpty() || encodedName.length < 4) {
          Log.w(TAG, "Invalid DeviceInfo name.")
-@@ -113,7 +114,7 @@ object LinkDeviceRepository {
+@@ -125,7 +126,7 @@ object LinkDeviceRepository {
          return defaultDevice
        }
  
--      return Device(getId(), String(plaintext), createdAt, getLastSeen(), getRegistrationId())
-+      return Device(getId(), String(plaintext), createdAt, getLastSeen(), getRegistrationId(), canRename = canRename)
+-      return Device(id, String(plaintext), createdAt, lastSeen, registrationId)
++      return Device(id, String(plaintext), createdAt, lastSeen, registrationId, canRename = canRename)
+     } catch (e: Exception) {
+       Log.w(TAG, "Failed while reading the protobuf.", e)
+     }
+@@ -134,7 +135,8 @@ object LinkDeviceRepository {
+ 
+   private fun LibSignalLinkedDevice.toLocalDevice(): Device {
+     val createdAt = getPlaintextCreatedAt()
+-    val defaultDevice = Device(this.id, Base64.encodeWithPadding(this.encryptedName), createdAt, this.lastSeen.toEpochMilli(), this.registrationId)
++    val canRename = !SignalStore.unifiedpush.isMollySocketDevice(id)
++    val defaultDevice = Device(this.id, Base64.encodeWithPadding(this.encryptedName), createdAt, this.lastSeen.toEpochMilli(), this.registrationId, canRename = canRename)
+     try {
+       if (this.encryptedName.size < 4) {
+         Log.w(TAG, "Invalid LinkedDevice name.")
+@@ -153,7 +155,7 @@ object LinkDeviceRepository {
+         return defaultDevice
+       }
+ 
+-      return Device(id, String(plaintext), createdAt, lastSeen.toEpochMilli(), registrationId)
++      return Device(id, String(plaintext), createdAt, lastSeen.toEpochMilli(), registrationId, canRename = canRename)
      } catch (e: Exception) {
        Log.w(TAG, "Failed while reading the protobuf.", e)
      }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
-index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116465f8c05 100644
+index 18811f93f3a009651c4871656044131752b4d022..5b2a3bb6e020cf3381d6c7b76169c355389e17a7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
-@@ -27,7 +27,6 @@ import org.thoughtcrime.securesms.groups.GroupsV2ProcessingLock
- import org.thoughtcrime.securesms.groups.v2.processing.GroupsV2StateProcessor
- import org.thoughtcrime.securesms.jobmanager.Job
- import org.thoughtcrime.securesms.jobmanager.impl.BackoffUtil
--import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint
- import org.thoughtcrime.securesms.jobs.PushProcessMessageErrorJob
- import org.thoughtcrime.securesms.jobs.PushProcessMessageJob
- import org.thoughtcrime.securesms.jobs.RequestGroupV2InfoJob
-@@ -35,11 +34,13 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore
- import org.thoughtcrime.securesms.keyvalue.isDecisionPending
- import org.thoughtcrime.securesms.messages.MessageDecryptor.FollowUpOperation
- import org.thoughtcrime.securesms.messages.protocol.BufferedProtocolStore
-+import org.thoughtcrime.securesms.net.ConnectivityState
-+import org.thoughtcrime.securesms.net.InternetConnectivityMonitor
-+import org.thoughtcrime.securesms.net.configureProxy
-+import org.thoughtcrime.securesms.net.resolveProxyConfig
- import org.thoughtcrime.securesms.notifications.NotificationChannels
--import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess.Companion.toApplicableSystemHttpProxy
- import org.thoughtcrime.securesms.recipients.RecipientId
+@@ -24,7 +24,6 @@ import org.signal.core.util.UptimeSleepTimer
+ import org.signal.core.util.concurrent.SignalExecutors
+ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.net.resolveProxyConfig
+-import org.signal.network.config.SignalServiceConfiguration
+ import org.signal.storageservice.storage.protos.groups.local.DecryptedGroup
+ import org.thoughtcrime.securesms.BuildConfig
+ import org.thoughtcrime.securesms.R
+@@ -49,7 +48,6 @@ import org.thoughtcrime.securesms.notifications.NotificationChannels
+ import org.thoughtcrime.securesms.notifications.NotificationIds
+ import org.thoughtcrime.securesms.recipients.RecipientIds
  import org.thoughtcrime.securesms.util.AlarmSleepTimer
 -import org.thoughtcrime.securesms.util.Environment
  import org.thoughtcrime.securesms.util.SignalLocalMetrics
  import org.thoughtcrime.securesms.util.SignalTrace
- import org.thoughtcrime.securesms.util.TextSecurePreferences
-@@ -48,15 +49,12 @@ import org.whispersystems.signalservice.api.messages.EnvelopeResponse
- import org.whispersystems.signalservice.api.websocket.SignalWebSocket
- import org.whispersystems.signalservice.api.websocket.WebSocketConnectionState
- import org.whispersystems.signalservice.api.websocket.WebSocketUnavailableException
--import org.whispersystems.signalservice.internal.configuration.HttpProxy
- import org.whispersystems.signalservice.internal.push.Envelope
- import java.util.concurrent.CopyOnWriteArrayList
- import java.util.concurrent.Semaphore
- import java.util.concurrent.TimeUnit
- import java.util.concurrent.TimeoutException
--import java.util.concurrent.atomic.AtomicInteger
--import java.util.concurrent.locks.ReentrantLock
--import kotlin.concurrent.withLock
+ import org.thoughtcrime.securesms.util.asChain
+@@ -65,6 +63,7 @@ import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+ import java.util.concurrent.locks.ReentrantLock
+ import kotlin.concurrent.withLock
 +import java.util.concurrent.atomic.AtomicBoolean
  import kotlin.math.round
  import kotlin.time.Duration.Companion.minutes
  import kotlin.time.Duration.Companion.seconds
-@@ -86,58 +84,58 @@ class IncomingMessageObserver(
-     private val maxBackgroundTime: Long
-       get() = if (censored) 10.seconds.inWholeMilliseconds else 2.minutes.inWholeMilliseconds
- 
--    private val INSTANCE_COUNT = AtomicInteger(0)
--
-     const val FOREGROUND_ID = 313399
- 
+@@ -101,15 +100,12 @@ class IncomingMessageObserver(
      private val censored: Boolean
        get() = AppDependencies.signalServiceNetworkAccess.isCensored()
+ 
+-    private val networkConfiguration: SignalServiceConfiguration
+-      get() = AppDependencies.signalServiceNetworkAccess.getConfiguration()
 -
--    /**
--     * Stops the foreground service for websocket users.
--     */
--    @JvmStatic
--    fun stopForegroundService(context: Context) {
+     /**
+      * Stops the foreground service for websocket users.
+      */
+     @JvmStatic
+     fun stopForegroundService(context: Context) {
 -      SafeForegroundService.stop(context, ForegroundService::class.java)
--    }
++      ForegroundService.stopIfRunning(context)
+     }
    }
  
-   private val decryptionDrainedListeners: MutableList<Runnable> = CopyOnWriteArrayList()
- 
--  private val lock: ReentrantLock = ReentrantLock()
-   private val connectionNecessarySemaphore = Semaphore(0)
--  private var previousSystemHttpProxy: HttpProxy? = null
--  private val networkConnectionListener = NetworkConnectionListener(
-+
-+  /** Tracks Internet connection as reported by [InternetConnectivityMonitor]. */
-+  @Volatile
-+  private var internetConnection: ConnectivityState = ConnectivityState.OFFLINE
-+
-+  private val internetConnectivityMonitor = InternetConnectivityMonitor(
-     context = context,
--    onNetworkLost = { isNetworkUnavailable ->
--      lock.withLock {
-+    onConnectivityUpdated = { state ->
-+      internetConnection = state
-+      if (state.isOnline) {
-         AppDependencies.libsignalNetwork.onNetworkChange()
--        if (isNetworkUnavailable()) {
--          Log.w(TAG, "Lost network connection. Resetting the drained state.")
--          decryptionDrained = false
--          authWebSocket.disconnect()
--          // TODO [no-more-rest] Move the connection listener to a neutral location so this isn't passed in
--          unauthWebSocket.disconnect()
--        }
--        connectionNecessarySemaphore.release()
-+      } else {
-+        Log.w(TAG, "Lost network connection. Resetting the drained state.")
-+        decryptionDrained = false
-+        authWebSocket.disconnect()
-+        // TODO [no-more-rest] Move the connection listener to a neutral location so this isn't passed in
-+        unauthWebSocket.disconnect()
-       }
-+      notifyConnectionConditionsChanged()
-     },
--    onProxySettingsChanged = { proxyInfo ->
--      val systemHttpProxy = proxyInfo.toApplicableSystemHttpProxy()
--      if (systemHttpProxy?.host != previousSystemHttpProxy?.host || systemHttpProxy?.port != previousSystemHttpProxy?.port) {
--        val networkReset = AppDependencies.onSystemHttpProxyChange(systemHttpProxy)
--        if (networkReset) {
--          Log.i(TAG, "System proxy configuration changed, network reset.")
--        }
-+    onProxyChanged = {
-+      val proxyConfig = resolveProxyConfig()
-+      val proxyChanged = AppDependencies.networkProxyState.update(proxyConfig)
-+      if (proxyChanged) {
-+        AppDependencies.libsignalNetwork.configureProxy(proxyConfig)
-+        Log.i(TAG, "Proxy config changed, disconnecting websocket...")
-+        decryptionDrained = false
-+        authWebSocket.disconnect()
-+        unauthWebSocket.disconnect()
-       }
--      previousSystemHttpProxy = systemHttpProxy
-     }
-   )
- 
-   private val messageContentProcessor = MessageContentProcessor.create(context)
- 
--  private var appVisible = false
--  private var lastInteractionTime: Long = System.currentTimeMillis()
-+  private data class AppState(
-+    val isForeground: Boolean,
-+    val lastInteractionTime: Long
-+  )
-+
-+  @Volatile
-+  private var appState = AppState(false, System.currentTimeMillis())
-+
-   private var webSocketStateDisposable = Disposable.disposed()
- 
-   @Volatile
-@@ -148,60 +146,46 @@ class IncomingMessageObserver(
-     private set
- 
-   init {
--    if (INSTANCE_COUNT.incrementAndGet() != 1) {
--      throw AssertionError("Multiple observers!")
--    }
--
+@@ -190,16 +186,11 @@ class IncomingMessageObserver(
      MessageRetrievalThread().start()
  
-     val registered = SignalStore.account.isRegistered && !TextSecurePreferences.isUnauthorizedReceived(context)
+     val registered = SignalStore.account.isRegistered && !SignalStore.account.isUnauthorizedReceived
 -    if (registered && (!SignalStore.account.fcmEnabled || SignalStore.settings.forceWebsocketMode.isEnabled)) {
 -      SignalExecutors.UNBOUNDED.execute {
 -        if (!SafeForegroundService.start(context, ForegroundService::class.java)) {
@@ -3501,47 +3303,12 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
 +      ForegroundService.startIfNotRunning(context)
      }
  
-     AppForegroundObserver.addListener(object : AppForegroundObserver.Listener {
-       override fun onForeground() {
--        SignalExecutors.BOUNDED.execute { onAppForegrounded() }
-+        onAppForegrounded()
-       }
- 
-       override fun onBackground() {
--        SignalExecutors.BOUNDED.execute { onAppBackgrounded() }
-+        onAppBackgrounded()
-       }
-     })
- 
--    networkConnectionListener.register()
-+    internetConnectivityMonitor.register()
+     AppForegroundObserver.addListener(appForegroundListener)
+-
+     internetConnectivityMonitor.register()
  
      webSocketStateDisposable = authWebSocket
-       .state
-       .observeOn(Schedulers.computation())
-       .subscribeBy {
-         if (it == WebSocketConnectionState.CONNECTED) {
--          lock.withLock {
--            connectionNecessarySemaphore.release()
--          }
-+          notifyConnectionConditionsChanged()
-         }
-       }
- 
-     authWebSocket.addKeepAliveChangeListener {
--      SignalExecutors.BOUNDED.execute {
--        lock.withLock {
--          connectionNecessarySemaphore.release()
--        }
--      }
-+      notifyConnectionConditionsChanged()
-     }
-   }
- 
-   fun notifyRegistrationStateChanged() {
--    connectionNecessarySemaphore.release()
-+    notifyConnectionConditionsChanged()
-   }
+@@ -230,7 +221,7 @@ class IncomingMessageObserver(
  
    fun notifyRestoreDecisionMade() {
      Log.i(TAG, "Restore decision made, can restart network and process messages")
@@ -3550,59 +3317,32 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
    }
  
    fun addDecryptionDrainedListener(listener: Runnable) {
-@@ -216,79 +200,74 @@ class IncomingMessageObserver(
-   }
- 
+@@ -247,7 +238,7 @@ class IncomingMessageObserver(
    private fun onAppForegrounded() {
--    lock.withLock {
--      appVisible = true
--      BackgroundService.start(context)
--      connectionNecessarySemaphore.release()
--    }
-+    appState = appState.copy(isForeground = true)
+     appState.updateAndGet { it.copy(isForeground = true) }
+     ClockSkewDetector.recheck()
+-    BackgroundService.start(context)
 +    ProcessLifetimeHintService.start(context)
-+    notifyConnectionConditionsChanged()
+     notifyConnectionConditionsChanged()
    }
  
-   private fun onAppBackgrounded() {
--    lock.withLock {
--      appVisible = false
--      lastInteractionTime = System.currentTimeMillis()
--      connectionNecessarySemaphore.release()
--    }
-+    appState = appState.copy(isForeground = false, lastInteractionTime = System.currentTimeMillis())
-+    notifyConnectionConditionsChanged()
-   }
- 
-   private fun isConnectionNecessary(): Boolean {
--    val timeIdle: Long
--    val appVisibleSnapshot: Boolean
--
--    lock.withLock {
--      appVisibleSnapshot = appVisible
--      timeIdle = if (appVisibleSnapshot) 0 else System.currentTimeMillis() - lastInteractionTime
--    }
-+    val appStateSnapshot = appState
-+    val isForeground = appStateSnapshot.isForeground
-+    val lastInteractionTime = appStateSnapshot.lastInteractionTime
-+    val timeIdle = if (isForeground) 0 else System.currentTimeMillis() - lastInteractionTime
+@@ -265,9 +256,9 @@ class IncomingMessageObserver(
  
      val registered = SignalStore.account.isRegistered
-     val unauthorizedReceived = TextSecurePreferences.isUnauthorizedReceived(context)
+     val unauthorizedReceived = SignalStore.account.isUnauthorizedReceived
 -    val fcmEnabled = SignalStore.account.fcmEnabled
--    val hasNetwork = NetworkConstraint.isMet(context)
--    val hasProxy = SignalStore.proxy.isProxyEnabled
 +    val pushAvailable = SignalStore.account.pushAvailable
-+    val hasNetwork = internetConnection.isOnline
+     val hasNetwork = internetConnection.isAssumedOnline
+-    val hasProxy = SignalStore.proxy.isProxyEnabled
 +    val hasProxy = AppDependencies.networkManager.isProxyEnabled
      val forceWebsocket = SignalStore.settings.forceWebsocketMode.isEnabled
      val websocketAlreadyOpen = isConnectionAvailable()
- 
--    val lastInteractionString = if (appVisibleSnapshot) "N/A" else timeIdle.toString() + " ms (" + (if (timeIdle < maxBackgroundTime) "within limit" else "over limit") + ")"
-+    val lastInteractionString = if (isForeground) "N/A" else timeIdle.toString() + " ms (" + (if (timeIdle < maxBackgroundTime) "within limit" else "over limit") + ")"
+     val clockSkewDetected = ClockSkewDetector.isDetected
+@@ -277,14 +268,14 @@ class IncomingMessageObserver(
      val conclusion = registered &&
        !unauthorizedReceived &&
--      (appVisibleSnapshot || timeIdle < maxBackgroundTime || !fcmEnabled || forceWebsocket) &&
+       !clockSkewDetected &&
+-      (isForeground || timeIdle < maxBackgroundTime || !fcmEnabled || forceWebsocket) &&
 +      (isForeground || timeIdle < maxBackgroundTime || !pushAvailable || forceWebsocket) &&
        hasNetwork
  
@@ -3610,58 +3350,20 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
  
      Log.d(
        TAG,
--      "[$needsConnectionString] Network: $hasNetwork, Foreground: $appVisibleSnapshot, Time Since Last Interaction: $lastInteractionString, FCM: $fcmEnabled, WS Open or Keep-alives: $websocketAlreadyOpen, Registered: $registered, Unauthorized: $unauthorizedReceived, Proxy: $hasProxy, Force websocket: $forceWebsocket"
-+      "[$needsConnectionString] Network: $hasNetwork, Foreground: $isForeground, Time Since Last Interaction: $lastInteractionString, PushAvailable: $pushAvailable, WS Open or Keep-alives: $websocketAlreadyOpen, Registered: $registered, Unauthorized: $unauthorizedReceived, Proxy: $hasProxy, Force websocket: $forceWebsocket"
+-      "[$needsConnectionString] Network: $hasNetwork, Foreground: $isForeground, Time Since Last Interaction: $lastInteractionString, FCM: $fcmEnabled, WS Open or Keep-alives: $websocketAlreadyOpen, Registered: $registered, Unauthorized: $unauthorizedReceived, Proxy: $hasProxy, Force websocket: $forceWebsocket, Clock skew: $clockSkewDetected ($clockSkew)"
++      "[$needsConnectionString] Network: $hasNetwork, Foreground: $isForeground, Time Since Last Interaction: $lastInteractionString, PushAvailable: $pushAvailable, WS Open or Keep-alives: $websocketAlreadyOpen, Registered: $registered, Unauthorized: $unauthorizedReceived, Proxy: $hasProxy, Force websocket: $forceWebsocket, Clock skew: $clockSkewDetected ($clockSkew)"
      )
--
      return conclusion
    }
- 
-   private fun isConnectionAvailable(): Boolean {
--    return !TextSecurePreferences.isUnauthorizedReceived(context) && SignalStore.account.isRegistered && (authWebSocket.stateSnapshot == WebSocketConnectionState.CONNECTED || (authWebSocket.shouldSendKeepAlives() && NetworkConstraint.isMet(context)))
-+    val hasNetwork = internetConnection.isOnline
-+    return !TextSecurePreferences.isUnauthorizedReceived(context) && SignalStore.account.isRegistered && (authWebSocket.stateSnapshot == WebSocketConnectionState.CONNECTED || (authWebSocket.shouldSendKeepAlives() && hasNetwork))
-   }
- 
-   private fun waitForConnectionNecessary() {
--    try {
--      connectionNecessarySemaphore.drainPermits()
--      while (!isConnectionNecessary() && !isConnectionAvailable()) {
--        val numberDrained = connectionNecessarySemaphore.drainPermits()
--        if (numberDrained == 0) {
--          connectionNecessarySemaphore.acquire()
--        }
-+    while (!isConnectionNecessary() && !isConnectionAvailable()) {
-+      val numberDrained = connectionNecessarySemaphore.drainPermits()
-+      if (numberDrained == 0) {
-+        connectionNecessarySemaphore.acquireUninterruptibly()
-       }
--    } catch (e: InterruptedException) {
--      throw AssertionError(e)
-     }
-   }
- 
-+  /**
-+   * Signals that a condition affecting the connection decision may have changed.
-+   */
-+  private fun notifyConnectionConditionsChanged() {
-+    connectionNecessarySemaphore.drainPermits()
-+    connectionNecessarySemaphore.release()
-+  }
-+
-   fun terminate() {
-     Log.w(TAG, "Termination! ${this.hashCode()}", Throwable())
--    INSTANCE_COUNT.decrementAndGet()
--    networkConnectionListener.unregister()
-+    internetConnectivityMonitor.unregister()
-     webSocketStateDisposable.dispose()
-     terminated = true
+@@ -335,6 +326,7 @@ class IncomingMessageObserver(
+     authWebSocket.removeKeepAliveToken(WEB_SOCKET_KEEP_ALIVE_TOKEN)
      authWebSocket.disconnect()
+     notifyConnectionConditionsChanged()
 +    ForegroundService.stopIfRunning(context)
    }
  
    @VisibleForTesting
-@@ -433,7 +412,7 @@ class IncomingMessageObserver(
+@@ -479,7 +471,7 @@ class IncomingMessageObserver(
        Log.i(TAG, "Initializing! (${this.hashCode()})")
        uncaughtExceptionHandler = this
  
@@ -3670,7 +3372,7 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
  
        canProcessMessages = !SignalStore.registration.restoreDecisionState.isDecisionPending
      }
-@@ -459,10 +438,6 @@ class IncomingMessageObserver(
+@@ -509,10 +501,6 @@ class IncomingMessageObserver(
            if (state != WebSocketConnectionState.CONNECTED) {
              decryptionDrained = false
            }
@@ -3681,7 +3383,7 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
          }
  
          try {
-@@ -501,9 +476,6 @@ class IncomingMessageObserver(
+@@ -551,9 +539,6 @@ class IncomingMessageObserver(
                  SignalLocalMetrics.PushWebsocketFetch.onProcessedBatch()
  
                  if (!hasMore && !decryptionDrained) {
@@ -3691,28 +3393,26 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
                    Log.i(TAG, "Decryptions newly-drained.")
                    decryptionDrained = true
  
-@@ -529,8 +501,8 @@ class IncomingMessageObserver(
-             }
+@@ -584,7 +569,7 @@ class IncomingMessageObserver(
            }
  
--          if (!appVisible) {
+           if (!appState.get().isForeground) {
 -            BackgroundService.stop(context)
-+          if (!appState.isForeground) {
 +            ProcessLifetimeHintService.stop(context)
            }
          } catch (e: Throwable) {
-           attempts++
-@@ -593,8 +565,7 @@ class IncomingMessageObserver(
+           if (ClockSkewDetector.isDetected) {
+@@ -659,8 +644,7 @@ class IncomingMessageObserver(
          }
  
          if (networkResetRequired) {
 -          AppDependencies.resetNetwork()
 -          AppDependencies.startNetwork()
-+          AppDependencies.resetNetwork(restartMessageObserver = false)
++          AppDependencies.resetNetwork(restartMessageObserver = true)
          }
        }
  
-@@ -626,8 +597,7 @@ class IncomingMessageObserver(
+@@ -698,8 +682,7 @@ class IncomingMessageObserver(
  
          if (results?.isNetworkResetRequired == true) {
            Log.w(TAG, "Self identity changed mid-batch after envelope ${index + 1} of ${batch.size}. Stopping individual processing; the remainder will be redelivered to the new connection.")
@@ -3722,8 +3422,8 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
            break
          }
        }
-@@ -661,20 +631,47 @@ class IncomingMessageObserver(
-     override val notificationId: Int = FOREGROUND_ID
+@@ -733,20 +716,47 @@ class IncomingMessageObserver(
+     override val notificationId: Int = NotificationIds.INCOMING_MESSAGE_OBSERVER
  
      override fun getForegroundNotification(intent: Intent): Notification {
 -      return NotificationCompat.Builder(applicationContext, NotificationChannels.getInstance().BACKGROUND)
@@ -3775,7 +3475,7 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
      override fun onBind(intent: Intent?): IBinder? = null
  
      override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-@@ -689,14 +686,14 @@ class IncomingMessageObserver(
+@@ -761,14 +771,14 @@ class IncomingMessageObserver(
      companion object {
        fun start(context: Context) {
          try {
@@ -3793,10 +3493,10 @@ index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116
      }
    }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationChannels.java b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationChannels.java
-index 791b035c5142a834654d6606ce3f041554259053..6449729ec930882fce462e7e6ea2744d44b2bf29 100644
+index 41e15d9caf5d368b783623ec37725c5638504341..1d328b3d784217e4d286b8c89a0c89931520151c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationChannels.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationChannels.java
-@@ -72,14 +72,14 @@ public class NotificationChannels {
+@@ -71,14 +71,14 @@ public class NotificationChannels {
    public final String FAILURES                         = "failures";
    public final String APP_UPDATES                      = "app_updates";
    public final String BACKUPS                          = "backups_v2";
@@ -3813,10 +3513,10 @@ index 791b035c5142a834654d6606ce3f041554259053..6449729ec930882fce462e7e6ea2744d
 +  public static final String ADDITIONAL_MESSAGE_NOTIFICATIONS = "additional_message_notifications";
    public final String NEW_LINKED_DEVICE                = "new_linked_device";
    public final String INTERNAL_ISSUES                  = "internal_issues";
+   public final String UNREAD_REMINDERS                 = "unread_reminders";
+@@ -661,7 +661,7 @@ public class NotificationChannels {
  
-@@ -657,7 +657,7 @@ public class NotificationChannels {
- 
-     notificationManager.createNotificationChannels(Arrays.asList(messages, calls, failures, backups, lockedStatus, other, voiceNotes, joinEvents, background, callStatus, appAlerts, additionalMessageNotifications, newLinkedDevice));
+     notificationManager.createNotificationChannels(Arrays.asList(messages, calls, failures, backups, lockedStatus, other, voiceNotes, joinEvents, background, callStatus, appAlerts, additionalMessageNotifications, newLinkedDevice, unreadReminders));
  
 -    if (BuildConfig.MANAGES_APP_UPDATES) {
 +    if (BuildConfig.MANAGE_MOLLY_UPDATES) {
@@ -3824,10 +3524,10 @@ index 791b035c5142a834654d6606ce3f041554259053..6449729ec930882fce462e7e6ea2744d
        notificationManager.createNotificationChannel(appUpdates);
      } else {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java b/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java
-index c3b1577708f0f03fb9baa2a667aaa443da91e003..8ef9dcbe1663344387e1ff72c20e1ae445c7132e 100644
+index b83f6ca0a279db02fecd6cb516f7a65dcd08f405..c51b677008ee951bc8c9e00eb668a2a2bb5c0124 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java
-@@ -107,6 +107,11 @@ public class OptimizedMessageNotifier implements MessageNotifier {
+@@ -125,6 +125,11 @@ public class OptimizedMessageNotifier implements MessageNotifier {
      });
    }
  
@@ -3840,7 +3540,7 @@ index c3b1577708f0f03fb9baa2a667aaa443da91e003..8ef9dcbe1663344387e1ff72c20e1ae4
    public void forceBubbleNotification(@NonNull Context context, @NonNull ConversationId conversationId) {
      SignalDatabase.runPostSuccessfulTransaction(() -> {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/SlowNotificationHeuristics.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/SlowNotificationHeuristics.kt
-index 2150b9cdffa827ea844c8afaa5b36bf81ac16d6f..33f235f9e0744bc3ed44ef90034274e0d96ed9ed 100644
+index d194cdd7d7b63f0d9ef9f0e667e8e8c3569be694..ec79ede8451e6b786f17a4966fd668c649f73ac2 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/SlowNotificationHeuristics.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/SlowNotificationHeuristics.kt
 @@ -61,18 +61,6 @@ object SlowNotificationHeuristics {
@@ -3863,10 +3563,10 @@ index 2150b9cdffa827ea844c8afaa5b36bf81ac16d6f..33f235f9e0744bc3ed44ef90034274e0
    fun shouldPromptBatterySaver(): Boolean {
      val remoteEnabled = LocaleRemoteConfig.isBatterySaverPromptEnabled() || LocaleRemoteConfig.isDelayedNotificationPromptEnabled()
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/VitalsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/VitalsViewModel.kt
-index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed15f3169c 100644
+index 1b201738ff308168790bd7c43d69e0f688940df6..88596bcf4647c3b4e6fdfb14ba69a6ed15f3169c 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/VitalsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/VitalsViewModel.kt
-@@ -7,22 +7,15 @@ package org.thoughtcrime.securesms.notifications
+@@ -7,21 +7,15 @@ package org.thoughtcrime.securesms.notifications
  
  import android.app.Application
  import androidx.lifecycle.AndroidViewModel
@@ -3883,14 +3583,13 @@ index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed
  import org.thoughtcrime.securesms.notifications.DeviceSpecificNotificationConfig.ShowCondition
 -import org.thoughtcrime.securesms.util.ConnectivityWarning
 -import org.thoughtcrime.securesms.util.NetworkUtil
--import org.thoughtcrime.securesms.util.TextSecurePreferences
 -import org.whispersystems.signalservice.api.websocket.WebSocketConnectionState
  import java.util.concurrent.TimeUnit
 -import kotlin.time.Duration.Companion.days
  
  /**
   * View model for checking for various app vitals, like slow notifications and crashes.
-@@ -37,7 +30,7 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
+@@ -36,7 +30,7 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
      vitalsState = checkSubject
        .subscribeOn(Schedulers.io())
        .observeOn(Schedulers.io())
@@ -3899,7 +3598,7 @@ index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed
        .switchMapSingle {
          checkHeuristics()
        }
-@@ -51,6 +44,10 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
+@@ -50,6 +44,10 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
  
    private fun checkHeuristics(): Single<State> {
      return Single.fromCallable {
@@ -3910,7 +3609,7 @@ index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed
        val deviceSpecificCondition = SlowNotificationHeuristics.getDeviceSpecificShowCondition()
  
        val shouldShowDeviceSpecificDialog = SlowNotificationHeuristics.shouldShowDeviceSpecificDialog()
-@@ -72,42 +69,14 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
+@@ -71,42 +69,14 @@ class VitalsViewModel(private val context: Application) : AndroidViewModel(conte
          return@fromCallable State.PROMPT_GENERAL_BATTERY_SAVER_DIALOG
        }
  
@@ -3921,7 +3620,7 @@ index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed
 -      val timeSinceLastConnection = System.currentTimeMillis() - SignalStore.misc.lastWebSocketConnectTime
 -      val timeSinceLastConnectionWarning = System.currentTimeMillis() - SignalStore.misc.lastConnectivityWarningTime
 -      val connectedToWebSocket = AppDependencies.webSocketObserver.value == WebSocketConnectionState.CONNECTED
--      val isRegistered = SignalStore.account.isRegistered && !TextSecurePreferences.isUnauthorizedReceived(context)
+-      val isRegistered = SignalStore.account.isRegistered && !SignalStore.account.isUnauthorizedReceived
 -
 -      if (ConnectivityWarning.isEnabled && timeSinceLastConnection > ConnectivityWarning.threshold && timeSinceLastConnectionWarning > 14.days.inWholeMilliseconds && NetworkUtil.isConnected(context) && isRegistered && !connectedToWebSocket) {
 -        return@fromCallable if (ConnectivityWarning.isDebugPromptEnabled) {
@@ -3954,28 +3653,8 @@ index d6a343ebfdc14af5f1ff95a35e27710650687f91..88596bcf4647c3b4e6fdfb14ba69a6ed
 -    PROMPT_DEBUGLOGS_FOR_CONNECTIVITY_WARNING
    }
  }
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/PowerManagerCompat.java b/app/src/main/java/org/thoughtcrime/securesms/util/PowerManagerCompat.java
-index 066b9dba992ae76a015f603d9ca22b9f75a83699..003cbd8da3987b66d2be46c568e6b7ecb897776f 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/util/PowerManagerCompat.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/util/PowerManagerCompat.java
-@@ -20,8 +20,12 @@ public class PowerManagerCompat {
-   }
- 
-   public static void requestIgnoreBatteryOptimizations(@NonNull Context context) {
--    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
--                               Uri.parse("package:" + context.getPackageName()));
--    context.startActivity(intent);
-+    context.startActivity(buildRequestIgnoreBatteryOptimizationsIntent(context));
-+  }
-+
-+  @NonNull
-+  public static Intent buildRequestIgnoreBatteryOptimizationsIntent(@NonNull Context context) {
-+    return new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-+                      Uri.parse("package:" + context.getPackageName()));
-   }
- }
 diff --git a/app/src/main/res/navigation/app_settings_with_change_number.xml b/app/src/main/res/navigation/app_settings_with_change_number.xml
-index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7febf3c6e9 100644
+index ccf5c00ad58278b687224c4c27247fef0a877b54..005726415d0857afdf2819eb55732d099228112b 100644
 --- a/app/src/main/res/navigation/app_settings_with_change_number.xml
 +++ b/app/src/main/res/navigation/app_settings_with_change_number.xml
 @@ -99,6 +99,13 @@
@@ -3992,7 +3671,7 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
          <action
              android:id="@+id/action_appSettingsFragment_to_dataAndStorageSettingsFragment"
              app:destination="@id/dataAndStorageSettingsFragment"
-@@ -280,12 +287,8 @@
+@@ -391,12 +398,8 @@
          android:name="org.thoughtcrime.securesms.linkdevice.LinkDeviceFragment"
          android:label="link_device_fragment">
          <action
@@ -4007,7 +3686,7 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
          <action
              android:id="@+id/action_linkDeviceFragment_to_editDeviceNameFragment"
              app:destination="@id/editDeviceNameFragment"
-@@ -321,16 +324,21 @@
+@@ -432,16 +435,21 @@
          android:id="@+id/addLinkDeviceFragment"
          android:name="org.thoughtcrime.securesms.linkdevice.AddLinkDeviceFragment"
          android:label="link_device_add_fragment">
@@ -4033,7 +3712,7 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
      <dialog
          android:id="@+id/linkDeviceSyncBottomSheet"
          android:name="org.thoughtcrime.securesms.linkdevice.LinkDeviceSyncBottomSheet" />
-@@ -532,12 +540,32 @@
+@@ -659,12 +667,32 @@
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
  
@@ -4066,30 +3745,21 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
      <!-- region Data and Storage -->
  
      <fragment
-@@ -551,13 +579,6 @@
-             app:exitAnim="@anim/fragment_open_exit"
-             app:popEnterAnim="@anim/fragment_close_enter"
-             app:popExitAnim="@anim/fragment_close_exit" />
--        <action
--            android:id="@+id/action_dataAndStorageSettingsFragment_to_editProxyFragment"
--            app:destination="@id/edit_proxy"
--            app:enterAnim="@anim/fragment_open_enter"
--            app:exitAnim="@anim/fragment_open_exit"
--            app:popEnterAnim="@anim/fragment_close_enter"
--            app:popExitAnim="@anim/fragment_close_exit" />
-     </fragment>
- 
-     <fragment
-@@ -565,8 +586,6 @@
+@@ -692,13 +720,6 @@
          android:name="org.thoughtcrime.securesms.components.settings.app.storage.ManageStorageSettingsFragment"
          android:label="storage_preference_fragment" />
  
+-    <fragment
+-        android:id="@+id/networkPreferenceFragment"
+-        android:name="org.thoughtcrime.securesms.preferences.NetworkPreferenceFragment"
+-        android:label="network_preference_fragment" />
+-
 -    <include app:graph="@navigation/edit_proxy" />
 -
      <!-- endregion -->
  
      <!-- region Help -->
-@@ -595,6 +614,13 @@
+@@ -727,6 +748,13 @@
              app:exitAnim="@anim/fragment_open_exit"
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
@@ -4103,20 +3773,24 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
      </fragment>
  
      <fragment
-@@ -674,8 +700,10 @@
-         app:popUpToInclusive="true" />
- 
+@@ -808,14 +836,8 @@
      <action
+         android:id="@+id/action_direct_to_networkPreferenceFragment"
+         app:destination="@id/networkPreferenceFragment"
+-        app:enterAnim="@anim/fragment_open_enter"
+-        app:exitAnim="@anim/fragment_open_exit"
+-        app:popEnterAnim="@anim/fragment_close_enter"
+-        app:popExitAnim="@anim/fragment_close_exit" />
+-
+-    <action
 -        android:id="@+id/action_direct_to_editProxyFragment"
 -        app:destination="@id/edit_proxy"
-+        android:id="@+id/action_direct_to_networkPreferenceFragment"
-+        app:destination="@id/networkPreferenceFragment"
 +        app:popUpTo="@id/appSettingsFragment"
 +        app:popUpToInclusive="true"
          app:enterAnim="@anim/fragment_open_enter"
          app:exitAnim="@anim/fragment_open_exit"
          app:popEnterAnim="@anim/fragment_close_enter"
-@@ -1016,13 +1044,6 @@
+@@ -1164,13 +1186,6 @@
          android:name="org.thoughtcrime.securesms.components.settings.app.subscription.manage.ManageDonationsFragment"
          android:label="manage_donations_fragment"
          tools:layout="@layout/dsl_settings_fragment">
@@ -4130,7 +3804,7 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
          <action
              android:id="@+id/action_manageDonationsFragment_to_donationReceiptListFragment"
              app:destination="@id/donationReceiptListFragment"
-@@ -1070,8 +1091,6 @@
+@@ -1216,8 +1231,6 @@
          android:label="subscribe_learn_more_bottom_sheet_dialog"
          tools:layout="@layout/subscribe_learn_more_bottom_sheet_dialog_fragment" />
  
@@ -4138,8 +3812,8 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
 -
      <!-- endregion -->
  
-     <!-- Notification Profiles -->
-@@ -1097,6 +1116,11 @@
+     <fragment
+@@ -1247,6 +1260,11 @@
              app:popExitAnim="@anim/fragment_close_exit" />
      </fragment>
  
@@ -4150,9 +3824,16 @@ index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7f
 +
      <fragment
          android:id="@+id/editNotificationProfileFragment"
-         android:name="org.thoughtcrime.securesms.components.settings.app.notifications.profiles.EditNotificationProfileFragment"
+         android:name="org.thoughtcrime.securesms.components.settings.app.notifications.profiles.edit.EditNotificationProfileFragment">
+@@ -1478,4 +1496,4 @@
+     <include app:graph="@navigation/username_link_settings" />
+     <include app:graph="@navigation/story_privacy_settings" />
+ 
+-</navigation>
+\ No newline at end of file
++</navigation>
 diff --git a/app/src/main/res/values/firebase_messaging.xml b/app/src/main/res/values/firebase_messaging.xml
-index 6cd44588a460b049ed7df6444e99ed9f84cfdb00..456df598b7c30e60154be8124eb101fea9e25acc 100644
+index 6cd44588a460b049ed7df6444e99ed9f84cfdb00..656a86e38181ba6a0503df46b4e1c532fb8f1650 100644
 --- a/app/src/main/res/values/firebase_messaging.xml
 +++ b/app/src/main/res/values/firebase_messaging.xml
 @@ -1,10 +1,10 @@
@@ -4166,13 +3847,343 @@ index 6cd44588a460b049ed7df6444e99ed9f84cfdb00..456df598b7c30e60154be8124eb101fe
 -    <string name="google_api_key" translatable="false">AIzaSyDrfzNAPBPzX6key51hqo3p5LZXF5Y-yxU</string>
 -    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDrfzNAPBPzX6key51hqo3p5LZXF5Y-yxU</string>
 -    <string name="project_id" translatable="false">api-project-312334754206</string>
+-</resources>
+\ No newline at end of file
 +    <string name="google_api_key" translatable="false">AIzaSyAuRxbDoMcC_637-4_hQfXQssLq0xgPlbQ</string>
 +    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAuRxbDoMcC_637-4_hQfXQssLq0xgPlbQ</string>
 +    <string name="project_id" translatable="false">mollyim-365011</string>
- </resources>
-\ No newline at end of file
++</resources>
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..ff41bcdd0e9c4b2d59558a4bfc5259e595082aed
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt
+@@ -0,0 +1,74 @@
++package org.thoughtcrime.securesms.components.settings.app.data
++
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkObject
++import io.mockk.unmockkAll
++import org.junit.After
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.thoughtcrime.securesms.keyvalue.AccountValues
++import org.thoughtcrime.securesms.keyvalue.SettingsValues
++import org.thoughtcrime.securesms.keyvalue.SettingsValues.NotificationDeliveryMethod
++import org.thoughtcrime.securesms.keyvalue.SignalStore
++import org.thoughtcrime.securesms.keyvalue.UnifiedPushValues
++
++class DataAndStorageSettingsRepositoryTest {
++  private var method = NotificationDeliveryMethod.FCM
++  private var accountPushAvailable = true
++  private var fcmAvailable = false
++  private var unifiedPushAvailable = false
++
++  @Before
++  fun setup() {
++    mockkObject(SignalStore)
++    val account = mockk<AccountValues>()
++    val settings = mockk<SettingsValues>()
++    val unifiedPush = mockk<UnifiedPushValues>()
++    every { SignalStore.account } returns account
++    every { SignalStore.settings } returns settings
++    every { SignalStore.unifiedpush } returns unifiedPush
++    every { account.pushAvailable } answers { accountPushAvailable }
++    every { account.canReceiveFcm } answers { fcmAvailable }
++    every { settings.preferredNotificationMethod } answers { method }
++    every { unifiedPush.isAvailableOrAirGapped } answers { unifiedPushAvailable }
++  }
++
++  @After
++  fun teardown() {
++    unmockkAll()
++  }
++
++  @Test
++  fun `registered UnifiedPush is effective without FCM or a Play Services installation check`() {
++    method = NotificationDeliveryMethod.UNIFIEDPUSH
++    unifiedPushAvailable = true
++    assertTrue(DataAndStorageSettingsRepository.isPushAvailable())
++  }
++
++  @Test
++  fun `FCM selection requires the actual FCM capability rather than a different available method`() {
++    unifiedPushAvailable = true
++    assertFalse(DataAndStorageSettingsRepository.isPushAvailable())
++    fcmAvailable = true
++    assertTrue(DataAndStorageSettingsRepository.isPushAvailable())
++  }
++
++  @Test
++  fun `websocket selection and pending UnifiedPush ignore stale FCM availability`() {
++    fcmAvailable = true
++    method = NotificationDeliveryMethod.WEBSOCKET
++    assertFalse(DataAndStorageSettingsRepository.isPushAvailable())
++    method = NotificationDeliveryMethod.UNIFIEDPUSH
++    assertFalse(DataAndStorageSettingsRepository.isPushAvailable())
++  }
++
++  @Test
++  fun `account push readiness remains required`() {
++    fcmAvailable = true
++    accountPushAvailable = false
++    assertFalse(DataAndStorageSettingsRepository.isPushAvailable())
++  }
++}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModelTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModelTest.kt
+index 1aa08f05c8bb74423140ac9ea55a1ddb3abf770d..50befad99d5f4f402ed55d1d9f4008a0b6a7957f 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModelTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsViewModelTest.kt
+@@ -73,7 +73,7 @@ class DataAndStorageSettingsViewModelTest {
+     every { DataAndStorageSettingsRepository.setCallDataMode(any()) } answers { callDataMode = firstArg() }
+     every { DataAndStorageSettingsRepository.isForceWebsocketModeEnabled() } answers { forceWebsocket }
+     coEvery { DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(any()) } answers { forceWebsocket = firstArg() }
+-    every { DataAndStorageSettingsRepository.isPlayServicesAvailable() } returns true
++    every { DataAndStorageSettingsRepository.isPushAvailable() } returns true
+     every { DataAndStorageSettingsRepository.isProxyEnabled() } returns false
+   }
+ 
+@@ -240,6 +240,31 @@ class DataAndStorageSettingsViewModelTest {
+     coVerify(exactly = 0) { DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(any()) }
+   }
+ 
++  @Test
++  fun `missing selected push keeps websocket required without changing the saved preference`() = runTest(testDispatcher) {
++    every { DataAndStorageSettingsRepository.isPushAvailable() } returns false
++    val viewModel = DataAndStorageSettingsViewModel()
++
++    viewModel.onEvent(DataAndStorageSettingsEvent.StayConnectedInBackgroundToggled(false))
++
++    assertThat(viewModel.state.value.isStayConnectedInBackgroundChecked).isTrue()
++    assertThat(viewModel.state.value.pushAvailable).isFalse()
++    coVerify(exactly = 0) { DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(any()) }
++  }
++
++  @Test
++  fun `losing the selected push method while confirming does not overwrite websocket policy`() = runTest(testDispatcher) {
++    val viewModel = DataAndStorageSettingsViewModel()
++    viewModel.onEvent(DataAndStorageSettingsEvent.StayConnectedInBackgroundToggled(true))
++    every { DataAndStorageSettingsRepository.isPushAvailable() } returns false
++
++    viewModel.onEvent(DataAndStorageSettingsEvent.StayConnectedInBackgroundConfirmed)
++
++    assertThat(viewModel.state.value.dialog).isEqualTo(Dialog.None)
++    assertThat(viewModel.state.value.isStayConnectedInBackgroundChecked).isTrue()
++    coVerify(exactly = 0) { DataAndStorageSettingsRepository.setForceWebsocketModeEnabled(any()) }
++  }
++
+   private fun TestScope.collectActions(actions: Flow<DataAndStorageSettingsAction>): List<DataAndStorageSettingsAction> {
+     val collected = mutableListOf<DataAndStorageSettingsAction>()
+     backgroundScope.launch { actions.toList(collected) }
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/jobs/FcmRefreshJobTest.kt b/app/src/test/java/org/thoughtcrime/securesms/jobs/FcmRefreshJobTest.kt
+index 78e3f06affe0563b22c424685a0d0004debf68ca..6c36ef480cf1241366cb7e4949243342e80b6fed 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/jobs/FcmRefreshJobTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/jobs/FcmRefreshJobTest.kt
+@@ -17,7 +17,6 @@ import org.junit.After
+ import org.junit.Before
+ import org.junit.Rule
+ import org.junit.Test
+-import org.signal.core.util.PlayServicesUtil
+ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.dependencies.AppDependencies
+ import org.thoughtcrime.securesms.keyvalue.SettingsValues.ForceWebsocketMode
+@@ -34,9 +33,6 @@ class FcmRefreshJobTest {
+   fun setUp() {
+     Log.initialize(SystemOutLogger())
+ 
+-    mockkStatic(PlayServicesUtil::class)
+-    every { PlayServicesUtil.getPlayServicesStatus(any()) } returns PlayServicesUtil.PlayServicesStatus.SUCCESS
+-
+     mockkStatic(AppDependencies::class)
+     every { AppDependencies.resetNetwork() } just runs
+     every { AppDependencies.startNetwork() } just runs
+@@ -46,18 +42,18 @@ class FcmRefreshJobTest {
+ 
+   @After
+   fun tearDown() {
+-    unmockkStatic(PlayServicesUtil::class)
+     unmockkStatic(AppDependencies::class)
+   }
+ 
+   @Test
+-  fun `given fcm has failed for days and the mode is disabled automatically, when the job fails, then forced websocket mode is enabled automatically`() {
++  fun `failed FCM retries do not override Molly delivery policy or enable forced websocket mode`() {
+     every { signalStore.settings.forceWebsocketMode } returns ForceWebsocketMode.DISABLED_AUTOMATICALLY
+ 
+     createJob().onFailure()
+ 
+-    verify { signalStore.settings.forceWebsocketMode = ForceWebsocketMode.ENABLED_AUTOMATICALLY }
+-    verify { AppDependencies.startNetwork() }
++    verify(exactly = 0) { signalStore.settings.forceWebsocketMode = any() }
++    verify(exactly = 0) { signalStore.account.fcmEnabled = any() }
++    verify(exactly = 0) { AppDependencies.startNetwork() }
+   }
+ 
+   @Test
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt b/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt
+index e30163127ecc241f8242d6c5d298793c40469a1b..54a9b31eaf873e52effbcf2ea4ed0bb7ce3fa5bd 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/keyvalue/SettingsValuesMigrationTest.kt
+@@ -7,6 +7,7 @@ import androidx.preference.PreferenceManager
+ import androidx.test.core.app.ApplicationProvider
+ import io.mockk.every
+ import io.mockk.mockk
++import io.mockk.mockkObject
+ import io.mockk.mockkStatic
+ import io.mockk.unmockkAll
+ import org.junit.After
+@@ -53,6 +54,34 @@ class SettingsValuesMigrationTest {
+     unmockkAll()
+   }
+ 
++  @Test
++  fun `push readiness ignores stale capabilities belonging to an unselected delivery method`() {
++    val settings = SettingsValues(store, context)
++    val unifiedPush = mockk<UnifiedPushValues>()
++    mockkObject(SignalStore.Companion)
++    every { SignalStore.settings } returns settings
++    every { SignalStore.unifiedpush } returns unifiedPush
++    every { unifiedPush.isAvailableOrAirGapped } returns true
++    val account = AccountValues(store, context)
++    account.fcmEnabled = true
++    account.fcmToken = "synthetic-token"
++    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.FCM
++    assertTrue(account.pushAvailable)
++
++    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.WEBSOCKET
++    assertFalse(account.pushAvailable)
++
++    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.UNIFIEDPUSH
++    assertTrue(account.pushAvailable)
++    every { unifiedPush.isAvailableOrAirGapped } returns false
++    assertFalse(account.pushAvailable)
++
++    settings.preferredNotificationMethod = SettingsValues.NotificationDeliveryMethod.FCM
++    account.fcmEnabled = false
++    every { unifiedPush.isAvailableOrAirGapped } returns true
++    assertFalse(account.pushAvailable)
++  }
++
+   @Test
+   fun `database bootstrap uses original Molly secrets instead of upstream preferences`() {
+     val upstream = PreferenceManager.getDefaultSharedPreferences(context)
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreen.kt b/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreen.kt
+index 7ea82842ffdb8f8acb964d1e8abb738a91d61047..861ddf389dcc3e3bfddad92e0edf7abc98d738c7 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreen.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreen.kt
+@@ -155,7 +155,7 @@ fun DataAndStorageSettingsScreen(
+         Rows.ToggleRow(
+           checked = state.isStayConnectedInBackgroundChecked,
+           text = stringResource(R.string.DataAndStorageSettingsFragment__stay_connected_in_background),
+-          enabled = state.playServicesAvailable,
++          enabled = state.pushAvailable,
+           onCheckChanged = { onEvent(DataAndStorageSettingsEvent.StayConnectedInBackgroundToggled(it)) },
+           modifier = Modifier.testTag(DataAndStorageSettingsTestTags.ROW_STAY_CONNECTED)
+         )
+@@ -278,7 +278,7 @@ private fun DataAndStorageSettingsScreenPreview() {
+ @Composable
+ private fun DataAndStorageSettingsScreenCalculatingPreview() {
+   DataAndStorageSettingsScreen(
+-    state = DataAndStorageSettingsState(playServicesAvailable = false),
++    state = DataAndStorageSettingsState(pushAvailable = false),
+     onEvent = {}
+   )
+ }
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsState.kt b/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsState.kt
+index db7b97365097b92e07a8f622ad58784e27f87943..2eebd246500c803a655ee08ef2c33082f77478b5 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsState.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsState.kt
+@@ -18,14 +18,14 @@ data class DataAndStorageSettingsState(
+   val sentMediaQuality: SentMediaQuality = SentMediaQuality.STANDARD,
+   val callDataMode: CallDataMode = CallDataMode.HIGH_ALWAYS,
+   val forceWebsocketMode: Boolean = false,
+-  val playServicesAvailable: Boolean = true,
++  val pushAvailable: Boolean = true,
+   val isProxyEnabled: Boolean = false,
+   val dialog: Dialog = Dialog.None
+ ) {
+ 
+-  /** Without Play Services there's no push, so the app always stays connected and the toggle is locked on. */
++  /** Without an effective selected push method, the websocket must stay connected. */
+   val isStayConnectedInBackgroundChecked: Boolean
+-    get() = forceWebsocketMode || !playServicesAvailable
++    get() = forceWebsocketMode || !pushAvailable
+ 
+   fun autoDownloadFor(network: AutoDownloadNetwork): Set<AutoDownloadMediaType> = autoDownload[network].orEmpty()
+ 
+diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/routes/AppSettingsRoute.kt b/feature/app-settings/src/main/java/org/signal/appsettings/routes/AppSettingsRoute.kt
+index 713fc3a27843aaefa8cf8f77f1c3061ecfdff4d6..c99794704530eb0946ebc27fdf584f10be917d12 100644
+--- a/feature/app-settings/src/main/java/org/signal/appsettings/routes/AppSettingsRoute.kt
++++ b/feature/app-settings/src/main/java/org/signal/appsettings/routes/AppSettingsRoute.kt
+@@ -41,6 +41,7 @@ sealed interface AppSettingsRoute : Parcelable, DetailNavKey {
+       is ChatFoldersRoute.CreateChatFolders,
+       is StoriesRoute.Privacy,
+       NotificationsRoute.Notifications,
++      is NotificationsRoute.PlayServicesProblem,
+       NotificationsRoute.NotificationProfiles,
+       PrivacyRoute.Privacy,
+       is BackupsRoute.Backups,
+@@ -186,6 +187,12 @@ sealed interface AppSettingsRoute : Parcelable, DetailNavKey {
+     @Serializable
+     data object NotificationProfiles : NotificationsRoute
+ 
++    @Serializable
++    data object UnifiedPushSettings : NotificationsRoute
++
++    @Serializable
++    data class PlayServicesProblem(val errorCode: Int) : NotificationsRoute
++
+     @Serializable
+     data class EditProfile(val profileId: Long = -1L) : NotificationsRoute
+ 
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsLayoutTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsLayoutTest.kt
+index 1a7173eb985ed8a0c2ac2b59a346f17b829f5081..f32ba0b03ad10cd1ba491f06980c735d96a61baa 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsLayoutTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsLayoutTest.kt
+@@ -33,8 +33,8 @@ class DataAndStorageSettingsLayoutTest : SignalLayoutStressTest() {
+   }
+ 
+   @Test
+-  fun `without play services`() = assertPassesLayoutChecks {
+-    DataAndStorageSettingsScreen(state = populated.copy(forceWebsocketMode = false, playServicesAvailable = false), onEvent = {})
++  fun `without effective selected push`() = assertPassesLayoutChecks {
++    DataAndStorageSettingsScreen(state = populated.copy(forceWebsocketMode = false, pushAvailable = false), onEvent = {})
+   }
+ 
+   @Test
+diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreenTest.kt
+index cb813f1f8d1bf7341b22e6f80af76213b11488f5..868ead55061196234ae92973e2e5cb375e44a808 100644
+--- a/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreenTest.kt
++++ b/feature/app-settings/src/test/java/org/signal/appsettings/dataandstorage/DataAndStorageSettingsScreenTest.kt
+@@ -116,8 +116,8 @@ class DataAndStorageSettingsScreenTest {
+   }
+ 
+   @Test
+-  fun `stay connected in background is locked on without play services`() {
+-    setContent(DataAndStorageSettingsState(forceWebsocketMode = false, playServicesAvailable = false))
++  fun `stay connected in background is locked on without effective selected push`() {
++    setContent(DataAndStorageSettingsState(forceWebsocketMode = false, pushAvailable = false))
+ 
+     scrollTo(DataAndStorageSettingsTestTags.ROW_STAY_CONNECTED)
+     composeTestRule.onNodeWithTag(DataAndStorageSettingsTestTags.ROW_STAY_CONNECTED).assertIsNotEnabled()
+diff --git a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountApi.kt b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountApi.kt
+index b64d4b716d602a6b9fd6afe2b2be01d41e9598d0..07289d2f6005a5b6ae948b22c21e4e8386d92d2b 100644
+--- a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountApi.kt
++++ b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountApi.kt
+@@ -72,6 +72,8 @@ class AccountApi(private val authWebSocket: SignalWebSocket.AuthenticatedWebSock
+     }
+   }
+ 
++  fun clearFcmTokenBlocking(): RequestResult<Unit, Nothing> = runBlocking { clearFcmToken() }
++
+   /**
+    * Set account attributes.
+    *
 diff --git a/lib/network/src/main/java/org/signal/network/api/CallingApi.kt b/lib/network/src/main/java/org/signal/network/api/CallingApi.kt
-index 8661bd2d6b58108076953d439ac4a3fd8dbc750d..73b68f2ba89a25cf0fcada5c9a911bba131c8e4d 100644
+index e0fad94f1a682766fcb5da54d469c0f272cd6c38..76836b47ca8dfa3d727cf3a38e50fc67bdd2514a 100644
 --- a/lib/network/src/main/java/org/signal/network/api/CallingApi.kt
 +++ b/lib/network/src/main/java/org/signal/network/api/CallingApi.kt
 @@ -11,8 +11,6 @@ import org.signal.network.NetworkResult

@@ -4,15 +4,13 @@ Date: Wed, 4 Nov 2026 08:09:49 +0100
 Subject: [PATCH] jobs: preserve persisted dispatch, shutdown and time
  contracts
 
-Retain job lifecycle and timing consumers, including existing serialization and interruption boundaries. No floor-job execution or external-wake proof is asserted.
+Port the retained Molly semantic intent directly onto stable Signal 8.34.2.
+Source, API, resource and build integration are adapted to this target;
+the earlier extraction's unmodified-blob claims do not apply here.
 
-Extract final intent, not historical commit replay. All blobs/modes in this
-boundary come from untouched Molly 892d6264ba007b5458a8b74cf9183c665f1f17a1.
-SOURCE ledger: e8f627b41b4358bfc78d7c410d2e5c8f12e934481682c0389750efb2bbcac00f
-Feature families: MOL-JOBS-001, MOL-TIME-001
-Dependencies: preceding cumulative extraction boundaries; validate the completed stack.
-Validation: final GNU app JVM/package/lint and exact reference tree/resource/API comparison;
-runtime parity and independent review remain separate parent gates.
+Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
+Prior-version-input: c0f4aa64778e0495b58594ce964cdb65cf6b9ae1
+Semantic-boundary: 06/36
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/TimeDurationPickerDialog.kt b/app/src/main/java/org/thoughtcrime/securesms/components/TimeDurationPickerDialog.kt
 index dfd5a8aaca9f4d7c6347459ab3abb967cc3ec733..70acfed3245299e8b9679f7b8fedacfb4fa36b2e 100644
@@ -213,7 +211,7 @@ index 14b0ee145a623447951e769adb23718e875e4887..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobmanager/JobManager.java b/app/src/main/java/org/thoughtcrime/securesms/jobmanager/JobManager.java
-index 5ce6848d818fd968713698c401348bf9cbc6ed53..1efbb209b77949689f211ef10d256ecc0aceb683 100644
+index d4009e344caedf1160def5c9ca744740618503c3..9d4619f9b473681d4cfd35402e44136800c509d7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobmanager/JobManager.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobmanager/JobManager.java
 @@ -1,8 +1,6 @@
@@ -295,7 +293,7 @@ index 5ce6848d818fd968713698c401348bf9cbc6ed53..1efbb209b77949689f211ef10d256ecc
    }
  
    /**
-@@ -355,7 +353,7 @@ public class JobManager implements ConstraintObserver.Notifier {
+@@ -368,7 +366,7 @@ public class JobManager implements ConstraintObserver.Notifier {
        } else {
          return "Timed out waiting for Job info.";
        }
@@ -304,7 +302,7 @@ index 5ce6848d818fd968713698c401348bf9cbc6ed53..1efbb209b77949689f211ef10d256ecc
        Log.w(TAG, "Failed to retrieve Job info.", e);
        return "Failed to retrieve Job info.";
      }
-@@ -453,7 +451,9 @@ public class JobManager implements ConstraintObserver.Notifier {
+@@ -466,7 +464,9 @@ public class JobManager implements ConstraintObserver.Notifier {
     * Pokes the system to take another pass at the job queue.
     */
    void wakeUp() {
@@ -315,7 +313,7 @@ index 5ce6848d818fd968713698c401348bf9cbc6ed53..1efbb209b77949689f211ef10d256ecc
    }
  
    private void enqueueChain(@NonNull Chain chain) {
-@@ -484,14 +484,25 @@ public class JobManager implements ConstraintObserver.Notifier {
+@@ -497,14 +497,25 @@ public class JobManager implements ConstraintObserver.Notifier {
     * it through here.
     */
    private void runOnExecutor(@NonNull Runnable runnable) {
@@ -378,7 +376,7 @@ index 55043bc1260fbc4f7d4424ac28c670888a0628f0..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/JobManagerFactories.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/JobManagerFactories.java
-index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0c54c7c52 100644
+index 428b3dd048c63e4535b3a538d427014da60c7e65..6595dae5795b8be95496dec380d167c197b94be9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/JobManagerFactories.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/JobManagerFactories.java
 @@ -23,6 +23,8 @@ import org.thoughtcrime.securesms.jobmanager.impl.DecryptionsDrainedConstraint;
@@ -404,17 +402,17 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
  import org.thoughtcrime.securesms.migrations.BlobStorageLocationMigrationJob;
 -import org.thoughtcrime.securesms.migrations.CachedAttachmentsMigrationJob;
  import org.thoughtcrime.securesms.migrations.ClearGlideCacheMigrationJob;
+ import org.thoughtcrime.securesms.migrations.ClearZkCredentialsMigrationJob;
  import org.thoughtcrime.securesms.migrations.ContactLinkRebuildMigrationJob;
- import org.thoughtcrime.securesms.migrations.CopyUsernameToSignalStoreMigrationJob;
-@@ -76,7 +76,6 @@ import org.thoughtcrime.securesms.migrations.FixChangeNumberErrorMigrationJob;
- import org.thoughtcrime.securesms.migrations.GooglePlayBillingPurchaseTokenMigrationJob;
+@@ -81,7 +81,6 @@ import org.thoughtcrime.securesms.migrations.GroupDeletedBackfillMigrationJob;
  import org.thoughtcrime.securesms.migrations.IdentityTableCleanupMigrationJob;
+ import org.thoughtcrime.securesms.migrations.KeyTransparencyFailureMigrationJob;
  import org.thoughtcrime.securesms.migrations.KeyTransparencyUsernameMigrationJob;
 -import org.thoughtcrime.securesms.migrations.LegacyMigrationJob;
  import org.thoughtcrime.securesms.migrations.LocalArchiveReconciliationMigrationJob;
+ import org.thoughtcrime.securesms.migrations.MentionsStorageServiceMigrationJob;
  import org.thoughtcrime.securesms.migrations.MigrationCompleteJob;
- import org.thoughtcrime.securesms.migrations.OptimizeMessageSearchIndexMigrationJob;
-@@ -91,15 +90,11 @@ import org.thoughtcrime.securesms.migrations.ProfileMigrationJob;
+@@ -97,16 +96,12 @@ import org.thoughtcrime.securesms.migrations.ProfileMigrationJob;
  import org.thoughtcrime.securesms.migrations.ProfileSharingUpdateMigrationJob;
  import org.thoughtcrime.securesms.migrations.QuoteThumbnailBackfillMigrationJob;
  import org.thoughtcrime.securesms.migrations.RebuildMessageSearchIndexMigrationJob;
@@ -424,21 +422,22 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
 -import org.thoughtcrime.securesms.migrations.ResetArchiveTierMigrationJob;
  import org.thoughtcrime.securesms.migrations.ResetKeyTransparencyMigrationJob;
  import org.thoughtcrime.securesms.migrations.SelfRegisteredStateMigrationJob;
+ import org.thoughtcrime.securesms.migrations.SignalLoginReminderMigrationJob;
  import org.thoughtcrime.securesms.migrations.StickerAdditionMigrationJob;
  import org.thoughtcrime.securesms.migrations.StickerDayByDayMigrationJob;
 -import org.thoughtcrime.securesms.migrations.StickerLaunchMigrationJob;
  import org.thoughtcrime.securesms.migrations.StickerMyDailyLifeMigrationJob;
  import org.thoughtcrime.securesms.migrations.StickerPackAddition2MigrationJob;
  import org.thoughtcrime.securesms.migrations.StorageCapabilityMigrationJob;
-@@ -116,7 +111,6 @@ import org.thoughtcrime.securesms.migrations.SyncKeysMigrationJob;
- import org.thoughtcrime.securesms.migrations.TrimByLengthSettingsMigrationJob;
+@@ -125,7 +120,6 @@ import org.thoughtcrime.securesms.migrations.TrimByLengthSettingsMigrationJob;
+ import org.thoughtcrime.securesms.migrations.TwoFactorMethodsMigrationJob;
  import org.thoughtcrime.securesms.migrations.UpdateSmsJobsMigrationJob;
  import org.thoughtcrime.securesms.migrations.UserNotificationMigrationJob;
 -import org.thoughtcrime.securesms.migrations.UuidMigrationJob;
  import org.thoughtcrime.securesms.migrations.WallpaperCleanupMigrationJob;
  import org.thoughtcrime.securesms.migrations.WallpaperStorageMigrationJob;
  
-@@ -131,6 +125,7 @@ public final class JobManagerFactories {
+@@ -140,6 +134,7 @@ public final class JobManagerFactories {
      return new HashMap<>() {{
        put(AccountConsistencyWorkerJob.KEY,             new AccountConsistencyWorkerJob.Factory());
        put(AdminDeleteSendJob.KEY,                      new AdminDeleteSendJob.Factory());
@@ -446,7 +445,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(AnalyzeDatabaseJob.KEY,                      new AnalyzeDatabaseJob.Factory());
        put(ApkUpdateJob.KEY,                            new ApkUpdateJob.Factory());
        put(ArchiveAttachmentBackfillJob.KEY,            new ArchiveAttachmentBackfillJob.Factory());
-@@ -159,7 +154,7 @@ public final class JobManagerFactories {
+@@ -170,7 +165,7 @@ public final class JobManagerFactories {
        put(CallLinkPeekJob.KEY,                         new CallLinkPeekJob.Factory());
        put(CallLinkUpdateSendJob.KEY,                   new CallLinkUpdateSendJob.Factory());
        put(CallLogEventSendJob.KEY,                     new CallLogEventSendJob.Factory());
@@ -455,7 +454,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(CallSyncEventJob.KEY,                        new CallSyncEventJob.Factory());
        put(CancelRestoreMediaJob.KEY,                   new CancelRestoreMediaJob.Factory());
        put(CheckKeyTransparencyJob.KEY,                 new CheckKeyTransparencyJob.Factory());
-@@ -178,6 +173,7 @@ public final class JobManagerFactories {
+@@ -189,6 +184,7 @@ public final class JobManagerFactories {
        put(E164FormattingJob.KEY,                       new E164FormattingJob.Factory());
        put(EmojiSearchIndexDownloadJob.KEY,             new EmojiSearchIndexDownloadJob.Factory());
        put(FcmRefreshJob.KEY,                           new FcmRefreshJob.Factory());
@@ -463,7 +462,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(FetchRemoteMegaphoneImageJob.KEY,            new FetchRemoteMegaphoneImageJob.Factory());
        put(FontDownloaderJob.KEY,                       new FontDownloaderJob.Factory());
        put(ForceUpdateGroupV2Job.KEY,                   new ForceUpdateGroupV2Job.Factory());
-@@ -189,7 +185,7 @@ public final class JobManagerFactories {
+@@ -201,7 +197,7 @@ public final class JobManagerFactories {
        put(GroupRingCleanupJob.KEY,                     new GroupRingCleanupJob.Factory());
        put(GroupV2UpdateSelfProfileKeyJob.KEY,          new GroupV2UpdateSelfProfileKeyJob.Factory());
        put(InAppPaymentAuthCheckJob.KEY,                new InAppPaymentAuthCheckJob.Factory());
@@ -472,7 +471,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(InAppPaymentKeepAliveJob.KEY,                new InAppPaymentKeepAliveJob.Factory());
        put(InAppPaymentPurchaseTokenJob.KEY,            new InAppPaymentPurchaseTokenJob.Factory());
        put(InAppPaymentRecurringContextJob.KEY,         new InAppPaymentRecurringContextJob.Factory());
-@@ -221,7 +217,7 @@ public final class JobManagerFactories {
+@@ -233,7 +229,7 @@ public final class JobManagerFactories {
        put(MultiDeviceDeleteSyncJob.KEY,                new MultiDeviceDeleteSyncJob.Factory());
        put(MultiDeviceKeysUpdateJob.KEY,                new MultiDeviceKeysUpdateJob.Factory());
        put(MultiDeviceMessageRequestResponseJob.KEY,    new MultiDeviceMessageRequestResponseJob.Factory());
@@ -481,12 +480,11 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(MultiDeviceProfileContentUpdateJob.KEY,      new MultiDeviceProfileContentUpdateJob.Factory());
        put(MultiDeviceProfileKeyUpdateJob.KEY,          new MultiDeviceProfileKeyUpdateJob.Factory());
        put(MultiDeviceReadUpdateJob.KEY,                new MultiDeviceReadUpdateJob.Factory());
-@@ -237,11 +233,11 @@ public final class JobManagerFactories {
+@@ -250,10 +246,11 @@ public final class JobManagerFactories {
        put(NullMessageSendJob.KEY,                      new NullMessageSendJob.Factory());
        put(OptimizeMediaJob.KEY,                        new OptimizeMediaJob.Factory());
        put(OptimizeMessageSearchIndexJob.KEY,           new OptimizeMessageSearchIndexJob.Factory());
 -      put(PaymentLedgerUpdateJob.KEY,                  new PaymentLedgerUpdateJob.Factory());
--      put(PaymentNotificationSendJob.KEY,              new PaymentNotificationSendJob.Factory());
 -      put(PaymentNotificationSendJobV2.KEY,            new PaymentNotificationSendJobV2.Factory());
 -      put(PaymentSendJob.KEY,                          new PaymentSendJob.Factory());
 -      put(PaymentTransactionCheckJob.KEY,              new PaymentTransactionCheckJob.Factory());
@@ -498,7 +496,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(PollVoteJob.KEY,                             new PollVoteJob.Factory());
        put(PreKeysSyncJob.KEY,                          new PreKeysSyncJob.Factory());
        put(ProfileKeySendJob.KEY,                       new ProfileKeySendJob.Factory());
-@@ -282,7 +278,7 @@ public final class JobManagerFactories {
+@@ -296,7 +293,7 @@ public final class JobManagerFactories {
        put(RotateProfileKeyJob.KEY,                     new RotateProfileKeyJob.Factory());
        put(SenderKeyDistributionSendJob.KEY,            new SenderKeyDistributionSendJob.Factory());
        put(SendDeliveryReceiptJob.KEY,                  new SendDeliveryReceiptJob.Factory());
@@ -506,8 +504,8 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
 +      put("SendPaymentsActivatedJob",                  new FailingJob.Factory()); // MOLLY
        put(SendReadReceiptJob.KEY,                      new SendReadReceiptJob.Factory());
        put(SendRetryReceiptJob.KEY,                     new SendRetryReceiptJob.Factory());
-       put(SendViewedReceiptJob.KEY,                    new SendViewedReceiptJob.Factory(application));
-@@ -319,7 +315,7 @@ public final class JobManagerFactories {
+       put(SendViewedReceiptJob.KEY,                    new SendViewedReceiptJob.Factory());
+@@ -334,7 +331,7 @@ public final class JobManagerFactories {
        put(AttributesMigrationJob.KEY,                     new AttributesMigrationJob.Factory());
        put(AvatarColorStorageServiceMigrationJob.KEY,      new AvatarColorStorageServiceMigrationJob.Factory());
        put(AvatarIdRemovalMigrationJob.KEY,                new AvatarIdRemovalMigrationJob.Factory());
@@ -516,25 +514,25 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(BackfillCollapsedEventsMigrationJob.KEY,        new BackfillCollapsedEventsMigrationJob.Factory());
        put(BackfillDigestsForDuplicatesMigrationJob.KEY,   new BackfillDigestsForDuplicatesMigrationJob.Factory());
        put(BackfillNotifiedStateMigrationJob.KEY,          new BackfillNotifiedStateMigrationJob.Factory());
-@@ -328,7 +324,7 @@ public final class JobManagerFactories {
+@@ -343,7 +340,7 @@ public final class JobManagerFactories {
        put(BackupRefreshJob.KEY,                           new BackupRefreshJob.Factory());
        put(BadE164MigrationJob.KEY,                        new BadE164MigrationJob.Factory());
        put(BlobStorageLocationMigrationJob.KEY,            new BlobStorageLocationMigrationJob.Factory());
 -      put(CachedAttachmentsMigrationJob.KEY,              new CachedAttachmentsMigrationJob.Factory());
 +      put("CachedAttachmentsMigrationJob",                new FailingJob.Factory());  // MOLLY
        put(ClearGlideCacheMigrationJob.KEY,                new ClearGlideCacheMigrationJob.Factory());
+       put(ClearZkCredentialsMigrationJob.KEY,             new ClearZkCredentialsMigrationJob.Factory());
        put(ContactLinkRebuildMigrationJob.KEY,             new ContactLinkRebuildMigrationJob.Factory());
-       put(CopyUsernameToSignalStoreMigrationJob.KEY,      new CopyUsernameToSignalStoreMigrationJob.Factory());
-@@ -344,7 +340,7 @@ public final class JobManagerFactories {
-       put(GooglePlayBillingPurchaseTokenMigrationJob.KEY, new GooglePlayBillingPurchaseTokenMigrationJob.Factory());
+@@ -364,7 +361,7 @@ public final class JobManagerFactories {
        put(IdentityTableCleanupMigrationJob.KEY,           new IdentityTableCleanupMigrationJob.Factory());
+       put(KeyTransparencyFailureMigrationJob.KEY,         new KeyTransparencyFailureMigrationJob.Factory());
        put(KeyTransparencyUsernameMigrationJob.KEY,        new KeyTransparencyUsernameMigrationJob.Factory());
 -      put(LegacyMigrationJob.KEY,                         new LegacyMigrationJob.Factory());
 +      put("LegacyMigrationJob",                           new FailingJob.Factory());  // MOLLY
        put(LocalArchiveReconciliationMigrationJob.KEY,     new LocalArchiveReconciliationMigrationJob.Factory());
+       put(MentionsStorageServiceMigrationJob.KEY,         new MentionsStorageServiceMigrationJob.Factory());
        put(MigrationCompleteJob.KEY,                       new MigrationCompleteJob.Factory());
-       put(OptimizeMessageSearchIndexMigrationJob.KEY,     new OptimizeMessageSearchIndexMigrationJob.Factory());
-@@ -358,13 +354,13 @@ public final class JobManagerFactories {
+@@ -379,14 +376,14 @@ public final class JobManagerFactories {
        put(ProfileSharingUpdateMigrationJob.KEY,           new ProfileSharingUpdateMigrationJob.Factory());
        put(QuoteThumbnailBackfillMigrationJob.KEY,         new QuoteThumbnailBackfillMigrationJob.Factory());
        put(RebuildMessageSearchIndexMigrationJob.KEY,      new RebuildMessageSearchIndexMigrationJob.Factory());
@@ -548,12 +546,13 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(ResetKeyTransparencyMigrationJob.KEY,           new ResetKeyTransparencyMigrationJob.Factory());
        put(SelfRegisteredStateMigrationJob.KEY,            new SelfRegisteredStateMigrationJob.Factory());
 -      put(StickerLaunchMigrationJob.KEY,                  new StickerLaunchMigrationJob.Factory());
+       put(SignalLoginReminderMigrationJob.KEY,            new SignalLoginReminderMigrationJob.Factory());
 +      put("StickerLaunchMigrationJob",                    new FailingJob.Factory());  // MOLLY
        put(StickerAdditionMigrationJob.KEY,                new StickerAdditionMigrationJob.Factory());
        put(StickerDayByDayMigrationJob.KEY,                new StickerDayByDayMigrationJob.Factory());
        put(StickerMyDailyLifeMigrationJob.KEY,             new StickerMyDailyLifeMigrationJob.Factory());
-@@ -383,7 +379,7 @@ public final class JobManagerFactories {
-       put(TrimByLengthSettingsMigrationJob.KEY,           new TrimByLengthSettingsMigrationJob.Factory());
+@@ -407,7 +404,7 @@ public final class JobManagerFactories {
+       put(TwoFactorMethodsMigrationJob.KEY,               new TwoFactorMethodsMigrationJob.Factory());
        put(UpdateSmsJobsMigrationJob.KEY,                  new UpdateSmsJobsMigrationJob.Factory());
        put(UserNotificationMigrationJob.KEY,               new UserNotificationMigrationJob.Factory());
 -      put(UuidMigrationJob.KEY,                           new UuidMigrationJob.Factory());
@@ -561,7 +560,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(WallpaperCleanupMigrationJob.KEY,               new WallpaperCleanupMigrationJob.Factory());
        put(WallpaperStorageMigrationJob.KEY,               new WallpaperStorageMigrationJob.Factory());
  
-@@ -457,6 +453,7 @@ public final class JobManagerFactories {
+@@ -482,6 +479,7 @@ public final class JobManagerFactories {
        put(DecryptionsDrainedConstraint.KEY,                      new DecryptionsDrainedConstraint.Factory());
        put(DeletionNotAwaitingMediaDownloadConstraint.KEY,        new DeletionNotAwaitingMediaDownloadConstraint.Factory());
        put(DiskSpaceNotLowConstraint.KEY,                         new DiskSpaceNotLowConstraint.Factory());
@@ -569,7 +568,7 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
        put(NetworkConstraint.KEY,                                 new NetworkConstraint.Factory(application));
        put("NetworkOrCellServiceConstraint",                      new NetworkConstraint.Factory(application));
        put("CellServiceConstraint",                               new NetworkConstraint.Factory(application));
-@@ -471,6 +468,7 @@ public final class JobManagerFactories {
+@@ -496,6 +494,7 @@ public final class JobManagerFactories {
  
    public static List<ConstraintObserver> getConstraintObservers(@NonNull Application application) {
      return Arrays.asList(new ChargingAndBatteryIsNotLowConstraintObserver(application),
@@ -578,10 +577,10 @@ index 2548403c5c1966d58bb7cf4e0de9449070eafba6..7bea57849e9acd791fc51577fffe99e0
                           new DecryptionsDrainedConstraintObserver(),
                           new NotInCallConstraintObserver(),
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/DateUtils.kt b/app/src/main/java/org/thoughtcrime/securesms/util/DateUtils.kt
-index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639d4276734 100644
+index 2cd2230ca2e0a97493d583df600ec6cf6763b2a6..f59352a4604ede92d7083c96fa6783c1488bdc9d 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/DateUtils.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/DateUtils.kt
-@@ -27,6 +27,8 @@ import org.thoughtcrime.securesms.util.DateUtils.getBriefRelativeTimeSpanString
+@@ -29,6 +29,8 @@ import org.thoughtcrime.securesms.util.DateUtils.getBriefRelativeTimeSpanString
  import java.text.DateFormatSymbols
  import java.text.ParseException
  import java.text.SimpleDateFormat
@@ -590,7 +589,7 @@ index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639
  import java.time.format.TextStyle
  import java.util.Calendar
  import java.util.Date
-@@ -38,7 +40,6 @@ import kotlin.time.Duration.Companion.days
+@@ -40,7 +42,6 @@ import kotlin.time.Duration.Companion.days
  import kotlin.time.Duration.Companion.hours
  import kotlin.time.Duration.Companion.milliseconds
  import kotlin.time.Duration.Companion.minutes
@@ -598,7 +597,7 @@ index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639
  import kotlin.time.DurationUnit
  
  /**
-@@ -55,7 +56,12 @@ object DateUtils : android.text.format.DateUtils() {
+@@ -57,7 +58,12 @@ object DateUtils : android.text.format.DateUtils() {
    private val dateFormatCache: MutableMap<TemplateLocale, SimpleDateFormat> = mutableMapOf()
    private val dateFormatSymbolsCache: MutableMap<Locale, DateFormatSymbols> = mutableMapOf()
  
@@ -612,7 +611,7 @@ index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639
  
    /**
     * A relative timestamp to use in space-constrained areas, like the conversation list.
-@@ -157,7 +163,16 @@ object DateUtils : android.text.format.DateUtils() {
+@@ -159,7 +165,16 @@ object DateUtils : android.text.format.DateUtils() {
     */
    @JvmStatic
    fun getOnlyTimeString(context: Context, timestamp: Long): String {
@@ -630,7 +629,7 @@ index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639
    }
  
    /**
-@@ -400,16 +415,10 @@ object DateUtils : android.text.format.DateUtils() {
+@@ -405,16 +420,10 @@ object DateUtils : android.text.format.DateUtils() {
      }
    }
  
@@ -650,45 +649,13 @@ index 6c5ba9e0871fc24d1b93535588744035ac8329c8..57b9233638fcb22962ad0041175b9639
    }
  
    private fun Long.convertDeltaTo(unit: DurationUnit): Int {
-@@ -458,6 +467,4 @@ object DateUtils : android.text.format.DateUtils() {
+@@ -470,6 +479,4 @@ object DateUtils : android.text.format.DateUtils() {
    }
  
    private data class TemplateLocale(val template: String, val locale: Locale)
 -
 -  private data class Is24HourDateEntry(val value: Boolean, val lastUpdated: Long)
  }
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/JavaTimeExtensions.kt b/app/src/main/java/org/thoughtcrime/securesms/util/JavaTimeExtensions.kt
-index 9f0080109ac29b43f06c851fa7c35eff52d44e96..676ceedcfdee889fd53b79c76a7bd263df7ed1ff 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/util/JavaTimeExtensions.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/util/JavaTimeExtensions.kt
-@@ -1,7 +1,6 @@
- package org.thoughtcrime.securesms.util
- 
- import android.content.Context
--import android.text.format.DateFormat
- import java.time.DayOfWeek
- import java.time.Instant
- import java.time.LocalDate
-@@ -11,7 +10,6 @@ import java.time.OffsetDateTime
- import java.time.ZoneId
- import java.time.ZoneOffset
- import java.time.ZonedDateTime
--import java.time.format.DateTimeFormatter
- import java.time.temporal.WeekFields
- import java.util.Locale
- import java.util.concurrent.TimeUnit
-@@ -92,10 +90,7 @@ fun Long.toLocalTime(zoneId: ZoneId = ZoneId.systemDefault()): LocalTime {
-  * Formats [LocalTime] as localized time. For example, "1:45 PM" or "13:45"
-  */
- fun LocalTime.formatHours(context: Context): String {
--  // We have to create our own pattern here, since the formatter instance returned by DateTimeFormatter.ofLocalizedTime() is looked up lazily, is immutable,
--  // and is not updated when the system's 24-hour time setting changes.
--  val pattern = if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
--  return DateTimeFormatter.ofPattern(pattern, LocaleUtil.getFirstLocale()).format(this)
-+  return DateUtils.getOnlyTimeString(context, localTime = this)
- }
- 
- /**
 diff --git a/app/src/main/res/values-v26/values.xml b/app/src/main/res/values-v26/values.xml
 deleted file mode 100644
 index dc6b4b794139f6b8b549506f51e626494121b6d4..0000000000000000000000000000000000000000
