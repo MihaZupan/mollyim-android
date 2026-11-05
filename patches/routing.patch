@@ -4258,7 +4258,7 @@ index 5137899797d272f52e91a5278036066a1ca936e8..53d38ec128d36a40e447d92f01138a0a
  }
  
 diff --git a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/internal/push/PushServiceSocket.java b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/internal/push/PushServiceSocket.java
-index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..8f6ac813dbd50b56a4ec54a3b4d44d18a4e66404 100644
+index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..9913f383b962f92ae89cb9b0c8f3ed7ebb08a285 100644
 --- a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/internal/push/PushServiceSocket.java
 +++ b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/internal/push/PushServiceSocket.java
 @@ -68,9 +68,7 @@ import org.whispersystems.signalservice.api.registration.RestoreMethodBody;
@@ -4502,7 +4502,25 @@ index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..8f6ac813dbd50b56a4ec54a3b4d44d18
    public void setRestoreMethodChosen(@Nonnull String token, @Nonnull RestoreMethodBody request) throws IOException {
      String body = JsonUtil.toJson(request);
      makeServiceRequest(String.format(Locale.US, SET_RESTORE_METHOD_PATH, urlEncode(token)), "PUT", body, NO_HEADERS, UNOPINIONATED_HANDLER, SealedSenderAccess.NONE);
-@@ -1043,14 +1218,15 @@ public class PushServiceSocket {
+@@ -777,6 +952,17 @@ public class PushServiceSocket {
+     }
+   }
+ 
++  private Response makeServiceRequestWithoutValidation(String urlFragment,
++                                                       String method,
++                                                       RequestBody body,
++                                                       Map<String, String> headers,
++                                                       @Nullable SealedSenderAccess sealedSenderAccess,
++                                                       boolean doNotAddAuthenticationOrUnidentifiedAccessKey)
++      throws PushNetworkException
++  {
++    return getServiceConnection(urlFragment, method, body, headers, sealedSenderAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
++  }
++
+   private Response validateServiceResponse(Response response)
+       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+     int    responseCode    = response.code();
+@@ -1043,14 +1229,15 @@ public class PushServiceSocket {
  
    private ServiceConnectionHolder[] createServiceConnectionHolders(SignalUrl[] urls,
                                                                     List<Interceptor> interceptors,
@@ -4522,7 +4540,7 @@ index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..8f6ac813dbd50b56a4ec54a3b4d44d18
                                                                 url.getUrl(), url.getHostHeader()));
      }
  
-@@ -1059,13 +1235,14 @@ public class PushServiceSocket {
+@@ -1059,13 +1246,14 @@ public class PushServiceSocket {
  
    private static Map<Integer, ConnectionHolder[]> createCdnClientsMap(final Map<Integer, SignalCdnUrl[]> signalCdnUrlMap,
                                                                        final List<Interceptor> interceptors,
@@ -4540,7 +4558,7 @@ index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..8f6ac813dbd50b56a4ec54a3b4d44d18
      }
      return Collections.unmodifiableMap(result);
    }
-@@ -1076,17 +1253,17 @@ public class PushServiceSocket {
+@@ -1076,17 +1264,17 @@ public class PushServiceSocket {
      }
    }
  
@@ -4561,7 +4579,7 @@ index e2fbc534b68bd1f34c43a9d72e467b96ad3276fa..8f6ac813dbd50b56a4ec54a3b4d44d18
      try {
        TrustManager[] trustManagers = BlacklistingTrustManager.createFor(url.getTrustStore());
  
-@@ -1094,13 +1271,11 @@ public class PushServiceSocket {
+@@ -1094,13 +1282,11 @@ public class PushServiceSocket {
        context.init(null, trustManagers, null);
  
        OkHttpClient.Builder builder = new OkHttpClient.Builder()

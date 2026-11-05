@@ -1326,10 +1326,10 @@ index 0000000000000000000000000000000000000000..217329de37b06572475a76ac0c2601fc
 +clean:
 +	$(do_clean)
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e75992cb675c 100644
+index fef9928d6c9d82966d43896487153ebfd6707387..4f5279af8ef9abc31afe5db0c87bf8bcfd420dbb 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
-@@ -1,119 +1,51 @@
+@@ -1,119 +1,52 @@
 -@file:Suppress("UnstableApiUsage")
 -
 -import com.android.build.api.artifact.ArtifactTransformationRequest
@@ -1358,9 +1358,9 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    id("com.squareup.wire")
 -  id("translations")
 -  id("licenses")
--  id("pseudo-locales")
 +  id("print-version")
 +  id("signal-locales")
+   id("pseudo-locales")
  }
  
 -val staticIps = Properties().apply { file("static-ips.properties").reader().use { load(it) } }
@@ -1474,7 +1474,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
  
  wire {
    kotlin {
-@@ -130,31 +62,9 @@ wire {
+@@ -130,31 +63,9 @@ wire {
    }
  }
  
@@ -1506,7 +1506,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    buildToolsVersion = libs.versions.buildTools.get()
  
    compileSdk {
-@@ -163,16 +73,20 @@ android {
+@@ -163,16 +74,20 @@ android {
  
    ndkVersion = libs.versions.ndk.get()
  
@@ -1534,7 +1534,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      }
    }
  
-@@ -181,28 +95,23 @@ android {
+@@ -181,28 +96,23 @@ android {
  
      unitTests {
        isIncludeAndroidResources = true
@@ -1570,7 +1570,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      }
    }
  
-@@ -218,6 +127,8 @@ android {
+@@ -218,6 +128,8 @@ android {
          "**/*.dylib",
          "**/*.dll"
        )
@@ -1579,7 +1579,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      }
      resources {
        excludes += setOf(
-@@ -239,31 +150,45 @@ android {
+@@ -239,31 +151,45 @@ android {
  
    buildFeatures {
      buildConfig = true
@@ -1637,7 +1637,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      buildConfigField("String", "SIGNAL_URL", "\"https://chat.signal.org\"")
      buildConfigField("String", "STORAGE_URL", "\"https://storage.signal.org\"")
      buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn.signal.org\"")
-@@ -278,15 +203,6 @@ android {
+@@ -278,15 +204,6 @@ android {
      buildConfigField("String[]", "SIGNAL_SFU_INTERNAL_URLS", "new String[]{\"https://sfu.test.voip.signal.org\", \"https://sfu.staging.voip.signal.org\", \"https://sfu.staging.test.voip.signal.org\"}")
      buildConfigField("String", "CONTENT_PROXY_HOST", "\"contentproxy.signal.org\"")
      buildConfigField("int", "CONTENT_PROXY_PORT", "443")
@@ -1653,7 +1653,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      buildConfigField("String", "SIGNAL_AGENT", "\"OWA\"")
      buildConfigField("String", "SVR2_MRENCLAVE_LEGACY", "\"ced8217b26228e4b210c985786999d095c4958a94faf37b14acaf25c4cbb02a4\"")
      buildConfigField("String", "SVR2_MRENCLAVE", "\"fdbbacdc0c043d0d53fe1440f62728de0386f45ab0a275bd8f99e03a02af355e\"")
-@@ -295,7 +211,7 @@ android {
+@@ -295,7 +212,7 @@ android {
      buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AeCO67P9mIv1yUHkdeZ9JF789GDbox61GvTqq3S4kYc1ADUWxWHQygU390tv1oRWt9WjkdZlU7mKkifF59ftjE+2ZlMmxns6I+ySiLpR8FEmfu+TGpVp3zYTjNV93obJJTyBCCsSHVETCyQRbKdCyb5TMa6LGrvcZaX0Q/VAavhuNA/m4kSiRMgSnYrUjGhVekdDnF+7xioo4wvFnxjIDh7uJQrYOWD6MloNGX7St5gbysTuQQ7i/HI38b9V8x8mKazuDSXxB//BKGZx/XHkK8cHX+QK1MPxYUVM1/CBI5oW\"")
      buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AZwNSU55fsFCbgaxGRD11wO1juAs8Yr5GF8FPlGzzvdJJIKH5/4CC7ZJSOe3yL2vturVaRU2Cx0n751Vt8wkj1Y4pyiScu0/S10n647ipo+iq97JZQv+UOlwH8ThyNlGT5DfxXCwTqivxHuXvZpuezPgHk5Gxl5aC6xuNxOnwmFlmu4CeSgdhW8+Pp0vAJOQ1MsU2D0+/kzI+tU94nB3tybY/Ao1AcGW2q41uKQbnOJUWwmQaFT6s+xTISgzsg7CPox6oORGX8rnyk/9lic3DbGsUHctIVpMAl/ogJBb4aYC\"")
      buildConfigField("String[]", "LANGUAGES", "new String[]{ ${languagesForBuildConfigProvider.get()} }")
@@ -1662,7 +1662,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      buildConfigField("String", "DEFAULT_CURRENCIES", "\"EUR,AUD,GBP,CAD,CNY\"")
      buildConfigField("String", "GIPHY_API_KEY", "\"3o6ZsYH6U6Eri53TXy\"")
      buildConfigField("String", "SIGNAL_CAPTCHA_URL", "\"https://signalcaptchas.org/registration/generate.html\"")
-@@ -304,42 +220,23 @@ android {
+@@ -304,42 +221,23 @@ android {
      buildConfigField("org.signal.libsignal.net.Network.Environment", "LIBSIGNAL_NET_ENV", "org.signal.libsignal.net.Network.Environment.PRODUCTION")
      buildConfigField("int", "LIBSIGNAL_LOG_LEVEL", "org.signal.libsignal.protocol.logging.SignalProtocolLogger.INFO")
  
@@ -1709,7 +1709,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
        isDefault = true
        isMinifyEnabled = false
        proguardFiles(
-@@ -354,7 +251,6 @@ android {
+@@ -354,7 +252,6 @@ android {
          "proguard/proguard-shortcutbadger.pro",
          "proguard/proguard-retrofit.pro",
          "proguard/proguard-klinker.pro",
@@ -1717,7 +1717,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
          "proguard/proguard-retrolambda.pro",
          "proguard/proguard-okhttp.pro",
          "proguard/proguard-ez-vcard.pro",
-@@ -366,120 +262,33 @@ android {
+@@ -366,120 +263,33 @@ android {
          "proguard/proguard.cfg"
        )
  
@@ -1846,7 +1846,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      }
  
      create("staging") {
-@@ -487,6 +296,12 @@ android {
+@@ -487,6 +297,12 @@ android {
  
        applicationIdSuffix = ".staging"
  
@@ -1859,7 +1859,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
        buildConfigField("String", "SIGNAL_URL", "\"https://chat.staging.signal.org\"")
        buildConfigField("String", "STORAGE_URL", "\"https://storage-staging.signal.org\"")
        buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn-staging.signal.org\"")
-@@ -500,13 +315,10 @@ android {
+@@ -500,13 +316,10 @@ android {
        buildConfigField("String", "ZKGROUP_SERVER_PUBLIC_PARAMS", "\"ABSY21VckQcbSXVNCGRYJcfWHiAMZmpTtTELcDmxgdFbtp/bWsSxZdMKzfCp8rvIs8ocCU3B37fT3r4Mi5qAemeGeR2X+/YmOGR5ofui7tD5mDQfstAI9i+4WpMtIe8KC3wU5w3Inq3uNWVmoGtpKndsNfwJrCg0Hd9zmObhypUnSkfYn2ooMOOnBpfdanRtrvetZUayDMSC5iSRcXKpdlukrpzzsCIvEwjwQlJYVPOQPj4V0F4UXXBdHSLK05uoPBCQG8G9rYIGedYsClJXnbrgGYG3eMTG5hnx4X4ntARBgELuMWWUEEfSK0mjXg+/2lPmWcTZWR9nkqgQQP0tbzuiPm74H2wMO4u1Wafe+UwyIlIT9L7KLS19Aw8r4sPrXZSSsOZ6s7M1+rTJN0bI5CKY2PX29y5Ok3jSWufIKcgKOnWoP67d5b2du2ZVJjpjfibNIHbT/cegy/sBLoFwtHogVYUewANUAXIaMPyCLRArsKhfJ5wBtTminG/PAvuBdJ70Z/bXVPf8TVsR292zQ65xwvWTejROW6AZX6aqucUjlENAErBme1YHmOSpU6tr6doJ66dPzVAWIanmO/5mgjNEDeK7DDqQdB1xd03HT2Qs2TxY3kCK8aAb/0iM0HQiXjxZ9HIgYhbtvGEnDKW5ILSUydqH/KBhW4Pb0jZWnqN/YgbWDKeJxnDbYcUob5ZY5Lt5ZCMKuaGUvCJRrCtuugSMaqjowCGRempsDdJEt+cMaalhZ6gczklJB/IbdwENW9KeVFPoFNFzhxWUIS5ML9riVYhAtE6JE5jX0xiHNVIIPthb458cfA8daR0nYfYAUKogQArm0iBezOO+mPk5vCNWI+wwkyFCqNDXz/qxl1gAntuCJtSfq9OC3NkdhQlgYQ==\"")
        buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AYhaw+NbxtNLo/RlGFEsHd904hW38LpPJ59jYJlNmT4wwtyOq4xzCs/MyXsfRbIsAYhQjDnpE0rhFtWkMcn/kV740SISwFfpPHunrtZ9h0YWz5QNNbI5I3DRGUjhKXgMU7J7s7qOr0fdms+g0e+L9FMSjJLobDkOngp/m0B5TsxTyqLscJ5VyU69Cj8txImTfHMCKrYphYfRHO78RwPoz2g2tGUAzEbKHm12OgDna2qutkE5TvYqwZczvgZyLVHdHXpvdyOlEdv4afVyWkI7u/S0XYDonIJoHlxqJoTSepZR\"")
        buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AXYrGb9IfugAAJiPKp+mdXUx+OL9zBolPYHYQz6GI1gWjpEu5me3zVNSvmYY4zWboZHif+HG1sDHSuvwFd0QszS6h3nZ6vRdM/IYGK+cLynw3ucWo7idf3zjOG3b6JnGT/z7XYCr6HuOGkWH4DQWCH98hxVZMGOgmT8DCQoqebQb3oK1yrwEglRWmtI01KhRg9RGUKoQiwuej1JZEY8uaG4Uz9n1cVODJ1iuByhNqGHo+KfI4iWhjtx2AnhYqHViQ3CMd4ASGBJtic9UTFVk/4vegVIy0wfYsAmViftzK6t4\"")
@@ -1873,7 +1873,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
        buildConfigField("String", "STRIPE_PUBLISHABLE_KEY", "\"pk_test_sngOd8FnXNkpce9nPXawKrJD00kIDngZkD\"")
      }
    }
-@@ -514,170 +326,45 @@ android {
+@@ -514,170 +327,45 @@ android {
    lint {
      abortOnError = true
      baseline = file("lint-baseline.xml")
@@ -2061,7 +2061,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
      freeCompilerArgs.addAll("-Xjvm-default=all")
      suppressWarnings = true
    }
-@@ -685,7 +372,6 @@ kotlin {
+@@ -685,7 +373,6 @@ kotlin {
  
  dependencies {
    lintChecks(project(":lintchecks"))
@@ -2069,7 +2069,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    coreLibraryDesugaring(libs.android.tools.desugar)
  
    implementation(project(":core:database"))
-@@ -727,7 +413,6 @@ dependencies {
+@@ -727,7 +414,6 @@ dependencies {
    implementation(libs.androidx.window.window)
    implementation(libs.androidx.window.java)
    implementation(libs.androidx.recyclerview)
@@ -2077,7 +2077,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    implementation(libs.androidx.legacy.support)
    implementation(libs.androidx.preference)
    implementation(libs.androidx.legacy.preference)
-@@ -767,20 +452,25 @@ dependencies {
+@@ -767,20 +453,25 @@ dependencies {
    implementation(libs.androidx.emoji2)
    implementation(libs.androidx.paging.runtime)
    implementation(libs.androidx.paging.compose)
@@ -2108,7 +2108,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    implementation(libs.signal.ringrtc)
    implementation(libs.leolin.shortcutbadger)
    implementation(libs.glide.glide)
-@@ -794,11 +484,6 @@ dependencies {
+@@ -794,11 +485,6 @@ dependencies {
    }
    implementation(libs.lottie)
    implementation(libs.lottie.compose)
@@ -2120,7 +2120,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
    implementation(libs.signal.android.database.sqlcipher)
    implementation(libs.androidx.sqlite)
    testImplementation(libs.androidx.sqlite.framework)
-@@ -813,21 +498,33 @@ dependencies {
+@@ -813,21 +499,33 @@ dependencies {
    implementation(libs.accompanist.drawablepainter)
    implementation(libs.kotlin.stdlib.jdk8)
    implementation(libs.kotlin.reflect)
@@ -2159,7 +2159,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
  
    androidTestImplementation(libs.androidx.fragment.testing) {
      exclude(group = "androidx.test", module = "core")
-@@ -859,7 +556,7 @@ dependencies {
+@@ -859,7 +557,7 @@ dependencies {
    testImplementation(testLibs.sqlite.jdbc)
    testImplementation(libs.androidx.compose.ui.test.junit4)
  
@@ -2168,7 +2168,7 @@ index fef9928d6c9d82966d43896487153ebfd6707387..4a5ca6c84cb3341b11f76be2b2c3e759
  
    androidTestImplementation(platform(libs.androidx.compose.bom))
    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-@@ -885,319 +582,51 @@ dependencies {
+@@ -885,319 +583,51 @@ dependencies {
    androidTestUtil(testLibs.androidx.test.orchestrator)
  }
  
@@ -3532,7 +3532,7 @@ index dd11aa28c4edea8b8a33658205f35a19391b9c38..e31b1e46e499a3970724339b64ebedb1
  }
 -
 diff --git a/build-logic/plugins/build.gradle.kts b/build-logic/plugins/build.gradle.kts
-index c304d6eabd5762d39cf0ef074da68e38526eea3a..7cb122c8f4ed905203940809d3f2d39fb0afec44 100644
+index c304d6eabd5762d39cf0ef074da68e38526eea3a..ac15474f46db215c3b24126ca9bda60b5d017057 100644
 --- a/build-logic/plugins/build.gradle.kts
 +++ b/build-logic/plugins/build.gradle.kts
 @@ -1,7 +1,5 @@
@@ -3543,13 +3543,13 @@ index c304d6eabd5762d39cf0ef074da68e38526eea3a..7cb122c8f4ed905203940809d3f2d39f
  }
  
  java {
-@@ -22,65 +20,8 @@ dependencies {
+@@ -22,65 +20,9 @@ dependencies {
    implementation(libs.kotlin.gradle.plugin)
    implementation(libs.android.library)
    implementation(libs.android.application)
 -  implementation(testLibs.compose.screenshot.plugin)
 -  implementation(libs.ktlint)
--  implementation(project(":tools"))
+   implementation(project(":tools"))
  
    // These allow us to reference the dependency catalog inside of our compiled plugins
    implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
@@ -6466,19 +6466,18 @@ index 0000000000000000000000000000000000000000..f6f96047239ddef8044b45756da1b192
 +  }
 +}
 diff --git a/build-logic/plugins/src/main/java/signal-library.gradle.kts b/build-logic/plugins/src/main/java/signal-library.gradle.kts
-index 03049543149e2152b965ab786280252d313b01bf..5d7e77c45869c47181fb12e4bbd552d3599eaf70 100644
+index 03049543149e2152b965ab786280252d313b01bf..dc17bea925b3dd1d58cd3a851c5bae7ea05dc18d 100644
 --- a/build-logic/plugins/src/main/java/signal-library.gradle.kts
 +++ b/build-logic/plugins/src/main/java/signal-library.gradle.kts
-@@ -12,8 +12,6 @@ plugins {
+@@ -12,7 +12,6 @@ plugins {
    // We cannot use the version catalog in the plugins block in convention plugins (it's not supported).
    // Instead, plugin versions are controlled through the dependencies block in the build.gradle.kts.
    id("com.android.library")
 -  id("ktlint")
--  id("pseudo-locales")
+   id("pseudo-locales")
  }
  
- android {
-@@ -40,8 +38,15 @@ android {
+@@ -40,8 +39,15 @@ android {
  
    lint {
      targetSdk = libs.versions.targetSdk.get().toInt()
@@ -6495,7 +6494,7 @@ index 03049543149e2152b965ab786280252d313b01bf..5d7e77c45869c47181fb12e4bbd552d3
    }
  }
  
-@@ -66,25 +71,8 @@ dependencies {
+@@ -66,25 +72,8 @@ dependencies {
    implementation(libs.rxjava3.rxkotlin)
    implementation(libs.kotlin.stdlib.jdk8)
  
@@ -7238,7 +7237,7 @@ index be279197c58c855e312fb77b7e5502c105b7c0b5..00000000000000000000000000000000
 -  dependsOn(":qa")
 -}
 diff --git a/build-logic/settings.gradle.kts b/build-logic/settings.gradle.kts
-index 32b89df3f5028bafbd58eecc1552d8c4da47e69c..1ddfa11baf6bda492e88f11d8ead0b23e24c649c 100644
+index 32b89df3f5028bafbd58eecc1552d8c4da47e69c..686c89f477c05a58cfe13e09b7baf0081edfaa4b 100644
 --- a/build-logic/settings.gradle.kts
 +++ b/build-logic/settings.gradle.kts
 @@ -1,17 +1,12 @@
@@ -7264,50 +7263,38 @@ index 32b89df3f5028bafbd58eecc1552d8c4da47e69c..1ddfa11baf6bda492e88f11d8ead0b23
    }
    versionCatalogs {
      create("libs") {
-@@ -26,4 +21,3 @@ dependencyResolutionManagement {
- rootProject.name = "build-logic"
- 
- include(":plugins")
--include(":tools")
 diff --git a/build-logic/tools/build.gradle.kts b/build-logic/tools/build.gradle.kts
-deleted file mode 100644
-index 57c8906d8a78f5fcf2e93f28390b8b2ad69bedaf..0000000000000000000000000000000000000000
+index 57c8906d8a78f5fcf2e93f28390b8b2ad69bedaf..b7d8a05dde7bff496caab85a483014459a526337 100644
 --- a/build-logic/tools/build.gradle.kts
-+++ /dev/null
-@@ -1,33 +0,0 @@
--plugins {
--  alias(libs.plugins.jetbrains.kotlin.jvm)
--  id("java-library")
++++ b/build-logic/tools/build.gradle.kts
+@@ -1,7 +1,6 @@
+ plugins {
+   alias(libs.plugins.jetbrains.kotlin.jvm)
+   id("java-library")
 -  alias(libs.plugins.ktlint)
--}
--
--java {
--  sourceCompatibility = JavaVersion.toVersion(libs.versions.javaVersion.get())
--  targetCompatibility = JavaVersion.toVersion(libs.versions.javaVersion.get())
--}
--
--kotlin {
--  jvmToolchain {
--    languageVersion = JavaLanguageVersion.of(libs.versions.kotlinJvmTarget.get())
--  }
--}
--
+ }
+ 
+ java {
+@@ -15,19 +14,6 @@ kotlin {
+   }
+ }
+ 
 -// NOTE: For now, in order to run ktlint on this project, you have to manually run ./gradlew :build-logic:tools:ktlintFormat
 -//       Gotta figure out how to get it auto-included in the normal ./gradlew ktlintFormat
 -ktlint {
 -  version.set("1.5.0")
 -}
 -
--dependencies {
+ dependencies {
 -  implementation(gradleApi())
 -
 -  implementation(libs.dnsjava)
 -  api(libs.square.okhttp3)
 -
--  testImplementation(testLibs.junit.junit)
+   testImplementation(testLibs.junit.junit)
 -  testImplementation(testLibs.mockk)
 -  testImplementation(testLibs.square.mockwebserver)
--}
+ }
 diff --git a/build-logic/tools/src/main/java/org/signal/buildtools/SmartlingClient.kt b/build-logic/tools/src/main/java/org/signal/buildtools/SmartlingClient.kt
 deleted file mode 100644
 index bda863346f4e905d3dbbbb103402502e1836f801..0000000000000000000000000000000000000000
@@ -8582,7 +8569,7 @@ index 7277dc362ab3ecf567018237f72978ac2d92d2fb..3dc7eca9bf73dc5b256813f67ac50df1
  </manifest>
 \ No newline at end of file
 diff --git a/feature/media-send/build.gradle.kts b/feature/media-send/build.gradle.kts
-index 5b8eb2dda218a1a8baaa955b7e0c80f66d04e9f3..116c517a09ff29b83460a5a2ebce33e784114089 100644
+index 5b8eb2dda218a1a8baaa955b7e0c80f66d04e9f3..a02cc24db65fa1a65763db6d00601f0e5aa59b97 100644
 --- a/feature/media-send/build.gradle.kts
 +++ b/feature/media-send/build.gradle.kts
 @@ -1,15 +1,10 @@
@@ -8601,8 +8588,23 @@ index 5b8eb2dda218a1a8baaa955b7e0c80f66d04e9f3..116c517a09ff29b83460a5a2ebce33e7
  android {
    namespace = "org.signal.mediasend"
  
-@@ -39,7 +34,6 @@ tasks.withType<Test>().configureEach {
+@@ -24,22 +19,8 @@ android {
+   }
+ }
  
+-screenshotTests {
+-  // Fraction of differing pixels tolerated before a screenshot test fails (0.0001 = 0.01%).
+-  imageDifferenceThreshold = 0.0001f
+-}
+-
+-// The screenshot validation task compares every reference image in a single forked JVM, which
+-// exhausts the default heap once a module has many previews. Give it more room.
+-tasks.withType<Test>().configureEach {
+-  if (name.contains("ScreenshotTest")) {
+-    maxHeapSize = "4g"
+-  }
+-}
+-
  dependencies {
    lintChecks(project(":lintchecks"))
 -  ktlintRuleset(libs.ktlint.twitter.compose)
@@ -9835,6 +9837,19 @@ index e94f7e8fbe267217b8c22dc2f9a9ea5a7b653571..f9e4b79a4f7a555b765f79f2b8ca78b3
    api(libs.square.okio)
    implementation(libs.google.jsr305)
  
+diff --git a/lib/netcipher/build.gradle b/lib/netcipher/build.gradle
+index b02e0547eb16781ceb010201394304060b7731ac..6cf5bd4c701c613e14ac444bd83e6451eabef534 100644
+--- a/lib/netcipher/build.gradle
++++ b/lib/netcipher/build.gradle
+@@ -6,7 +6,7 @@ android {
+     namespace 'info.guardianproject.netcipher'
+ 
+     buildToolsVersion = libs.versions.buildTools.get()
+-    compileSdkVersion = libs.versions.compileSdk.get()
++    compileSdkVersion = libs.versions.compileSdk.get().toInteger()
+ 
+     defaultConfig {
+         minSdk = libs.versions.minSdk.get().toInteger()
 diff --git a/lib/network/build.gradle.kts b/lib/network/build.gradle.kts
 index 7579b0becae3888f41c426680da3652d3dee019f..7af74a72b1ae6b3b6a0b3713f0d81708db26bbbb 100644
 --- a/lib/network/build.gradle.kts

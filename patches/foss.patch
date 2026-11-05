@@ -1086,6 +1086,68 @@ index f1e6cafe8f0f3393b362ca7df699ef420eeb3086..27d36395af1875a3b92ab150f5f0c6dc
      val codeRequestResponse = RegistrationRepository.requestSmsCode(
        context = context,
        sessionId = sessionId,
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/credentials/PlatformCredentialSupportTest.kt b/app/src/test/java/org/thoughtcrime/securesms/credentials/PlatformCredentialSupportTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce7247b46f36014c4f77dac65296a7e889149036
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/credentials/PlatformCredentialSupportTest.kt
+@@ -0,0 +1,56 @@
++package org.thoughtcrime.securesms.credentials
++
++import android.app.Application
++import android.content.Context
++import io.mockk.mockk
++import kotlinx.coroutines.runBlocking
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++import org.signal.passwordmanager.CredentialManagerError
++import org.signal.passwordmanager.PasskeyAssertionResult
++import org.signal.passwordmanager.PasskeyCreationResult
++import org.signal.passwordmanager.SignalCredentialManager
++import org.signal.passwordmanager.SignalPasskeyManager
++
++@RunWith(RobolectricTestRunner::class)
++@Config(application = Application::class, sdk = [33])
++class PlatformCredentialSupportTest {
++  private val context = mockk<Context>()
++
++  @Test
++  fun `legacy Google-only providers are not advertised or treated as successful`() = runBlocking {
++    assertFalse(SignalCredentialManager.isSupported(context))
++    assertFalse(SignalPasskeyManager.isSupported(context))
++    assertFalse(SignalCredentialManager.isGooglePasswordManagerDefault(context))
++    assertNull(SignalCredentialManager.getCredential(context))
++    assertTrue(SignalCredentialManager.saveCredential(context, "fixture", "fixture") is CredentialManagerError.MissingCredentialManager)
++    assertEquals(
++      PasskeyCreationResult.NoProviderAvailable,
++      SignalPasskeyManager.createPasskey(context, "example.invalid", "fixture", byteArrayOf(), "fixture", listOf(-7), emptyList())
++    )
++    assertEquals(
++      PasskeyAssertionResult.NoCredentialAvailable,
++      SignalPasskeyManager.getPasskeyAssertion(context, "example.invalid", byteArrayOf(), 30, emptyList())
++    )
++  }
++
++  @Test
++  @Config(sdk = [27])
++  fun `minimum supported Android does not query a missing legacy provider`() {
++    assertFalse(SignalCredentialManager.isSupported(context))
++    assertFalse(SignalPasskeyManager.isSupported(context))
++  }
++
++  @Test
++  @Config(sdk = [34])
++  fun `platform providers remain available without querying Google accounts`() {
++    assertTrue(SignalCredentialManager.isSupported(context))
++    assertTrue(SignalPasskeyManager.isSupported(context))
++  }
++}
 diff --git a/benchmark/src/main/AndroidManifest.xml b/benchmark/src/main/AndroidManifest.xml
 deleted file mode 100644
 index 5e49a2e20359076cbb96c6aac3c2eff82240da80..0000000000000000000000000000000000000000
@@ -9896,3 +9958,204 @@ index a67a4910561786f04da21374556c674e26919bde..03536f12922ba5ed03638d266954f13f
    }
  
    private val _state = MutableStateFlow(VerificationCodeState())
+diff --git a/lib/password-manager/build.gradle.kts b/lib/password-manager/build.gradle.kts
+index 797dae2d0486fd78ab013564b2eb46a839af7553..63cca994ae91eba9c9f420e9c2e2fefa0fdb1da3 100644
+--- a/lib/password-manager/build.gradle.kts
++++ b/lib/password-manager/build.gradle.kts
+@@ -20,7 +20,6 @@ dependencies {
+   implementation(project(":core:util"))
+ 
+   implementation(libs.androidx.credentials)
+-  implementation(libs.androidx.credentials.compat)
+   implementation(libs.kotlinx.serialization.cbor)
+   implementation(libs.kotlinx.serialization.json)
+ 
+diff --git a/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalCredentialManager.kt b/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalCredentialManager.kt
+index 0af8fe6044f1ec3013cc1611a815cf582a870e63..2ae9940c67141fd3bf731f484f8eed14d5351ad0 100644
+--- a/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalCredentialManager.kt
++++ b/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalCredentialManager.kt
+@@ -5,17 +5,13 @@
+ 
+ package org.signal.passwordmanager
+ 
+-import android.Manifest
+-import android.accounts.AccountManager
+ import android.content.Context
+ import android.content.Intent
+-import android.content.pm.PackageManager
+ import android.net.Uri
+ import android.os.Build
+ import android.provider.Settings
+ import android.view.autofill.AutofillManager
+ import androidx.annotation.UiContext
+-import androidx.core.content.ContextCompat
+ import androidx.core.content.getSystemService
+ import androidx.credentials.CreatePasswordRequest
+ import androidx.credentials.CredentialManager
+@@ -28,7 +24,6 @@ import androidx.credentials.exceptions.CreateCredentialNoCreateOptionException
+ import androidx.credentials.exceptions.CreateCredentialProviderConfigurationException
+ import androidx.credentials.exceptions.CreateCredentialUnknownException
+ import androidx.credentials.exceptions.GetCredentialException
+-import org.signal.core.util.PlayServicesUtil
+ import org.signal.core.util.censor
+ import org.signal.core.util.logging.Log
+ 
+@@ -40,56 +35,32 @@ object SignalCredentialManager {
+ 
+   private val TAG = Log.tag(SignalCredentialManager::class)
+ 
+-  private const val ERROR_CODE_GOOGLE_AUTOFILL_SUCCESS = "[28431]"
+   private const val ERROR_CODE_MISSING_CREDENTIAL_MANAGER = "[28434]"
+   private const val ERROR_CODE_SAVE_PROMPT_DISABLED = "[28435]"
+ 
+   private const val GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms"
+   private const val GOOGLE_PASSWORD_MANAGER_PACKAGE = "com.google.android.apps.credentialmanager"
+-  private const val GOOGLE_ACCOUNT_TYPE = "com.google"
+ 
+   /**
+    * Whether a password manager / credential provider may be available.
+    *
+-   * On API 34+ Credential Manager can route to any provider, and there's no API to tell if one is set, so we assume
+-   * true. Before that it can only save through Play Services into a Google account, regardless of the autofill service.
++   * On API 34+ Credential Manager can route to any provider. Molly does not bundle the
++   * Google-only Play Services backend used by earlier Android versions.
+    */
+   fun isSupported(context: Context): Boolean {
+-    if (Build.VERSION.SDK_INT >= 34) {
+-      return true
+-    }
+-
+-    if (PlayServicesUtil.getPlayServicesStatus(context) != PlayServicesUtil.PlayServicesStatus.SUCCESS) {
+-      return false
+-    }
+-
+-    return !hasNoGoogleAccount(context)
++    return Build.VERSION.SDK_INT >= 34
+   }
+ 
+   /**
+-   * Whether credentials we save are likely to end up in Google Password Manager. Before API 34 that is the only place
+-   * they can go. On API 34+, choosing a preferred credential provider also sets the autofill service, so that is what
+-   * we check.
++   * Whether the supported platform provider is Google Password Manager. Choosing a
++   * preferred credential provider also sets the autofill service, which we check.
+    */
+   fun isGooglePasswordManagerDefault(context: Context): Boolean {
+     if (Build.VERSION.SDK_INT < 34) {
+-      return true
+-    }
+-
+-    return context.getSystemService<AutofillManager>()?.autofillServiceComponentName?.packageName == GOOGLE_PLAY_SERVICES_PACKAGE
+-  }
+-
+-  /**
+-   * True only when we can see the device's accounts and none of them are Google accounts. Google accounts are only
+-   * visible to us with the contacts permission (or GET_ACCOUNTS before API 26), so without it we can't rule one out.
+-   */
+-  private fun hasNoGoogleAccount(context: Context): Boolean {
+-    val accountsPermission = if (Build.VERSION.SDK_INT >= 26) Manifest.permission.READ_CONTACTS else Manifest.permission.GET_ACCOUNTS
+-    if (ContextCompat.checkSelfPermission(context, accountsPermission) != PackageManager.PERMISSION_GRANTED) {
+       return false
+     }
+ 
+-    return AccountManager.get(context).getAccountsByType(GOOGLE_ACCOUNT_TYPE).isEmpty()
++    return context.getSystemService<AutofillManager>()?.autofillServiceComponentName?.packageName == GOOGLE_PLAY_SERVICES_PACKAGE
+   }
+ 
+   /**
+@@ -107,7 +78,11 @@ object SignalCredentialManager {
+     @UiContext activityContext: Context,
+     username: String,
+     password: String
+-  ): CredentialManagerResult = try {
++  ): CredentialManagerResult = if (Build.VERSION.SDK_INT < 34) {
++    CredentialManagerError.MissingCredentialManager(
++      CreateCredentialProviderConfigurationException("This build requires a platform credential provider on Android 14 or later.")
++    )
++  } else try {
+     CredentialManager.create(activityContext)
+       .createCredential(
+         context = activityContext,
+@@ -126,13 +101,6 @@ object SignalCredentialManager {
+       is CreateCredentialNoCreateOptionException, is CreateCredentialProviderConfigurationException -> CredentialManagerError.MissingCredentialManager(e)
+       is CreateCredentialUnknownException -> {
+         when {
+-          Build.VERSION.SDK_INT <= 33 && e.message?.contains(ERROR_CODE_GOOGLE_AUTOFILL_SUCCESS) == true -> {
+-            // This error only impacts Android 13 and earlier, when Google is the designated autofill provider. The error can be safely disregarded, since users
+-            // will receive a save prompt from autofill and the password will be stored in Google Password Manager, which syncs with the Credential Manager API.
+-            Log.d(TAG, "Disregarding CreateCredentialUnknownException and treating credential creation as success: \"${e.message}\".")
+-            CredentialManagerResult.Success
+-          }
+-
+           e.message?.contains(ERROR_CODE_MISSING_CREDENTIAL_MANAGER) == true -> {
+             Log.w(TAG, "Detected MissingCredentialManager error based on CreateCredentialUnknownException message: \"${e.message}\"")
+             CredentialManagerError.MissingCredentialManager(e)
+@@ -157,7 +125,9 @@ object SignalCredentialManager {
+    * only a credential with that id will be returned. Must be called with an Activity context so the
+    * Credential Manager UI can be shown.
+    */
+-  suspend fun getCredential(@UiContext activityContext: Context, id: String? = null): UsernamePasswordCredential? = try {
++  suspend fun getCredential(@UiContext activityContext: Context, id: String? = null): UsernamePasswordCredential? = if (Build.VERSION.SDK_INT < 34) {
++    null
++  } else try {
+     val result = CredentialManager.create(activityContext).getCredential(activityContext, GetCredentialRequest(listOf(GetPasswordOption())))
+     val credential = result.credential
+     if (credential is PasswordCredential && (id == null || credential.id == id)) {
+diff --git a/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalPasskeyManager.kt b/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalPasskeyManager.kt
+index ad6a021ad703af45a260a2d3b614e2bc56e11859..11bbdd1f9f4d07e00a1744a11203ebea2f0c2bde 100644
+--- a/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalPasskeyManager.kt
++++ b/lib/password-manager/src/main/java/org/signal/passwordmanager/SignalPasskeyManager.kt
+@@ -25,7 +25,6 @@ import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCreden
+ import androidx.credentials.exceptions.publickeycredential.GetPublicKeyCredentialDomException
+ import kotlinx.serialization.SerializationException
+ import org.signal.core.util.Base64
+-import org.signal.core.util.PlayServicesUtil
+ import org.signal.core.util.logging.Log
+ import org.signal.core.util.serialization.SignalJson
+ import java.io.IOException
+@@ -74,20 +73,11 @@ object SignalPasskeyManager {
+   /**
+    * Whether this device can run a passkey ceremony at all.
+    *
+-   * From API 34 the platform has its own credential provider. Below that the ceremony runs through Play services, which
+-   * only speaks passkeys from API 28. There's no API for telling whether the user has actually set a provider up, so a
+-   * capable device is assumed willing and only finds out otherwise once a ceremony comes back empty.
++   * From API 34 the platform has its own credential provider. Molly does not bundle
++   * the Google-only backend for older versions. Provider availability is confirmed by the ceremony.
+    */
+   fun isSupported(context: Context): Boolean {
+-    if (Build.VERSION.SDK_INT >= 34) {
+-      return true
+-    }
+-
+-    if (Build.VERSION.SDK_INT < 28) {
+-      return false
+-    }
+-
+-    return PlayServicesUtil.getPlayServicesStatus(context) == PlayServicesUtil.PlayServicesStatus.SUCCESS
++    return Build.VERSION.SDK_INT >= 34
+   }
+ 
+   /**
+@@ -110,6 +100,10 @@ object SignalPasskeyManager {
+     allowedAlgorithms: List<Int>,
+     excludeCredentialIds: List<ByteArray>
+   ): PasskeyCreationResult {
++    if (Build.VERSION.SDK_INT < 34) {
++      return PasskeyCreationResult.NoProviderAvailable
++    }
++
+     val options = PublicKeyCredentialCreationOptions(
+       rp = RelyingParty(id = rpId, name = rpName),
+       user = User(
+@@ -171,6 +165,10 @@ object SignalPasskeyManager {
+     timeoutSeconds: Long,
+     allowedCredentialIds: List<ByteArray>
+   ): PasskeyAssertionResult {
++    if (Build.VERSION.SDK_INT < 34) {
++      return PasskeyAssertionResult.NoCredentialAvailable
++    }
++
+     val options = PublicKeyCredentialRequestOptions(
+       challenge = Base64.encodeUrlSafeWithoutPadding(challenge),
+       rpId = rpId,
