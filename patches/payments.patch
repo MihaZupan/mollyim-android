@@ -3120,6 +3120,18 @@ index 12396cf5f6788dfa7daa05dffef9844926fff0cb..535fe29c31ca7ac7286a3a5d5742ef9c
    public static final class Factory implements ViewModelProvider.Factory {
  
      private final DeleteAccountRepository repository;
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt b/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
+index 9cfc06e6e0184a6c8c255cbad3693fb29745ad1b..013d4a661c1a5bd2e3ee1a632aec45d0f1370af5 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
+@@ -37,7 +37,6 @@ import org.thoughtcrime.securesms.groups.GroupsV2Authorization
+ import org.thoughtcrime.securesms.groups.GroupsV2AuthorizationMemoryValueCache
+ import org.thoughtcrime.securesms.keyvalue.SignalStore
+ import org.thoughtcrime.securesms.messages.IncomingMessageObserver
+-import org.thoughtcrime.securesms.payments.Payments
+ import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess
+ import org.thoughtcrime.securesms.push.SignalServiceTrustStore
+ import org.whispersystems.signalservice.api.SignalServiceAccountManager
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJob.kt
 index c5ae78037c8d27add746b7ef682cc2bccbdbe5b9..8353342d34cd7a323ef2d22241083854294cdde2 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJob.kt

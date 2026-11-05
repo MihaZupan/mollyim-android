@@ -504,10 +504,10 @@ index 0977b2c814ce19ef3a25aeefadf341652d6d034c..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/im/molly/unifiedpush/MollySocketRepository.kt b/app/src/main/java/im/molly/unifiedpush/MollySocketRepository.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..03a37a20bc0435ea955f03d893438b0b265f9916
+index 0000000000000000000000000000000000000000..5e5c6dad6e99c360e8e589979bbdd0c41fe0b554
 --- /dev/null
 +++ b/app/src/main/java/im/molly/unifiedpush/MollySocketRepository.kt
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,214 @@
 +package im.molly.unifiedpush
 +
 +import com.fasterxml.jackson.core.JsonParseException
@@ -518,6 +518,7 @@ index 0000000000000000000000000000000000000000..03a37a20bc0435ea955f03d893438b0b
 +import im.molly.unifiedpush.model.LinkStatus
 +import im.molly.unifiedpush.model.MollySocketDevice
 +import im.molly.unifiedpush.model.Response
++import kotlinx.coroutines.runBlocking
 +import okhttp3.HttpUrl
 +import okhttp3.MediaType.Companion.toMediaType
 +import okhttp3.Request
@@ -641,7 +642,9 @@ index 0000000000000000000000000000000000000000..03a37a20bc0435ea955f03d893438b0b
 +
 +  @Throws(IOException::class)
 +  fun removeDevice(device: MollySocketDevice) {
-+    LinkDeviceRepository.removeDevice(device.deviceId)
++    runBlocking {
++      LinkDeviceRepository.removeDevice(device.deviceId)
++    }
 +  }
 +
 +  fun getDeviceStatus(device: MollySocketDevice): LinkStatus {

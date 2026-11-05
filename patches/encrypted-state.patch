@@ -4735,7 +4735,7 @@ index 98ef32510b69244f2a7c0d4feb2183c36f6dfc63..b218311a16d385e6813bf271d22cee7d
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java b/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5cae6c1f89370db040884ffc5c2a3a5874c9e64f
+index 0000000000000000000000000000000000000000..1ddcf8aaa3ea17b1f82698cb59786a95a840cd81
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java
 @@ -0,0 +1,251 @@
@@ -4752,13 +4752,13 @@ index 0000000000000000000000000000000000000000..5cae6c1f89370db040884ffc5c2a3a58
 +import androidx.core.app.NotificationCompat;
 +import androidx.core.app.NotificationManagerCompat;
 +
++import org.signal.core.util.ForegroundServiceUtil;
 +import org.signal.core.util.PendingIntentFlags;
 +import org.signal.core.util.ServiceUtil;
 +import org.signal.core.util.logging.Log;
 +import org.thoughtcrime.securesms.MainActivity;
 +import org.thoughtcrime.securesms.R;
 +import org.thoughtcrime.securesms.gcm.FcmFetchManager;
-+import org.thoughtcrime.securesms.jobs.ForegroundServiceUtil;
 +import org.thoughtcrime.securesms.notifications.NotificationChannels;
 +import org.thoughtcrime.securesms.util.WakeLockUtil;
 +
