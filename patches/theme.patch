@@ -75060,10 +75060,21 @@ index 2ba79817fb0488f8abbd0eaeb3c4dc18d729ad5a..0a5017b275c3f4aba684f57b5a437897
    fun `without system theme or app icon`() = assertPassesLayoutChecks {
      AppearanceSettingsScreen(state = populated.copy(isSystemThemeAvailable = false, isAppIconSupported = false), onEvent = {})
 diff --git a/feature/app-settings/src/test/java/org/signal/appsettings/appearance/AppearanceSettingsScreenTest.kt b/feature/app-settings/src/test/java/org/signal/appsettings/appearance/AppearanceSettingsScreenTest.kt
-index 598f67efb6b1b0d9319072e2f57b1cc5946da21e..1d77160fa6f7eb73a6dc4d7dbb126335d3ad4ac0 100644
+index 598f67efb6b1b0d9319072e2f57b1cc5946da21e..cb3216f7e3db94b87204ff36971e515de9703bb2 100644
 --- a/feature/app-settings/src/test/java/org/signal/appsettings/appearance/AppearanceSettingsScreenTest.kt
 +++ b/feature/app-settings/src/test/java/org/signal/appsettings/appearance/AppearanceSettingsScreenTest.kt
-@@ -54,6 +54,44 @@ class AppearanceSettingsScreenTest {
+@@ -9,7 +9,10 @@ import android.app.Application
+ import androidx.compose.ui.test.assertIsDisplayed
+ import androidx.compose.ui.test.assertIsNotSelected
+ import androidx.compose.ui.test.assertIsSelected
++import androidx.compose.ui.test.hasAnyAncestor
+ import androidx.compose.ui.test.hasTestTag
++import androidx.compose.ui.test.hasText
++import androidx.compose.ui.test.isDialog
+ import androidx.compose.ui.test.junit4.createComposeRule
+ import androidx.compose.ui.test.onNodeWithContentDescription
+ import androidx.compose.ui.test.onNodeWithTag
+@@ -54,6 +57,45 @@ class AppearanceSettingsScreenTest {
      assertThat(events).contains(AppearanceSettingsEvent.LanguageSelected("en"))
    }
  
@@ -75087,8 +75098,9 @@ index 598f67efb6b1b0d9319072e2f57b1cc5946da21e..1d77160fa6f7eb73a6dc4d7dbb126335
 +      themeValues = arrayOf("dark", "light")
 +    )
 +    composeTestRule.onNodeWithTag(AppearanceSettingsTestTags.ROW_THEME).performClick()
-+    composeTestRule.onNodeWithText("Molly dark fixture").performClick()
-+    composeTestRule.onNodeWithText("System default").assertDoesNotExist()
++    composeTestRule.onNode(isDialog()).assertIsDisplayed()
++    composeTestRule.onNode(hasText("System default") and hasAnyAncestor(isDialog())).assertDoesNotExist()
++    composeTestRule.onNode(hasText("Molly dark fixture") and hasAnyAncestor(isDialog())).performClick()
 +    assertThat(events).contains(AppearanceSettingsEvent.ThemeSelected(AppearanceSettingsState.Theme.DARK))
 +  }
 +
@@ -75108,7 +75120,7 @@ index 598f67efb6b1b0d9319072e2f57b1cc5946da21e..1d77160fa6f7eb73a6dc4d7dbb126335
    @Test
    fun `picking a theme emits ThemeSelected`() {
      setContent(AppearanceSettingsState(theme = AppearanceSettingsState.Theme.SYSTEM))
-@@ -176,11 +214,23 @@ class AppearanceSettingsScreenTest {
+@@ -176,11 +218,23 @@ class AppearanceSettingsScreenTest {
      assertThat(events).containsExactly(AppearanceSettingsEvent.NavigationBarSizeConfirmed)
    }
  
