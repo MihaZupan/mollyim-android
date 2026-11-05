@@ -276,7 +276,7 @@ index b2c24ea15c1b6a23fcb87da3d79a337b6f8c1b3c..2ba34df1e302a0b99ff1d72f3525145f
  
    private static void dropAllTables(@NonNull SQLiteDatabase db, boolean excludeKeyTables) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java b/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
-index bfbf55850e40bd43d77bf79423af322d658328d5..3d5a71dd0f639d243c5b249803e5ee61833d8fe0 100644
+index bfbf55850e40bd43d77bf79423af322d658328d5..93c22f9ed377dcc6efad7206f0f7b702a5a16c51 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/ConversationItemFooter.java
 @@ -1,8 +1,6 @@
@@ -296,7 +296,7 @@ index bfbf55850e40bd43d77bf79423af322d658328d5..3d5a71dd0f639d243c5b249803e5ee61
  import org.signal.core.ui.view.Stub;
  import org.signal.core.util.concurrent.SignalExecutors;
  import org.thoughtcrime.securesms.R;
-@@ -35,7 +34,6 @@ import org.thoughtcrime.securesms.database.SignalDatabase;
+@@ -35,15 +34,12 @@ import org.thoughtcrime.securesms.database.SignalDatabase;
  import org.thoughtcrime.securesms.database.model.MessageRecord;
  import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
  import org.thoughtcrime.securesms.dependencies.AppDependencies;
@@ -304,7 +304,15 @@ index bfbf55850e40bd43d77bf79423af322d658328d5..3d5a71dd0f639d243c5b249803e5ee61
  import org.thoughtcrime.securesms.recipients.Recipient;
  import org.thoughtcrime.securesms.util.DateUtils;
  import org.thoughtcrime.securesms.util.MessageRecordUtil;
-@@ -116,7 +114,7 @@ public class ConversationItemFooter extends ConstraintLayout {
+ import org.thoughtcrime.securesms.util.Projection;
+ import org.thoughtcrime.securesms.util.SignalLocalMetrics;
+ import org.signal.core.ui.util.ViewUtil;
+-import org.thoughtcrime.securesms.util.dualsim.SubscriptionInfoCompat;
+-import org.thoughtcrime.securesms.util.dualsim.SubscriptionManagerCompat;
+ 
+ import java.util.Locale;
+ import java.util.Objects;
+@@ -116,7 +112,7 @@ public class ConversationItemFooter extends ConstraintLayout {
          playbackSpeedToggleTextView.setTextColor(getResources().getColor(org.signal.core.ui.R.color.core_white));
          playbackSpeedToggleTextView.setBackgroundTintList(AppCompatResources.getColorStateList(getContext(), R.color.transparent_white_20));
        } else {
@@ -313,7 +321,7 @@ index bfbf55850e40bd43d77bf79423af322d658328d5..3d5a71dd0f639d243c5b249803e5ee61
          playbackSpeedToggleTextView.setBackgroundTintList(AppCompatResources.getColorStateList(getContext(), R.color.transparent_black_08));
        }
  
-@@ -146,7 +144,7 @@ public class ConversationItemFooter extends ConstraintLayout {
+@@ -146,7 +142,7 @@ public class ConversationItemFooter extends ConstraintLayout {
    public void setMessageRecord(@NonNull MessageRecord messageRecord, @NonNull Locale locale, @NonNull ConversationItemDisplayMode displayMode) {
      presentDate(messageRecord, locale, displayMode);
      presentSimInfo(messageRecord);
@@ -322,7 +330,7 @@ index bfbf55850e40bd43d77bf79423af322d658328d5..3d5a71dd0f639d243c5b249803e5ee61
      presentInsecureIndicator(messageRecord);
      presentDeliveryStatus(messageRecord);
      presentAudioDuration(messageRecord);
-@@ -354,56 +352,38 @@ public class ConversationItemFooter extends ConstraintLayout {
+@@ -354,56 +350,38 @@ public class ConversationItemFooter extends ConstraintLayout {
    }
  
    private void presentSimInfo(@NonNull MessageRecord messageRecord) {
@@ -719,7 +727,7 @@ index d4484e2ba2545b779d58bb3bfd38854967844ef8..41d5de62619bcb05bbe1f4e3b2259257
    public StandardUserAgentInterceptor() {
      super(USER_AGENT);
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java b/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
-index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740e3ee41fe 100644
+index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..eede46648fae3291b9dfad1cfa1070d2066d8117 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/preferences/BackupsPreferenceFragment.java
 @@ -11,6 +11,7 @@ import android.text.method.LinkMovementMethod;
@@ -738,7 +746,13 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
  import com.google.android.material.timepicker.MaterialTimePicker;
  import com.google.android.material.timepicker.TimeFormat;
  
-@@ -50,6 +52,7 @@ import java.text.NumberFormat;
+@@ -45,11 +47,13 @@ import org.thoughtcrime.securesms.service.LocalBackupListener;
+ import org.thoughtcrime.securesms.util.BackupUtil;
+ import org.thoughtcrime.securesms.util.Environment;
+ import org.thoughtcrime.securesms.util.LocalTimeExtensionsKt;
++import org.thoughtcrime.securesms.util.TextSecurePreferences;
+ 
+ import java.text.NumberFormat;
  import java.time.LocalTime;
  import java.util.Locale;
  import java.util.Objects;
@@ -746,7 +760,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
  
  import kotlin.Pair;
  import kotlin.Unit;
-@@ -69,6 +72,10 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -69,6 +73,10 @@ public class BackupsPreferenceFragment extends Fragment {
    private TextView    info;
    private TextView    summary;
    private TextView    folderName;
@@ -757,7 +771,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
    private ProgressBar progress;
    private TextView    progressSummary;
    private ComposeView upgradeCard;
-@@ -97,12 +104,18 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -97,12 +105,18 @@ public class BackupsPreferenceFragment extends Fragment {
      info            = view.findViewById(R.id.fragment_backup_info);
      summary         = view.findViewById(R.id.fragment_backup_create_summary);
      folderName      = view.findViewById(R.id.fragment_backup_folder_name);
@@ -776,7 +790,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
      verify.setOnClickListener(unused -> BackupDialog.showVerifyBackupPassphraseDialog(requireContext()));
      timer.setOnClickListener(unused -> pickTime());
  
-@@ -130,6 +143,8 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -130,6 +144,8 @@ public class BackupsPreferenceFragment extends Fragment {
      viewModel.refreshBackupStatus();
      setBackupSummary();
      setInfo();
@@ -785,7 +799,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
      setUpdateState();
    }
  
-@@ -225,6 +240,23 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -225,6 +241,23 @@ public class BackupsPreferenceFragment extends Fragment {
      info.setMovementMethod(LinkMovementMethod.getInstance());
    }
  
@@ -809,7 +823,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
    private void setUpdateState() {
      if (SignalStore.settings().isBackupEnabled() && Environment.Backups.isNewFormatSupportedForLocalBackup()) {
        UpgradeLocalBackupCard.bind(upgradeCard, () -> {
-@@ -283,6 +315,43 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -283,6 +316,43 @@ public class BackupsPreferenceFragment extends Fragment {
      }
    }
  
@@ -853,7 +867,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
    @RequiresApi(29)
    private void onCreateClickedApi29() {
      Log.i(TAG, "Queueing backup...");
-@@ -328,16 +397,17 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -328,16 +398,17 @@ public class BackupsPreferenceFragment extends Fragment {
    }
  
    private void updateToggle() {
@@ -873,7 +887,7 @@ index 4cc1439e797c9764a2891d6ef3c2a3b596d742f8..98c5bb9bb9345e7bd3fd7e21998c5740
      verify.setVisibility(View.VISIBLE);
      timer.setVisibility(View.VISIBLE);
      updateToggle();
-@@ -349,6 +419,8 @@ public class BackupsPreferenceFragment extends Fragment {
+@@ -349,6 +420,8 @@ public class BackupsPreferenceFragment extends Fragment {
      toggle.setText(R.string.BackupsPreferenceFragment__turn_on);
      create.setVisibility(View.GONE);
      folder.setVisibility(View.GONE);
@@ -905,12 +919,14 @@ index a6cdeb58b12b8e48c56a7f73f0add58d6f02eb05..253c15d982b6c0dc067512d581828667
          // A post-registration restore clobbers parts of SignalStore.account with the backup's values -- V1 backups
          // carry the identity keys and AEP. Re-apply the frozen account data to heal the committed registration.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java b/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
-index 149dbb9bd8c45501e4d5dad53caa0d1f1ac47a2a..d722628da15363dd5b6e69194f644766fccdcb79 100644
+index 149dbb9bd8c45501e4d5dad53caa0d1f1ac47a2a..519432351993d3a4df0b8ea7b5396d850f36d8c0 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/LocalBackupListener.java
-@@ -9,8 +9,10 @@ import org.signal.core.util.JavaTimeExtensionsKt;
+@@ -8,9 +8,12 @@ import androidx.annotation.NonNull;
+ import org.signal.core.util.JavaTimeExtensionsKt;
  import org.thoughtcrime.securesms.jobs.LocalBackupJob;
  import org.thoughtcrime.securesms.keyvalue.SignalStore;
++import org.thoughtcrime.securesms.util.TextSecurePreferences;
  
 +import java.time.Instant;
  import java.time.LocalDateTime;
@@ -919,7 +935,7 @@ index 149dbb9bd8c45501e4d5dad53caa0d1f1ac47a2a..d722628da15363dd5b6e69194f644766
  import java.util.concurrent.TimeUnit;
  
  public class LocalBackupListener extends PersistentAlarmManagerListener {
-@@ -47,10 +49,21 @@ public class LocalBackupListener extends PersistentAlarmManagerListener {
+@@ -47,10 +50,21 @@ public class LocalBackupListener extends PersistentAlarmManagerListener {
    }
  
    public static long setNextBackupTimeToIntervalFromNow(@NonNull Context context) {

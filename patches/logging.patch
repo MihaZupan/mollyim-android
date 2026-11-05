@@ -3677,10 +3677,18 @@ index 3ccd6deaddc575cc3462afae5bd9287db290b91a..c25e95b21c301bba65e6f44cfef19431
 +  }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
-index 43931fef81e2db07000fe88ef4731f79adfec47a..dd2a047915bedd8cd645f295f11f6690ece27f91 100644
+index 43931fef81e2db07000fe88ef4731f79adfec47a..4d3e6f0c81ac734143bce3a0413507a467608058 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/LogSectionKeyPreferences.java
-@@ -18,9 +18,10 @@ final class LogSectionKeyPreferences implements LogSection {
+@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
+ import org.thoughtcrime.securesms.keyvalue.KeepMessagesDuration;
+ import org.thoughtcrime.securesms.keyvalue.SignalStore;
+ import org.thoughtcrime.securesms.recipients.Recipient;
++import org.thoughtcrime.securesms.util.TextSecurePreferences;
+ import org.signal.core.util.Util;
+ 
+ final class LogSectionKeyPreferences implements LogSection {
+@@ -18,9 +19,10 @@ final class LogSectionKeyPreferences implements LogSection {
  
    @Override
    public @NonNull CharSequence getContent(@NonNull Context context) {
@@ -3954,7 +3962,7 @@ index a37f20711864eddd3e334bbddf2acfde6829671f..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
-index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977364fbbce 100644
+index ee7e474557eb8c00e8334673ea0270d79287ccf3..6442177e7dd12e7979b5a8eb3e9d8111ceb73d0b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/logsubmit/SubmitDebugLogActivity.java
 @@ -1,5 +1,6 @@
@@ -4013,28 +4021,26 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
  
    @Override
    protected void onCreate(Bundle savedInstanceState) {
-@@ -113,6 +119,20 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -113,6 +119,18 @@ public class SubmitDebugLogActivity extends BaseActivity {
  
      initView();
      initViewModel();
 +    getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
 +      @Override
 +      public void handleOnBackPressed() {
-+        if (!viewModel.onBackPressed()) {
-+          setEnabled(false);
-+          getOnBackPressedDispatcher().onBackPressed();
-+          Intent nextIntent = getIntent().getParcelableExtra("next_intent");
-+          if (nextIntent != null) {
-+            startActivity(nextIntent);
-+          }
-+          finish();
++        setEnabled(false);
++        getOnBackPressedDispatcher().onBackPressed();
++        Intent nextIntent = getIntent().getParcelableExtra("next_intent");
++        if (nextIntent != null) {
++          startActivity(nextIntent);
 +        }
++        finish();
 +      }
 +    });
    }
  
    @Override
-@@ -121,6 +141,11 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -121,6 +139,11 @@ public class SubmitDebugLogActivity extends BaseActivity {
      dynamicTheme.onResume(this);
    }
  
@@ -4046,7 +4052,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
    @Override
    public boolean onCreateOptionsMenu(Menu menu) {
      getMenuInflater().inflate(R.menu.submit_debug_log_normal, menu);
-@@ -251,7 +276,6 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -251,7 +274,6 @@ public class SubmitDebugLogActivity extends BaseActivity {
        isUncaught = !isUncaught;
        onFilterLevel(v, isUncaught);
      });
@@ -4054,7 +4060,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
  
      if (viewModel.getMode().getValue() != null) {
        presentMode(viewModel.getMode().getValue());
-@@ -261,15 +285,15 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -261,15 +283,15 @@ public class SubmitDebugLogActivity extends BaseActivity {
    }
  
    private void onFilterLevel(View view, boolean isChecked) {
@@ -4076,7 +4082,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
      if (isUncaught) selectedLevels.add("\" SignalUncaughtException:\"");
  
      DebugLogsViewer.onFilterLevel(logWebView, "[" + String.join(",", selectedLevels) + "]");
-@@ -284,12 +308,14 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -284,12 +306,14 @@ public class SubmitDebugLogActivity extends BaseActivity {
      isError    = false;
      isUncaught = false;
  
@@ -4097,7 +4103,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
  
      DebugLogsViewer.onFilterLevel(logWebView, "[]");
    }
-@@ -299,20 +325,24 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -299,20 +323,24 @@ public class SubmitDebugLogActivity extends BaseActivity {
      super.onOptionsItemSelected(item);
  
      if (item.getItemId() == android.R.id.home) {
@@ -4129,7 +4135,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
    @Override
    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
      super.onActivityResult(requestCode, resultCode, data);
-@@ -344,7 +374,12 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -344,7 +372,12 @@ public class SubmitDebugLogActivity extends BaseActivity {
        submitButton.setText(R.string.SubmitDebugLogActivity_close);
        submitButton.setOnClickListener(v -> ActivityCompat.finishAfterTransition(this));
      } else {
@@ -4143,7 +4149,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
      }
  
      scrollToTopButton.setOnClickListener(v -> DebugLogsViewer.scrollToTop(logWebView));
-@@ -370,13 +405,13 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -370,13 +403,13 @@ public class SubmitDebugLogActivity extends BaseActivity {
  
    private void subscribeToLogLines() {
      Disposable disposable = viewModel.getLogLinesObservable()
@@ -4164,7 +4170,7 @@ index ee7e474557eb8c00e8334673ea0270d79287ccf3..02b250acb2fb2f94375f40f582271977
      disposables.add(disposable);
    }
  
-@@ -451,7 +486,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
+@@ -451,7 +484,7 @@ public class SubmitDebugLogActivity extends BaseActivity {
            ShareCompat.IntentBuilder.from(this)
                                     .setText(url)
                                     .setType("text/plain")

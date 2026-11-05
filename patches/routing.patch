@@ -44,10 +44,34 @@ index 04245e0527654a6826c977c615a0ffbeaaa264c6..0b4a5ad8fb71b67a5bbc12b1c03e5551
              android:name=".stories.my.MyStoriesActivity"
              android:configChanges="touchscreen|keyboard|keyboardHidden|orientation|screenLayout|screenSize"
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/ApplicationContext.java b/app/src/main/java/org/thoughtcrime/securesms/ApplicationContext.java
-index 91d911ad96fef738b4c42f6a8b1bdf3bbd9124e0..c3cd4f9b39997d5cf483be1194e6ae242746382d 100644
+index 91d911ad96fef738b4c42f6a8b1bdf3bbd9124e0..ce54bbe7cc2ff26863c21a43c9678f5a69dd6eb5 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/ApplicationContext.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/ApplicationContext.java
-@@ -544,7 +544,7 @@ public class ApplicationContext extends Application implements AppForegroundObse
+@@ -200,7 +200,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
+     org.thoughtcrime.securesms.registration.ui.AppRegistrationActivityLifecycle.install();
+ 
+     SqlCipherLibraryLoader.load();
+-    EventBus.builder().logNoSubscriberMessages(false).installDefaultEventBus();
+     DynamicTheme.setDefaultDayNightMode(this);
+     ScreenLockController.enableAutoLock(TextSecurePreferences.isBiometricScreenLockEnabled(this));
+     AppDependencies.installDependencyProviders();
+@@ -210,7 +209,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
+   }
+ 
+   private void onCreateUnlock() {
+-    Tracer.getInstance().start("Application#onCreate()");
+     AppStartup.getInstance().onApplicationCreate();
+     SignalLocalMetrics.ColdStart.start();
+ 
+@@ -294,7 +292,6 @@ public class ApplicationContext extends Application implements AppForegroundObse
+ 
+     Log.d(TAG, "onCreateUnlock() took " + (System.currentTimeMillis() - startTime) + " ms");
+     SignalLocalMetrics.ColdStart.onApplicationCreateFinished();
+-    Tracer.getInstance().end("Application#onCreate()");
+   }
+ 
+   @Override
+@@ -544,7 +541,7 @@ public class ApplicationContext extends Application implements AppForegroundObse
            return Unit.INSTANCE;
          },
          context -> {
@@ -652,19 +676,18 @@ index 2ba6f2bf262a73857d105881c96493d96ff91d25..be0424691aafc9b412e540c052e83c46
        } else {
          Log.i(TAG, "Stream reset during upload, not resetting network yet, last reset: $lastReset")
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/ServiceOutageDetectionJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/ServiceOutageDetectionJob.java
-index 580af39f2debf7388d8c24a99ea714796a8e4032..fec09af75d3e8f74e98b5faaa728ad32c1b09372 100644
+index 580af39f2debf7388d8c24a99ea714796a8e4032..66b4b300f55caf6e38107637fa005ce04533ec62 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/ServiceOutageDetectionJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/ServiceOutageDetectionJob.java
-@@ -7,7 +7,7 @@ import org.signal.core.util.logging.Log;
+@@ -7,6 +7,7 @@ import org.signal.core.util.logging.Log;
  import org.thoughtcrime.securesms.BuildConfig;
  import org.thoughtcrime.securesms.jobmanager.Job;
  import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint;
--import org.thoughtcrime.securesms.keyvalue.SignalStore;
 +import org.thoughtcrime.securesms.net.Networking;
+ import org.thoughtcrime.securesms.keyvalue.SignalStore;
  import org.thoughtcrime.securesms.transport.RetryLaterException;
  
- import java.net.InetAddress;
-@@ -57,7 +57,7 @@ public class ServiceOutageDetectionJob extends BaseJob {
+@@ -57,7 +58,7 @@ public class ServiceOutageDetectionJob extends BaseJob {
      }
  
      try {

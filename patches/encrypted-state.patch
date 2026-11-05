@@ -248,7 +248,7 @@ index 0329bebeb5ff83feab7a6d9589e42648d719b958..00000000000000000000000000000000
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/ChangePassphraseDialogFragment.java b/app/src/main/java/org/thoughtcrime/securesms/ChangePassphraseDialogFragment.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1bebb444ea128e0f0c67cd14b2f54503b431fc89
+index 0000000000000000000000000000000000000000..7c0a2cb5916ef6fa33664a0582155dec2acafc70
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/ChangePassphraseDialogFragment.java
 @@ -0,0 +1,385 @@
@@ -357,8 +357,8 @@ index 0000000000000000000000000000000000000000..1bebb444ea128e0f0c67cd14b2f54503
 +      titleResId  = R.string.AndroidManifest__create_passphrase;
 +    } else if (mode == MODE_DISABLE) {
 +      layoutResId = R.layout.disable_passphrase_dialog_view;
-+      titleResId  = R.string.ApplicationPreferencesActivity_disable_passphrase;
-+      positiveButtonResId = R.string.ApplicationPreferencesActivity_disable;
++      titleResId  = org.signal.appsettings.R.string.ApplicationPreferencesActivity_disable_passphrase;
++      positiveButtonResId = org.signal.appsettings.R.string.ApplicationPreferencesActivity_disable;
 +    }
 +
 +    dialog = builder.setView(setLayout(layoutResId))
@@ -4426,10 +4426,10 @@ index a9158ca265c25284d372d184bc7bf53f467eb5ed..28cdc00e3c2272a3ba0970f7662f46eb
      EMOJI,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java b/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3e7b3691b23db6b0d4098f026a04fe95709990f7
+index 0000000000000000000000000000000000000000..50aa65c9a5a2701ad0f39ee82dbbb37376837f0a
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/preferences/CorrectedPreferenceFragment.java
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,69 @@
 +package org.thoughtcrime.securesms.preferences;
 +
 +
@@ -4441,7 +4441,6 @@ index 0000000000000000000000000000000000000000..3e7b3691b23db6b0d4098f026a04fe95
 +import androidx.annotation.Nullable;
 +import androidx.appcompat.app.ActionBar;
 +import androidx.appcompat.app.AppCompatActivity;
-+import androidx.fragment.app.DialogFragment;
 +import androidx.preference.Preference;
 +import androidx.preference.PreferenceDataStore;
 +import androidx.preference.PreferenceFragmentCompat;
@@ -4450,7 +4449,6 @@ index 0000000000000000000000000000000000000000..3e7b3691b23db6b0d4098f026a04fe95
 +import androidx.preference.PreferenceViewHolder;
 +import androidx.recyclerview.widget.RecyclerView;
 +
-+import org.thoughtcrime.securesms.components.CustomDefaultPreference;
 +import org.thoughtcrime.securesms.util.TextSecurePreferences;
 +
 +import java.util.Objects;
@@ -4471,22 +4469,6 @@ index 0000000000000000000000000000000000000000..3e7b3691b23db6b0d4098f026a04fe95
 +  }
 +
 +  protected abstract void onCreateEncryptedPreferences(Bundle savedInstanceState, String rootKey);
-+
-+  @Override
-+  public void onDisplayPreferenceDialog(Preference preference) {
-+    DialogFragment dialogFragment = null;
-+
-+    if (preference instanceof CustomDefaultPreference) {
-+      dialogFragment = CustomDefaultPreference.CustomDefaultPreferenceDialogFragmentCompat.newInstance(preference.getKey());
-+    }
-+
-+    if (dialogFragment != null) {
-+      dialogFragment.setTargetFragment(this, 0);
-+      dialogFragment.show(getFragmentManager(), "android.support.v7.preference.PreferenceFragment.DIALOG");
-+    } else {
-+      super.onDisplayPreferenceDialog(preference);
-+    }
-+  }
 +
 +  @Override
 +  @SuppressLint("RestrictedApi")
@@ -4899,7 +4881,7 @@ index 98ef32510b69244f2a7c0d4feb2183c36f6dfc63..b218311a16d385e6813bf271d22cee7d
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java b/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1ddcf8aaa3ea17b1f82698cb59786a95a840cd81
+index 0000000000000000000000000000000000000000..b548538c3ad52177e113af2d723adb517465ead1
 --- /dev/null
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/WipeMemoryService.java
 @@ -0,0 +1,251 @@
@@ -5121,7 +5103,7 @@ index 0000000000000000000000000000000000000000..1ddcf8aaa3ea17b1f82698cb59786a95
 +        .setContentText(getString(R.string.WipeMemoryService_clearing_unencrypted_data_from_ram))
 +        .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.WipeMemoryService_clearing_unencrypted_data_from_ram)))
 +        .setSmallIcon(R.drawable.ic_notification)
-+        .setColor(getResources().getColor(R.color.core_ultramarine))
++        .setColor(getResources().getColor(org.signal.core.ui.R.color.core_ultramarine))
 +        .setContentIntent(pendingIntent)
 +        .setShowWhen(false)
 +        .setProgress(0, 0, true)

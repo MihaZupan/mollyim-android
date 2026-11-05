@@ -3533,6 +3533,18 @@ index 41e15d9caf5d368b783623ec37725c5638504341..1d328b3d784217e4d286b8c89a0c8993
        NotificationChannel appUpdates = new NotificationChannel(APP_UPDATES, context.getString(R.string.NotificationChannel_app_updates), NotificationManager.IMPORTANCE_DEFAULT);
        notificationManager.createNotificationChannel(appUpdates);
      } else {
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.kt
+index 044051ad88322ece0f2e2e19939225b7ac887d83..9919e8224ccfe83c4770475c587349fe5b46bb86 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/NotificationIds.kt
+@@ -35,6 +35,7 @@ object NotificationIds {
+   const val UNREGISTERED_NOTIFICATION_ID: Int = 180
+   const val USER_NOTIFICATION_MIGRATION: Int = 190
+   const val DONOR_BADGE_FAILURE: Int = 200
++  const val FCM_FAILURE: Int = 210
+ 
+   const val THREAD: Int = 10000000
+   const val MESSAGE_DELIVERY_FAILURE: Int = 20000000
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java b/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java
 index b83f6ca0a279db02fecd6cb516f7a65dcd08f405..c51b677008ee951bc8c9e00eb668a2a2bb5c0124 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/OptimizedMessageNotifier.java

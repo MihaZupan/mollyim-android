@@ -642,17 +642,19 @@ index 32afcd8a828aaa3634076c940c0c47091a64412f..030c1321234195a4eaeae34e5b2f931a
  
              // TODO Temporary escape hatch while most destinations are unregistered here; remove before the flag ships.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
-index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..c64e5cf4ca28ca969416c002b843da7bed2390d8 100644
+index e3eb8140f2d88e3625cd36c3e5187bc1ae2fe3a5..10b107e90b32e0918eeb195cf407a638a1e508ea 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsRepository.kt
-@@ -7,23 +7,23 @@ package org.thoughtcrime.securesms.components.settings.app
+@@ -5,25 +5,25 @@
  
- import androidx.lifecycle.asFlow
+ package org.thoughtcrime.securesms.components.settings.app
+ 
+-import androidx.lifecycle.asFlow
  import kotlinx.coroutines.flow.Flow
 +import kotlinx.coroutines.CancellationException
 +import kotlinx.coroutines.flow.flowOf
  import kotlinx.coroutines.flow.map
--import kotlinx.coroutines.rx3.asFlow
+ import kotlinx.coroutines.rx3.asFlow
  import kotlinx.coroutines.withContext
  import org.signal.appsettings.home.AppSettingsState
  import org.signal.appsettings.home.BackupFailureState

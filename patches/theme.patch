@@ -71168,18 +71168,21 @@ index d61ec3db56f69e0abe71c6ea7d2e466909308491..86c0011a1e1a3b047ca4cff22cff4842
          <item name="android:textSize">24sp</item>
          <item name="android:gravity">center</item>
 diff --git a/app/src/main/res/values/themes.xml b/app/src/main/res/values/themes.xml
-index aa1474fc6876b79cc2db85b0d0755554646b0719..0a7bcb02367c9415797c310c11e9f5468553cf06 100644
+index aa1474fc6876b79cc2db85b0d0755554646b0719..d5f9392bb3766c352c495bb0674b518a441d8df4 100644
 --- a/app/src/main/res/values/themes.xml
 +++ b/app/src/main/res/values/themes.xml
-@@ -13,8 +13,6 @@
+@@ -13,10 +13,8 @@
          <item name="contactCheckboxBackground">@drawable/contact_selection_checkbox</item>
      </style>
  
 -    <style name="Theme.Signal.DayNight.NoActionBar" parent="TextSecure.LightNoActionBar"></style>
 -
      <!-- The media viewer paints its own backdrop, and fades it to reveal the chat beneath during drag-to-dismiss. -->
-     <style name="Signal.DayNight.NoActionBar.MediaViewer" parent="Signal.DayNight.NoActionBar">
+-    <style name="Signal.DayNight.NoActionBar.MediaViewer" parent="Signal.DayNight.NoActionBar">
++    <style name="Signal.DayNight.NoActionBar.MediaViewer" parent="Theme.Signal.DayNight.NoActionBar">
          <item name="android:windowIsTranslucent">true</item>
+         <item name="android:windowBackground">@android:color/transparent</item>
+     </style>
 @@ -25,15 +23,11 @@
          <!-- leave empty to allow overriding -->
      </style>

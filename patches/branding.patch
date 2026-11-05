@@ -3355,22 +3355,23 @@ index 421a44a0c87761bb6aaf75a76afaba0ff6d3f812..c6885749dcc1f0cad0a12d7ecb677727
 +    <string name="preferences_app_protection__choose_who_can_see">選擇誰可以看到你的電話號碼，以及誰可以透過它在 Molly 上與你聯絡。</string>
  </resources>
 diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
-index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc6070948b3fe445 100644
+index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..c01efddea7d4ffad246d21f270ec516ad08ec334 100644
 --- a/app/src/main/res/values/strings.xml
 +++ b/app/src/main/res/values/strings.xml
-@@ -7,9 +7,9 @@
+@@ -7,9 +7,10 @@
  
  <!-- smartling.instruction_comments_enabled = on -->
  <resources xmlns:tools="http://schemas.android.com/tools">
 -    <string name="app_name" translatable="false">Signal</string>
  
 -    <string name="donate_url" translatable="false">https://signal.org/donate</string>
++    <string name="please_wait">Please wait…</string>
 +
 +    <string name="donate_url" translatable="false">https://opencollective.com/mollyim</string>
      <string name="backup_support_url" translatable="false">https://support.signal.org/hc/articles/360007059752</string>
      <string name="remote_backup_support_url" translatable="false">https://support.signal.org/hc/articles/9708267671322</string>
      <string name="transfer_support_url" translatable="false">https://support.signal.org/hc/articles/360007059752</string>
-@@ -36,7 +36,7 @@
+@@ -36,7 +37,7 @@
      <string name="AlbumThumbnailView_plus" translatable="false">\+%d</string>
  
      <!-- ApplicationMigrationActivity -->
@@ -3379,7 +3380,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- ApplicationPreferencesActivity -->
      <string name="ApplicationPreferencesActivity_error_connecting_to_server">Error connecting to server!</string>
-@@ -82,7 +82,7 @@
+@@ -82,7 +83,7 @@
      <string name="AttachmentKeyboard_location">Location</string>
      <!-- Text for a button that will allow users to create a poll -->
      <string name="AttachmentKeyboard_poll">Poll</string>
@@ -3388,7 +3389,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Text for a button prompting users to allow Signal access to their gallery storage -->
      <string name="AttachmentKeyboard_allow_access">Allow Access</string>
      <string name="AttachmentKeyboard_payment">Payment</string>
-@@ -93,34 +93,34 @@
+@@ -93,34 +94,34 @@
      <!-- Option in menu to go to settings -->
      <string name="AttachmentKeyboard_go_to_settings">Go to Settings</string>
      <!-- Text explaining that Signal has limited access to photos -->
@@ -3431,7 +3432,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- Alert dialog title to show the recipient has not activated payments -->
      <string name="AttachmentManager__not_activated_payments">%1$s hasn\'t activated Payments </string>
-@@ -273,12 +273,12 @@
+@@ -273,12 +274,12 @@
      <string name="CensorshipCircumventionMegaphone_no_thanks">No thanks</string>
  
      <!-- ClientDeprecatedActivity -->
@@ -3446,7 +3447,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- ClockSkewActivity -->
      <!-- Title of the full-screen dialog shown when the device clock is too far off from the real time -->
-@@ -310,7 +310,7 @@
+@@ -310,7 +311,7 @@
      <!-- Title on dialog when quick restore qr code is scanned in system camera -->
      <string name="CommunicationActions__transfer_dialog_title">Transfer account to new device?</string>
      <!-- Message on dialog when quick restore qr code is scanned in system camera -->
@@ -3455,7 +3456,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="CommunicationActions__dont_transfer">Don\'t transfer</string>
  
      <!-- ConfirmIdentityDialog -->
-@@ -334,8 +334,8 @@
+@@ -334,8 +335,8 @@
  
      <!-- ContactsDatabase -->
      <string name="ContactsDatabase_message_s">Message %s</string>
@@ -3466,7 +3467,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- ContactNameEditActivity -->
      <!-- Toolbar title for contact name edit activity -->
-@@ -446,10 +446,10 @@
+@@ -446,10 +447,10 @@
      <!-- Dialog description that will explain the steps needed to give microphone permissions -->
      <string name="ConversationActivity_signal_to_send_audio_messages">To send voice messages:</string>
      <!-- Alert dialog description asking for microphone permission in order to send voice messages -->
@@ -3480,7 +3481,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <string name="ConversationActivity_quoted_contact_message">%1$s %2$s</string>
      <string name="ConversationActivity_search_position">%1$d of %2$d</string>
-@@ -469,9 +469,9 @@
+@@ -469,9 +470,9 @@
      <!-- Dialog description that will explain the steps needed to give microphone permissions for a voice call -->
      <string name="ConversationActivity__to_start_call">To start a call:</string>
      <!-- Alert dialog description asking for microphone permission in order to start a voice call -->
@@ -3492,7 +3493,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
  
      <string name="ConversationActivity_join">Join</string>
-@@ -485,11 +485,11 @@
+@@ -485,11 +486,11 @@
      <!-- Message shown when opening an SMS conversation with SMS disabled and there are no exported messages -->
      <string name="ConversationActivity__sms_messaging_is_no_longer_supported_in_signal_invite_s_to_to_signal_to_keep_the_conversation_here">SMS messaging is no longer supported in Signal. Invite %1$s to Signal to keep the conversation here.</string>
      <!-- Message shown when opening a conversation with an unregistered user who used to be on Signal -->
@@ -3506,7 +3507,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Toast message shown when trying to record a voice message during an ongoing call -->
      <string name="ConversationFragment_cannot_record_voice_message_during_call">Cannot record voice message during call.</string>
  
-@@ -582,15 +582,15 @@
+@@ -582,15 +583,15 @@
      <!-- Message shown after successfully blocking join requests for a user -->
      <string name="ConversationFragment__blocked">Blocked</string>
      <!-- Action shown to allow a user to update their application because it has expired -->
@@ -3525,7 +3526,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Dialog title shown when more than one contact in a group conversation is no longer verified -->
      <string name="ConversationFragment__no_longer_verified">No longer verified</string>
      <!-- Button shown in conversation header when in a message request state and no groups in common to show new message safety tips -->
-@@ -637,7 +637,7 @@
+@@ -637,7 +638,7 @@
      <!-- Title of the dialog shown when re-requesting an expired attachment from your primary device fails -->
      <string name="ConversationFragment_attachment_backfill_failed_title">Can\'t download media</string>
      <!-- Body of the dialog shown when your phone didn\'t respond to a request to re-send an expired attachment -->
@@ -3534,7 +3535,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Body of the dialog shown when your phone no longer has the attachment you tried to download -->
      <string name="ConversationFragment_attachment_backfill_not_found">This media is no longer available on your phone and can\'t be downloaded.</string>
      <!-- Dialog for how to long to keep a messaged pinned for -->
-@@ -707,7 +707,7 @@
+@@ -707,7 +708,7 @@
      <!-- Bottom sheet text explaining that profile names are chosen by the account holder. Placeholder will be \'Profile names\' -->
      <string name="ProfileNameBottomSheet__profile_names_on_signal">%s on Signal are chosen by their account holder.</string>
      <!-- Bottom sheet text explaining that Signal can\'t verify names and photos -->
@@ -3543,7 +3544,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Bottom sheet text explaining that Signal will never contact you for registration code, PIN, or recovery key -->
      <string name="ProfileNameBottomSheet__signal_will_never_contact">Signal will never contact you for your registration code, PIN, or recovery key</string>
      <!-- Bottom sheet text explaining that accounts can impersonate other people and to be cautious -->
-@@ -849,9 +849,9 @@
+@@ -849,9 +850,9 @@
      <!-- Toolbar title for this screen -->
      <string name="WhoCanSeeMyPhoneNumberFragment__who_can_find_me_by_number">Who can find me by number?</string>
      <!-- Description for radio item stating anyone can see your phone number -->
@@ -3555,7 +3556,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- ChooseBackupFragment -->
  
-@@ -877,7 +877,7 @@
+@@ -877,7 +878,7 @@
      <string name="BackupsPreferenceFragment__test_your_backup_passphrase">Test your backup passphrase and verify that it matches</string>
      <string name="BackupsPreferenceFragment__turn_on">Turn on backups</string>
      <string name="BackupsPreferenceFragment__turn_off">Turn off</string>
@@ -3564,7 +3565,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="BackupsPreferenceFragment__learn_more">Learn more</string>
      <string name="BackupsPreferenceFragment__in_progress">In progress…</string>
      <!-- Status text shown in backup preferences when verifying a backup -->
-@@ -886,7 +886,7 @@
+@@ -886,7 +887,7 @@
      <string name="BackupsPreferenceFragment__d_so_far">%1$d so far…</string>
      <!-- Show percentage of completion of backup -->
      <string name="BackupsPreferenceFragment__s_so_far">%1$s%% so far…</string>
@@ -3573,7 +3574,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Title of dialog shown when picking the time to perform a chat backup -->
      <string name="BackupsPreferenceFragment__set_backup_time">Set backup time</string>
  
-@@ -964,7 +964,7 @@
+@@ -964,7 +965,7 @@
  
      <!-- DecryptionFailedDialog -->
      <string name="DecryptionFailedDialog_chat_session_refreshed">Chat session refreshed</string>
@@ -3582,7 +3583,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- LinkDeviceFragment -->
      <!-- Description for how Signal will work with a linked device (eg desktop, iPad) -->
-@@ -978,9 +978,9 @@
+@@ -978,9 +979,9 @@
      <!-- Bottom sheet description explaining that messages on linked devices are private -->
      <string name="LinkDeviceFragment__all_messaging_is_private">All messaging on linked devices is private</string>
      <!-- Bottom sheet description explaining that future messages on linked devices will be in sync with your phone but previous messages will not appear -->
@@ -3594,7 +3595,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="LinkDeviceFragment__signal_download_url" translatable="false">signal.org/download</string>
      <!-- Header title listing out current linked devices -->
      <string name="LinkDeviceFragment__my_linked_devices">My linked devices</string>
-@@ -1073,7 +1073,7 @@
+@@ -1073,7 +1074,7 @@
      <!-- Bottom sheet title telling users to complete the linking process on the other device  -->
      <string name="AddLinkDeviceFragment__finish_linking_on_other_device">Finish linking on your other device</string>
      <!-- Bottom sheet description telling users to complete the linking process -->
@@ -3603,7 +3604,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Title of dialog when the QR code being scanned is invalid -->
      <string name="AddLinkDeviceFragment__linking_device_failed">Linking device failed</string>
      <!-- Text shown in a dialog when the QR code being scanned is invalid -->
-@@ -1118,19 +1118,19 @@
+@@ -1118,19 +1119,19 @@
  
      <!-- DozeReminder -->
      <string name="DozeReminder_optimize_for_missing_play_services">Optimize for missing Play Services</string>
@@ -3627,7 +3628,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- PendingGroupJoinRequestsReminder -->
      <plurals name="PendingGroupJoinRequestsReminder_d_pending_member_requests">
-@@ -1264,7 +1264,7 @@
+@@ -1264,7 +1265,7 @@
      <!-- Message for dialog asking user to submit logs for debugging a crash -->
      <string name="PromptLogsSlowNotificationsDialog__message">Debug logs helps us diagnose and fix the issue, and do not contain identifying information.</string>
      <!-- Title for dialog asking user to submit logs for debugging slow notification issues -->
@@ -3636,7 +3637,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Title for dialog asking user to submit logs for a situation where they\'re not able to connect to the signal service -->
      <string name="PromptLogsSlowNotificationsDialog__title_connectivity_warning">You may not be receiving messages. Submit debug log?</string>
  
-@@ -1272,12 +1272,12 @@
+@@ -1272,12 +1273,12 @@
      <!-- Title for dialog asking user to submit logs for debugging slow notification issues -->
      <string name="PromptBatterySaverBottomSheet__title">Notifications may be delayed due to battery optimizations</string>
      <!-- Message explaining that battery saver may delay notifications -->
@@ -3651,7 +3652,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button to dismiss notification help prompt -->
      <string name="DeviceSpecificNotificationBottomSheet__no_thanks">No thanks</string>
      <!-- Button to continue and go to Signal support website -->
-@@ -1286,7 +1286,7 @@
+@@ -1286,7 +1287,7 @@
      <!-- Title of a bottom sheet that is shown when the user is having connectivity issues -->
      <string name="ConnectivityWarningBottomSheet_title">You may not be receiving messages</string>
      <!-- Body of a bottom sheet that is shown when the user is having connectivity issues -->
@@ -3660,7 +3661,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Text for a button in a bottom sheet that is shown when the user is having connectivity issues. Clicking it will dismiss the bottom sheet. -->
      <string name="ConnectivityWarningBottomSheet_dismiss_button">Got it</string>
  
-@@ -1521,7 +1521,7 @@
+@@ -1521,7 +1522,7 @@
      <string name="LongMessageActivity_your_message">Your message</string>
  
      <!-- MessageRetrievalService -->
@@ -3669,7 +3670,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="MessageRetrievalService_background_connection_enabled">Background connection enabled</string>
  
      <!-- MediaOverviewActivity -->
-@@ -1613,10 +1613,10 @@
+@@ -1613,10 +1614,10 @@
      <string name="StarredMessages__s_chevron_s" translatable="false">%1$s \u203A %2$s</string>
  
      <!-- NotificationBarManager -->
@@ -3683,7 +3684,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="NotificationBarManager__cancel_call">Cancel call</string>
  
      <!-- NotificationsMegaphone -->
-@@ -1947,7 +1947,7 @@
+@@ -1947,7 +1948,7 @@
      </plurals>
  
      <!-- In-conversation update message to indicate that the current contact is sms only and will need to migrate to signal to continue the conversation in signal. -->
@@ -3692,7 +3693,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Body for quote when message being quoted is an in-app payment message -->
      <string name="MessageRecord__payment_s">Payment: %1$s</string>
      <!-- Body for quote when message being quoted is an in-app payment message tombstone without an amount -->
-@@ -2062,20 +2062,20 @@
+@@ -2062,20 +2063,20 @@
      <string name="DeviceProvisioningActivity_link_a_signal_device">Link a Signal device?</string>
      <string name="DeviceProvisioningActivity_to_link_a_desktop_or_ipad_to_this_signal_account">To link a desktop or iPad to this Signal account, go to Linked Devices and tap \"Link a New Device\" and scan the QR code again. Make sure you only scan QR codes that come directly from Signal.</string>
  
@@ -3720,7 +3721,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- PlacePickerActivity -->
      <string name="PlacePickerActivity_title">Map</string>
-@@ -2133,7 +2133,7 @@
+@@ -2133,7 +2134,7 @@
  
      <!-- RecaptchaRequiredBottomSheetFragment -->
      <string name="RecaptchaRequiredBottomSheetFragment_verify_to_continue_messaging">Verify to continue messaging</string>
@@ -3729,7 +3730,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="RecaptchaRequiredBottomSheetFragment_after_verifying_you_can_continue_messaging">After verifying, you can continue messaging. Any paused messages will automatically be sent.</string>
  
      <!-- Recipient -->
-@@ -2141,7 +2141,7 @@
+@@ -2141,7 +2142,7 @@
      <!-- Name of recipient representing user\'s \'My Story\' -->
      <string name="Recipient_my_story">My Story</string>
      <!-- Name of recipient for a call link without a name -->
@@ -3738,7 +3739,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- RecipientPreferencesActivity -->
      <string name="RecipientPreferenceActivity_block">Block</string>
-@@ -2178,7 +2178,7 @@
+@@ -2178,7 +2179,7 @@
      <!-- WebRtcCallActivity -->
      <string name="WebRtcCallActivity__tap_here_to_turn_on_your_video">Tap here to turn on your video</string>
      <!-- Subtitle shown at top of call where %s is the elapsed time of the call -->
@@ -3747,7 +3748,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="WebRtcCallActivity__calling">Calling…</string>
      <!-- Title for dialog warning about lacking bluetooth permissions during a call -->
      <string name="WebRtcCallActivity__bluetooth_permission_denied">Bluetooth permission denied</string>
-@@ -2243,15 +2243,15 @@
+@@ -2243,15 +2244,15 @@
      <!-- Dialog title asking users for camera permission -->
      <string name="WebRtcCallActivity__allow_access_camera">Allow access to your camera</string>
      <!-- Dialog description explaining why camera and microphone permissions are needed to start or join a call -->
@@ -3768,7 +3769,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Dialog description that will explain the steps needed to give microphone permissions -->
      <string name="WebRtcCallActivity__to_start_call">To start or join a call:</string>
      <!-- Dialog description that will explain the steps needed to give camera permissions -->
-@@ -2264,8 +2264,8 @@
+@@ -2264,8 +2265,8 @@
      <string name="MoveableLocalVideoRenderer__expand_local_video">Expand local video</string>
  
      <!-- WebRtcCallView -->
@@ -3779,7 +3780,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="WebRtcCallView__start_call">Start Call</string>
      <string name="WebRtcCallView__join_call">Join Call</string>
      <string name="WebRtcCallView__call_is_full">Call is full</string>
-@@ -2575,7 +2575,7 @@
+@@ -2575,7 +2576,7 @@
  
      <!-- SharedContactView -->
      <string name="SharedContactView_add_to_contacts">Add to Contacts</string>
@@ -3788,7 +3789,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button on a shared contact card that opens a chat with that contact. It can share a row with other buttons, so a short label is preferred -->
      <string name="SharedContactView_message_button">Message</string>
      <!-- Button on a contact card shared in a group chat that adds the person on the card to that group -->
-@@ -2787,12 +2787,12 @@
+@@ -2787,12 +2788,12 @@
      <string name="SubmitDebugLogActivity_slow_log_message" translatable="false">Generating the debug log header took %1$d seconds. We should figure out what\'s slowing things down.</string>
  
      <!-- SupportEmailUtil -->
@@ -3804,7 +3805,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="SupportEmailUtil_registration_lock">Registration lock:</string>
      <string name="SupportEmailUtil_locale" translatable="false">Locale:</string>
      <string name="SupportEmailUtil_challenge_received" translatable="false">Challenge Received:</string>
-@@ -2868,11 +2868,11 @@
+@@ -2868,11 +2869,11 @@
      <string name="ThreadRecord_blocked_group">Blocked</string>
  
      <!-- ApkUpdateNotifications -->
@@ -3820,7 +3821,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="ApkUpdateNotifications_auto_update_success_body">You were automatically updated to version %1$s.</string>
      <string name="ApkUpdateNotifications_manual_update_success_body">You updated to version %1$s.</string>
  
-@@ -2899,7 +2899,7 @@
+@@ -2899,7 +2900,7 @@
      <string name="VerifyIdentityActivity_our_signal_safety_number">Our Signal safety number:</string>
      <string name="VerifyIdentityActivity_no_app_to_share_to">It looks like you don\'t have any apps to share to.</string>
      <string name="VerifyIdentityActivity_no_safety_number_to_compare_was_found_in_the_clipboard">No safety number to compare was found in the clipboard</string>
@@ -3829,7 +3830,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="VerifyIdentityActivity_you_must_first_exchange_messages_in_order_to_view">You must first exchange messages in order to view %1$s\'s safety number.</string>
      <!-- Dialog message explaining to user they must exchange messages first to create a safety number -->
      <string name="VerifyIdentityActivity_dialog_exchange_messages_to_create_safety_number_message">A safety number will be created with this person after they exchange messages with you.</string>
-@@ -2936,8 +2936,8 @@
+@@ -2936,8 +2937,8 @@
  
      <!-- KeyCachingService -->
      <string name="KeyCachingService_signal_passphrase_cached">Touch to open.</string>
@@ -3840,7 +3841,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- MediaPreviewActivity -->
      <string name="MediaPreviewActivity_you">You</string>
-@@ -2990,7 +2990,7 @@
+@@ -2990,7 +2991,7 @@
      <string name="MessageNotifier_failed_to_deliver_message">Failed to deliver message.</string>
      <string name="MessageNotifier_error_delivering_message">Error delivering message.</string>
      <string name="MessageNotifier_message_delivery_paused">Message delivery paused.</string>
@@ -3849,7 +3850,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="MessageNotifier_mark_all_as_read">Mark all as read</string>
      <string name="MessageNotifier_mark_read">Mark read</string>
      <string name="MessageNotifier_turn_off_these_notifications">Turn off these notifications</string>
-@@ -3014,7 +3014,7 @@
+@@ -3014,7 +3015,7 @@
      <!-- Body of a notification when someone votes in a poll. First placeholder is the poll emoji, second placeholder is the name of the voter and third is the poll question -->
      <string name="MessageNotifier_s_voted_in_poll">%1$s %2$s voted in the poll \"%3$s\"</string>
  
@@ -3858,7 +3859,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- TurnOnNotificationsBottomSheet -->
      <!-- Title for sheet explaining how to turn on app notifications -->
-@@ -3090,7 +3090,7 @@
+@@ -3090,7 +3091,7 @@
      </plurals>
  
      <!-- Message shown when the app requests permission to save media to the device storage, but that permission has been permanently denied by the user. -->
@@ -3867,7 +3868,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- Message explaining that it is not possible to save media to the device storage after the user denied the system save to storage permission. -->
      <string name="AttachmentSaver__unable_to_write_to_external_storage_without_permission">Unable to save to external storage without permissions</string>
-@@ -3100,11 +3100,11 @@
+@@ -3100,11 +3101,11 @@
      <!-- Dialog title shown when attempting to save media that has been offloaded from the device by the storage optimization feature. -->
      <string name="AttachmentSaver__cant_save_media">Can\'t save media</string>
      <!-- Dialog message explaining that media cannot be saved because it has been offloaded from the device by the storage optimization feature. -->
@@ -3881,7 +3882,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button label in the offloaded media dialog that navigates to the storage settings screen. -->
      <string name="AttachmentSaver__view_storage_settings">View storage settings</string>
  
-@@ -3117,7 +3117,7 @@
+@@ -3117,7 +3118,7 @@
      <string name="ShortcutLauncherActivity_invalid_shortcut">Invalid shortcut</string>
  
      <!-- SingleRecipientNotificationBuilder -->
@@ -3890,7 +3891,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="SingleRecipientNotificationBuilder_new_message">New message</string>
      <string name="SingleRecipientNotificationBuilder_message_request">Message request</string>
      <string name="SingleRecipientNotificationBuilder_you">You</string>
-@@ -3193,7 +3193,7 @@
+@@ -3193,7 +3194,7 @@
  
      <!-- UnauthorizedReminder -->
      <!-- Message shown in a reminder banner when the user\'s device is no longer registered -->
@@ -3899,7 +3900,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Action in reminder banner that will take user to re-register -->
      <string name="UnauthorizedReminder_reregister_action">Re-register device</string>
      <!-- Message shown in a reminder banner when this linked device is no longer linked to a primary device -->
-@@ -3202,7 +3202,7 @@
+@@ -3202,7 +3203,7 @@
      <string name="UnauthorizedReminder_relink_action">Re-link device</string>
  
      <!-- Push notification when the app is forcibly logged out by the server. -->
@@ -3908,7 +3909,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- EnclaveFailureReminder -->
      <!-- Banner message to update app to use payments -->
-@@ -3248,14 +3248,14 @@
+@@ -3248,14 +3249,14 @@
      <string name="change_passphrase_activity__repeat_new_passphrase">Repeat new passphrase</string>
  
      <!-- contact_selection_activity -->
@@ -3925,7 +3926,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Row item description asking users for access to their contacts to find people they know -->
      <string name="contact_selection_activity__allow_access_to_contacts">Allow access to your contacts</string>
      <!-- Row header title for more section -->
-@@ -3274,7 +3274,7 @@
+@@ -3274,7 +3275,7 @@
      <string name="SingleContactSelectionActivity_contact_photo">Contact Photo</string>
  
      <!-- ContactSelectionListFragment-->
@@ -3934,7 +3935,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="ContactSelectionListFragment_error_retrieving_contacts_check_your_network_connection">Error retrieving contacts, check your network connection</string>
      <string name="ContactSelectionListFragment_username_not_found">Username not found</string>
      <string name="ContactSelectionListFragment_s_is_not_a_signal_user">"%1$s" is not a Signal user. Please check the username and try again.</string>
-@@ -3294,7 +3294,7 @@
+@@ -3294,7 +3295,7 @@
      <!-- Dialog title asking users for contact permission -->
      <string name="ContactSelectionListFragment_allow_access_contacts">Allow access to contacts</string>
      <!-- Dialog description that will explain the steps needed to give contact permissions -->
@@ -3943,7 +3944,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Text on button prompting users to give Signal contact permissions -->
      <string name="ContactSelectionListFragment__allow_access">Allow access</string>
      <!-- Text on button to dismiss Signal\'s request for contact permissions -->
-@@ -3424,7 +3424,7 @@
+@@ -3424,7 +3425,7 @@
  
      <!-- BubbleOptOutTooltip -->
      <!-- Message to inform the user of what Android chat bubbles are -->
@@ -3952,7 +3953,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button to dismiss the tooltip for opting out of using Android bubbles -->
      <string name="BubbleOptOutTooltip__not_now">Not now</string>
      <!-- Button to move to the system settings to control the use of Android bubbles -->
-@@ -3565,20 +3565,20 @@
+@@ -3565,20 +3566,20 @@
      <!-- Bottom sheet title when encryption is auto-verified -->
      <string name="EncryptionVerifiedSheet__title_success">Encryption was auto-verified for this chat</string>
      <!-- Bottom sheet body when encryption is auto-verified -->
@@ -3978,7 +3979,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button to learn more about automatic verification -->
      <string name="VerifyAutomaticallyEducationSheet__learn_more">Learn more</string>
      <!-- Button to go to verification page -->
-@@ -3762,7 +3762,7 @@
+@@ -3762,7 +3763,7 @@
      <string name="preferences__normal">Normal</string>
      <string name="preferences__slow">Slow</string>
      <string name="preferences__advanced">Advanced</string>
@@ -3987,7 +3988,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Preference label for stories -->
      <string name="preferences__stories">Stories</string>
      <string name="preferences__storage">Storage</string>
-@@ -3844,7 +3844,7 @@
+@@ -3844,7 +3845,7 @@
      <string name="preferences_communication__category_censorship_circumvention">Censorship circumvention</string>
      <!-- Title of the \'censorship circumvention\' toggle switch -->
      <string name="preferences_communication__censorship_circumvention">Censorship circumvention</string>
@@ -3996,7 +3997,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Summary text for \'censorship circumvention\' toggle. Indicates that we automatically enabled it because we believe you\'re in a censored country -->
      <string name="preferences_communication__censorship_circumvention_has_been_activated_based_on_your_accounts_phone_number">Censorship circumvention has been activated based on your account\'s phone number.</string>
      <!-- Summary text for \'censorship circumvention\' toggle. Indicates that you disabled it even though we believe you\'re in a censored country -->
-@@ -3872,7 +3872,7 @@
+@@ -3872,7 +3873,7 @@
      <!-- Preference title for automatic key verification -->
      <string name="preferences_automatic_key_verification">Automatic key verification</string>
      <!-- Preference summary for automatic key verification -->
@@ -4005,7 +4006,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
  
      <!-- Internal only preferences -->
-@@ -3889,7 +3889,7 @@
+@@ -3889,7 +3890,7 @@
  
      <!-- Displayed on a welcome screen for payments -->
      <string name="PaymentsHomeFragment_introducing_payments">Introducing payments</string>
@@ -4014,7 +4015,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="PaymentsHomeFragment__activate_payments">Activate Payments</string>
      <string name="PaymentsHomeFragment__activating_payments">Activating payments…</string>
      <string name="PaymentsHomeFragment__restore_payments_account">Restore payments account</string>
-@@ -3915,7 +3915,7 @@
+@@ -3915,7 +3916,7 @@
      <string name="PaymentsHomeFragment__payments_is_not_available_in_your_region">Payments is not available in your region.</string>
      <string name="PaymentsHomeFragment__could_not_enable_payments">Could not enable payments. Try again later.</string>
      <string name="PaymentsHomeFragment__deactivate_payments_question">Deactivate Payments?</string>
@@ -4023,7 +4024,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="PaymentsHomeFragment__deactivate">Deactivate</string>
      <string name="PaymentsHomeFragment__continue">Continue</string>
      <string name="PaymentsHomeFragment__balance_is_not_currently_available">Balance is not currently available.</string>
-@@ -3924,10 +3924,10 @@
+@@ -3924,10 +3925,10 @@
      <string name="PaymentsHomeFragment__details">Details</string>
      <string name="PaymentsHomeFragment__learn_more__activate_payments" translatable="false">https://support.signal.org/hc/articles/360057625692#payments_activate</string>
      <!-- Displayed as a description in a dialog when the user tries to activate payments -->
@@ -4036,7 +4037,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <string name="PaymentsHomeFragment__mobile_coin_terms_url" translatable="false">https://www.mobilecoin.com/terms-of-use.html</string>
      <!-- Alert dialog title which shows up after a payment to turn on payment lock -->
-@@ -4010,9 +4010,9 @@
+@@ -4010,9 +4011,9 @@
      <string name="PaymentsTransferFragment__next">Next</string>
      <string name="PaymentsTransferFragment__invalid_address">Invalid address</string>
      <string name="PaymentsTransferFragment__check_the_wallet_address">Check the wallet address you\'re attempting to transfer to and try again.</string>
@@ -4049,7 +4050,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- PaymentsTransferQrScanFragment -->
      <string name="PaymentsTransferQrScanFragment__scan_address_qr_code">Scan Address QR Code</string>
-@@ -4373,17 +4373,17 @@
+@@ -4373,17 +4374,17 @@
  
      <!-- CallNotificationBuilder -->
      <!-- Displayed in a notification when a Signal voice call is ringing -->
@@ -4073,7 +4074,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <string name="CallNotificationBuilder_connecting">Connecting…</string>
      <string name="enter_backup_passphrase_dialog__backup_passphrase">Backup passphrase</string>
-@@ -4409,9 +4409,9 @@
+@@ -4409,9 +4410,9 @@
      <string name="BackupDialog_verify">Verify</string>
      <string name="BackupDialog_you_successfully_entered_your_backup_passphrase">You successfully entered your backup passphrase</string>
      <string name="BackupDialog_passphrase_was_not_correct">Passphrase was not correct</string>
@@ -4085,7 +4086,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="LocalBackupJobApi29_backup_failed">Backup failed</string>
      <string name="LocalBackupJobApi29_your_backup_directory_has_been_deleted_or_moved">Your backup directory has been deleted or moved.</string>
      <string name="LocalBackupJobApi29_your_backup_file_is_too_large">Your backup file is too large to store on this volume.</string>
-@@ -4426,7 +4426,7 @@
+@@ -4426,7 +4427,7 @@
      <string name="RegistrationActivity_call_me_instead_available_in">Call me (%1$02d:%2$02d)</string>
      <!--    Countdown to when the user can request a new SMS code during registration.-->
      <string name="RegistrationActivity_resend_sms_available_in">Resend Code (%1$02d:%2$02d)</string>
@@ -4094,7 +4095,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="RegistrationActivity_incorrect_code">Incorrect code</string>
      <string name="BackupUtil_never">Never</string>
      <!-- Subtext below last backup time when we do not know when the last backup was -->
-@@ -4442,11 +4442,11 @@
+@@ -4442,11 +4443,11 @@
      <string name="preferences_chats__backups">Backups</string>
  
      <!-- Title text shown when Signal is locked and needs to be unlocked -->
@@ -4109,7 +4110,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button in a dialog that will contact Signal support if pressed -->
      <string name="prompt_passphrase_activity__contact_support">Contact support</string>
      <!-- Button text to try again after unlocking has previously failed -->
-@@ -4501,10 +4501,10 @@
+@@ -4501,10 +4502,10 @@
  
      <!-- OldDeviceTransferSetupFragment -->
      <string name="OldDeviceTransferSetup__searching_for_new_android_device">Searching for new Android device…</string>
@@ -4124,7 +4125,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="OldDeviceTransferSetup__create_a_backup">Create a backup</string>
      <string name="OldDeviceTransferSetup__an_unexpected_error_occurred_while_attempting_to_connect_to_your_old_device">An unexpected error occurred while attempting to connect to your new Android device.</string>
  
-@@ -4544,7 +4544,7 @@
+@@ -4544,7 +4545,7 @@
  
      <!-- DeviceTransferFragment -->
      <string name="DeviceTransfer__transferring_data">Transferring data</string>
@@ -4133,7 +4134,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="DeviceTransfer__d_messages_so_far">%1$d messages so far…</string>
      <!-- Filled in with total percentage of messages transferred -->
      <string name="DeviceTransfer__s_of_messages_so_far">%1$s%% of messages so far…</string>
-@@ -4558,7 +4558,7 @@
+@@ -4558,7 +4559,7 @@
      <!-- OldDeviceTransferInstructionsFragment -->
      <string name="OldDeviceTransferInstructions__transfer_account">Transfer Account</string>
      <string name="OldDeviceTransferInstructions__first_bullet">1.</string>
@@ -4142,7 +4143,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="OldDeviceTransferInstructions__second_bullet">2.</string>
      <string name="OldDeviceTransferInstructions__tap_on_transfer_or_restore_account">Tap on "Transfer or restore account"</string>
      <string name="OldDeviceTransferInstructions__third_bullet">3.</string>
-@@ -4639,7 +4639,7 @@
+@@ -4639,7 +4640,7 @@
      <!-- GroupLinkBottomSheetDialogFragment -->
      <string name="GroupLinkBottomSheet_share_hint_requiring_approval">Anyone with this link can view the group\'s name and photo and request to join. Share it with people you trust.</string>
      <string name="GroupLinkBottomSheet_share_hint_not_requiring_approval">Anyone with this link can view the group\'s name and photo and join the group. Share it with people you trust.</string>
@@ -4151,7 +4152,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="GroupLinkBottomSheet_copy">Copy</string>
      <string name="GroupLinkBottomSheet_qr_code">QR Code</string>
      <string name="GroupLinkBottomSheet_share">Share</string>
-@@ -4797,7 +4797,7 @@
+@@ -4797,7 +4798,7 @@
      <string name="payment_info_card_about_mobilecoin">About MobileCoin</string>
      <string name="payment_info_card_mobilecoin_is_a_new_privacy_focused_digital_currency">MobileCoin is a new privacy focused digital currency.</string>
      <string name="payment_info_card_adding_funds">Adding funds</string>
@@ -4160,7 +4161,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="payment_info_card_cashing_out">Cashing out</string>
      <string name="payment_info_card_you_can_cash_out_mobilecoin">You can cash out MobileCoin anytime on an exchange that supports MobileCoin. Just make a transfer to your account at that exchange.</string>
      <string name="payment_info_card_hide_this_card">Hide this card?</string>
-@@ -4818,12 +4818,12 @@
+@@ -4818,12 +4819,12 @@
      <!-- DeactivateWalletFragment -->
      <string name="DeactivateWalletFragment__deactivate_wallet">Deactivate Wallet</string>
      <string name="DeactivateWalletFragment__your_balance">Your balance</string>
@@ -4175,7 +4176,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <string name="DeactivateWalletFragment__error_deactivating_wallet">Error deactivating wallet.</string>
      <string name="DeactivateWalletFragment__learn_more__we_recommend_transferring_your_funds" translatable="false">https://support.signal.org/hc/articles/360057625692#payments_deactivate</string>
  
-@@ -5570,9 +5570,9 @@
+@@ -5570,9 +5571,9 @@
      <string name="MySupportPreference__checking_subscription">Checking subscription…</string>
  
      <!-- Title of dialog telling user they need to update signal as it expired -->
@@ -4187,7 +4188,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button text of expiration dialog, will take user to update the app -->
      <string name="UpdateSignalExpiredDialog__update_action">Update</string>
      <!-- Button text of expiration dialog to cancel the dialog.  -->
-@@ -5581,7 +5581,7 @@
+@@ -5581,7 +5582,7 @@
      <!-- Title of dialog telling user they need to re-register signal -->
      <string name="ReregisterSignalDialog__title">Device not registered</string>
      <!-- Message of dialog telling user they need to re-register signal as it is no longer registered -->
@@ -4196,7 +4197,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button text of re-registration dialog to re-register the device.  -->
      <string name="ReregisterSignalDialog__reregister_action">Re-register</string>
      <!-- Button text of re-registration dialog to cancel the dialog.  -->
-@@ -5862,7 +5862,7 @@
+@@ -5862,7 +5863,7 @@
      <!-- Displayed in a toast when we fail to open the ringtone picker -->
      <string name="NotificationSettingsFragment__failed_to_open_picker">Failed to open picker.</string>
      <!-- Banner title when notification permission is disabled -->
@@ -4205,7 +4206,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Banner action when notification permission is disabled -->
      <string name="NotificationSettingsFragment__turn_on">Turn on</string>
  
-@@ -7048,7 +7048,7 @@
+@@ -7048,7 +7049,7 @@
      <!-- Title of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
      <string name="TurnOnSignalBackups__title">Turn on Signal Secure Backups</string>
      <!-- Body of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
@@ -4214,7 +4215,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will take the user to the flow to enable backups -->
      <string name="TurnOnSignalBackups__turn_on">Turn on</string>
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will simply dismiss the megaphone -->
-@@ -7118,16 +7118,16 @@
+@@ -7118,16 +7119,16 @@
      <string name="BackupSetupCompleteBottomSheet__back_up_now">Back up now</string>
  
      <!-- Title of a megaphone shown to prompt the user to open Signal on their primary device -->
@@ -4234,7 +4235,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Body of a dialog shown when turning on on-device backups while "Optimize Signal storage" is enabled, warning that optimized media won\'t be included -->
      <string name="OnDeviceBackupsScreen__you_have_optimize_signal_storage_on">You have \"Optimize Signal storage\" on. If you want to include all media in your on-device backup, turn the setting off.</string>
      <!-- Dialog action that takes the user to the "Optimize Signal storage" setting -->
-@@ -7506,9 +7506,9 @@
+@@ -7506,9 +7507,9 @@
      <!-- Setting description for syncing automated chat limit trimming (deleting messages automatically by length or date) to linked devices -->
      <string name="ManageStorageSettingsFragment_apply_limits_description">When enabled, chat limits will also delete messages from your linked devices.</string>
      <!-- Setting section title header for storage optimization -->
@@ -4246,7 +4247,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Setting row explanation for storage optimization -->
      <string name="ManageStorageSettingsFragment__unused_media_will_be_offloaded">Unused media will be offloaded, but can be downloaded from your backup anytime.</string>
      <!-- Dialog message for paid tier pending dialog -->
-@@ -7674,7 +7674,7 @@
+@@ -7674,7 +7675,7 @@
      <!-- Displays the date the subscription expired. Placeholder is the date. -->
      <string name="RemoteBackupsSettingsFragment__expired_on_s">Expired on %1$s</string>
      <!-- Displayed at the top of the screen when no backup is currently enabled -->
@@ -4255,7 +4256,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Section header for other ways to back up -->
      <string name="RemoteBackupsSettingsFragment__other_ways_to_backup">Other ways to backup</string>
      <!-- Row title for performing on-device backup -->
-@@ -7952,7 +7952,7 @@
+@@ -7952,7 +7953,7 @@
      <!-- Bottom sheet title -->
      <string name="MessageBackupsKeyRecordScreen__keep_your_key_safe">Keep your key safe</string>
      <!-- Bottom sheet subtitle -->
@@ -4264,7 +4265,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Sheet action button label -->
      <string name="MessageBackupsKeyRecordScreen__continue">Continue</string>
      <!-- Sheet secondary action button label -->
-@@ -7962,13 +7962,13 @@
+@@ -7962,13 +7963,13 @@
      <!-- Dialog title for confirming you need to disable optimized storage and download media to rotate AEP key -->
      <string name="MessageBackupsKeyRecordScreen__download_media">Download media</string>
      <!-- Dialog body for confirming you need to disable optimized storage and download media to rotate AEP key -->
@@ -4280,7 +4281,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
      <!-- Dialog title shown when user attempts to exit backup setup before completion -->
      <string name="MessageBackupsKeyRecordScreen__exit_backup_setup">Exit backup setup?</string>
      <!-- Dialog body warning user that backup setup is incomplete -->
-@@ -8483,7 +8483,7 @@
+@@ -8483,7 +8484,7 @@
      <string name="CouldNotCompleteBackupRestoreSheet__body_error">An error occurred and your backup can\'t be restored. This may be because the backup folder was moved on your device while your backup was restoring.</string>
  
      <!-- Body of the sheet shown when a local backup restore could not be completed, explaining how to try again -->
@@ -4289,7 +4290,7 @@ index d07d301cc8a57c4a3193934195e3d42a5c53ba7a..f733abfcfdd0b5f6ddbc72f0bc607094
  
      <!-- Button on the sheet shown when a local backup restore could not be completed, opening a support article about it -->
      <string name="CouldNotCompleteBackupRestoreSheet__learn_more">Learn more</string>
-@@ -8669,4 +8669,46 @@
+@@ -8669,4 +8670,46 @@
      <string name="BackupKeyRotationDialogs__limit_exceeded_body_no_backups">You\'ve exhausted the number of new keys you can create. You will be able to create a new recovery key in 7 days.</string>
  
      <!-- EOF -->
