@@ -1,17 +1,20 @@
-# Molly patch management: Signal 8.20.4
+# Molly patch management: Signal 8.34.2
 
 This branch contains the maintained patch series, tooling and documentation.
 
 | Branch | Purpose |
 |---|---|
-| `v8.20.4/signal-baseline` | Official Signal v8.20.4, `4888805873a4b8efb6b0d7a1f23d0a8f160cd36e`. |
-| `v8.20.4/molly-patches` | Ordinary history forked from fixed 8.19.2 patch-management commit `644daeb9f02cba0203baef5f9eee4ef4cde7345d`. |
-| `v8.20.4/molly` | The source port; current source/tree pins are recorded in the manifest after synchronization. |
+| `v8.34.2/signal-baseline` | Official Signal v8.34.2, `515db93fb48206d63406cbfb48c5816f6af1d9e2`. |
+| `v8.34.2/molly-patches` | Ordinary history forked from `73f836adf03a20f6a2641676d18f907712e29197`, retaining ancestry to fixed 8.19.2 commit `644daeb9f02cba0203baef5f9eee4ef4cde7345d`. |
+| `v8.34.2/molly` | The direct source port; current source/tree pins are recorded in the manifest. |
 
-**Port in progress, not an accepted version checkpoint.** The regenerated
-36-patch series reconstructs the recorded 8.20.4 candidate source tree.
+**Port in progress, not an accepted version checkpoint.** The 35 retained
+boundaries have been ported directly; patch synchronization is in progress
+and strict reconstruction is still required.
 A synchronized series establishes tree agreement, not runtime acceptance.
-The 8.19.2 refs and original reference/source histories remain unchanged.
+The 8.19.2 and 8.20.4 refs and original reference/source histories remain unchanged.
+The legacy-search deletion is upstreamed and no longer needs a patch. The selected
+native forks are Molly libsignal 0.105.4-1 and RingRTC 2.73.0-1.
 The known timeout backup/restore defect is **deferred, not fixed**. Its excluded
 commit37 remains on `migration/archive/signal-8.19.2-timeout-repair-037-20261104`;
 none of its four production changes or added test is in this series.
@@ -36,7 +39,7 @@ The imported stack must also have one linear commit per patch. Reconstructed
 commit IDs need not equal the original IDs: committer metadata may differ.
 Git tree equality is not an APK, runtime, signing, native reproducibility or
 whole-product security guarantee. Existing accepted M1/reference evidence is
-reused only in its actual scope; changed 8.20.4 behavior requires affected checks
+reused only in its actual scope; changed 8.34.2 behavior requires affected checks
 and bounded upgrade, startup and linked-shaped restore acceptance.
 
 ## Local operations
@@ -48,8 +51,8 @@ worktrees are never reset, overwritten or automatically cleaned.
 ```powershell
 python .\scripts\patch_stack.py inspect
 python -m unittest discover -s scripts -p 'test_*.py'
-python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8204-import-review
-python .\scripts\patch_stack.py export --source-ref v8.20.4/molly --destination D:\molly\migration-worktrees\molly-8204-export-review
+python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8342-import-review
+python .\scripts\patch_stack.py export --source-ref v8.34.2/molly --destination D:\molly\migration-worktrees\molly-8342-export-review
 ```
 
 `import` creates an isolated local clone, applies all patches and requires the
@@ -74,7 +77,7 @@ Edit the patch files and corresponding manifest entries/order. To derive a
 proposed source tree when the recorded tree is intentionally stale:
 
 ```powershell
-python .\scripts\patch_stack.py import --propose --destination D:\molly\migration-worktrees\molly-8204-patch-proposal
+python .\scripts\patch_stack.py import --propose --destination D:\molly\migration-worktrees\molly-8342-patch-proposal
 ```
 
 This is explicitly a **proposal**, not a strict validation PASS. Review the

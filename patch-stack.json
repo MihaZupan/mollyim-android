@@ -1,13 +1,13 @@
 {
   "format": 1,
-  "signal_version": "8.20.4",
-  "baseline": "4888805873a4b8efb6b0d7a1f23d0a8f160cd36e",
-  "source": "bdff3d6cbc8234053282ab80fa69088b39a6c771",
-  "tree": "89ba0fca4ea345818bba48d38932110c362ee066",
+  "signal_version": "8.34.2",
+  "baseline": "515db93fb48206d63406cbfb48c5816f6af1d9e2",
+  "source": "5303d766cb9b508735631aa319d1430216980d86",
+  "tree": "91c0bbf580b96ecf703c38454e6dd95a0fce9032",
   "branches": {
-    "baseline": "v8.20.4/signal-baseline",
-    "source": "v8.20.4/molly",
-    "patches": "v8.20.4/molly-patches"
+    "baseline": "v8.34.2/signal-baseline",
+    "source": "v8.34.2/molly",
+    "patches": "v8.34.2/molly-patches"
   },
   "patches": [
     {
@@ -89,10 +89,6 @@
     {
       "file": "stories.patch",
       "subject": "stories: preserve Molly story presentation and reset policy"
-    },
-    {
-      "file": "legacy-search.patch",
-      "subject": "search: retain legacy search compatibility"
     },
     {
       "file": "onboarding.patch",
