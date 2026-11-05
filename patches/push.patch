@@ -3877,7 +3877,7 @@ index 6cd44588a460b049ed7df6444e99ed9f84cfdb00..656a86e38181ba6a0503df46b4e1c532
 +</resources>
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..ff41bcdd0e9c4b2d59558a4bfc5259e595082aed
+index 0000000000000000000000000000000000000000..f66bc52f2b631242205abc790d850cbdf79c61d4
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/data/DataAndStorageSettingsRepositoryTest.kt
 @@ -0,0 +1,74 @@
@@ -3915,7 +3915,7 @@ index 0000000000000000000000000000000000000000..ff41bcdd0e9c4b2d59558a4bfc5259e5
 +    every { SignalStore.unifiedpush } returns unifiedPush
 +    every { account.pushAvailable } answers { accountPushAvailable }
 +    every { account.canReceiveFcm } answers { fcmAvailable }
-+    every { settings.preferredNotificationMethod } answers { method }
++    every { settings.preferredNotificationMethod } answers { this@DataAndStorageSettingsRepositoryTest.method }
 +    every { unifiedPush.isAvailableOrAirGapped } answers { unifiedPushAvailable }
 +  }
 +

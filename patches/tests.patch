@@ -404,8 +404,28 @@ index 5bdaba0e52af4e8c6f032c659e19d60099750f6f..186d23b7bb5b7049b93d5f149915d3ac
      override fun onDisplayMediaNoLongerAvailableSheet() {
        Toast.makeText(requireContext(), "Can't touch this.", Toast.LENGTH_SHORT).show()
      }
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivityIntentsTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivityIntentsTest.kt
+index 1a49b1a0e64a08bb7048097f956bd58d690fe6dd..9aee14d9b4f5365fed98cd59f2944acebe93be3a 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivityIntentsTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivityIntentsTest.kt
+@@ -60,15 +60,6 @@ class AppSettingsActivityIntentsTest {
+     assertThat(intent.startRoute()).isEqualTo(AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.RECURRING_DONATION))
+   }
+ 
+-  @Test
+-  fun `boost opens one-time checkout`() {
+-    every { RemoteConfig.useAppSettingsNavigation } returns false
+-
+-    val intent = AppSettingsActivity.boost(context)
+-
+-    assertThat(intent.startRoute()).isEqualTo(AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.ONE_TIME_DONATION))
+-  }
+-
+   /** The start route rides under a host-specific extra key, so find it by type rather than by name. */
+   private fun Intent.startRoute(): AppSettingsRoute? {
+     return extras?.keySet()?.firstNotNullOfOrNull { getParcelableExtraCompat(it, AppSettingsRoute::class.java) }
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
-index 6c3f26c37dbfc8b0f93b99ebf8c6611a1f367744..cd532d069e15254d03684edf9d8ba159207c0802 100644
+index 6c3f26c37dbfc8b0f93b99ebf8c6611a1f367744..e01fc6c63ae14e6da8c7792b1549bf7b10a08921 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/components/settings/app/subscription/SubscriptionsConfigurationExtensionsKtTest.kt
 @@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
@@ -424,6 +444,15 @@ index 6c3f26c37dbfc8b0f93b99ebf8c6611a1f367744..cd532d069e15254d03684edf9d8ba159
  @RunWith(RobolectricTestRunner::class)
  @Config(application = Application::class)
  class SubscriptionsConfigurationExtensionsKtTest {
+@@ -28,7 +30,7 @@ class SubscriptionsConfigurationExtensionsKtTest {
+ 
+   @Before
+   fun setUp() {
+-    CoreUtilDependencies.init(ApplicationProvider.getApplicationContext(), mockk(relaxed = true), CoreUtilDependencies.BuildInfo(0, 0))
++    CoreUtilDependencies.init(ApplicationProvider.getApplicationContext(), mockk(relaxed = true), CoreUtilDependencies.BuildInfo(0))
+   }
+ 
+   @Test
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/crash/CrashConfigTest.kt b/app/src/test/java/org/thoughtcrime/securesms/crash/CrashConfigTest.kt
 deleted file mode 100644
 index 97ce66a4abbc93ea8ac7e1bc575d2b743dd7a68c..0000000000000000000000000000000000000000
@@ -929,7 +958,7 @@ index b6b332ad8732b00aac414c2be97438f0e384ead8..2c2dfafd64ce57346019d9f4fa9ea379
      RegistrationUtil.maybeMarkRegistrationComplete()
  
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
-index eddca8777f4a5614e6d91cb46304631af3de31ab..fcf2d95117d1ec57c3f0a5e32336f96cd31493ea 100644
+index eddca8777f4a5614e6d91cb46304631af3de31ab..85405e50657fe503410ec9aad2bfe73f202a37de 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageControllerTest.kt
 @@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.registration.v2
@@ -1061,6 +1090,15 @@ index eddca8777f4a5614e6d91cb46304631af3de31ab..fcf2d95117d1ec57c3f0a5e32336f96c
    @Test
    fun `commit - new primary with pin and aep - applies all account fields`() = runBlocking<Unit> {
      seedInProgressData(
+@@ -745,8 +809,6 @@ class AppRegistrationStorageControllerTest {
+ 
+   /** Puts onboarding into the state a fresh install leaves it in, where the get-started megaphone would show. */
+   private fun seedOnboardingState() {
+-    SignalStore.onboarding.setShowNewGroup(true)
+-    SignalStore.onboarding.setShowInviteFriends(true)
+     SignalStore.onboarding.setShowAppearance(true)
+     SignalStore.onboarding.setShowAddPhoto(true)
+   }
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt
 index ca3553ddaca35912cf262a17605a00c3231228b7..b69999c3f37e931acc8cf1a56ae338619f82c4ca 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/service/MessageBackupListenerTest.kt
