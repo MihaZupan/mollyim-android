@@ -1297,7 +1297,7 @@ index 0000000000000000000000000000000000000000..217329de37b06572475a76ac0c2601fc
 +clean:
 +	$(do_clean)
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552dad4cebb72 100644
+index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..24ab738d884cc3b61477c04fd746e69e2fac6309 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -1,117 +1,51 @@
@@ -1500,7 +1500,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      }
    }
  
-@@ -175,28 +91,21 @@ android {
+@@ -175,28 +91,23 @@ android {
  
      unitTests {
        isIncludeAndroidResources = true
@@ -1524,17 +1524,19 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
    sourceSets {
      getByName("test") {
 -      java.srcDir("$projectDir/src/testShared")
++      java.srcDir("src/testShared")
 +      kotlin.directories += "src/testShared"
      }
  
      getByName("androidTest") {
 -      java.srcDir("$projectDir/src/testShared")
 -      java.srcDir("$projectDir/src/benchmarkShared/java")
++      java.srcDir("src/testShared")
 +      kotlin.directories += "src/testShared"
      }
    }
  
-@@ -212,6 +121,8 @@ android {
+@@ -212,6 +123,8 @@ android {
          "**/*.dylib",
          "**/*.dll"
        )
@@ -1543,7 +1545,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      }
      resources {
        excludes += setOf(
-@@ -233,31 +144,45 @@ android {
+@@ -233,31 +146,45 @@ android {
  
    buildFeatures {
      buildConfig = true
@@ -1601,7 +1603,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      buildConfigField("String", "SIGNAL_URL", "\"https://chat.signal.org\"")
      buildConfigField("String", "STORAGE_URL", "\"https://storage.signal.org\"")
      buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn.signal.org\"")
-@@ -272,15 +197,6 @@ android {
+@@ -272,15 +199,6 @@ android {
      buildConfigField("String[]", "SIGNAL_SFU_INTERNAL_URLS", "new String[]{\"https://sfu.test.voip.signal.org\", \"https://sfu.staging.voip.signal.org\", \"https://sfu.staging.test.voip.signal.org\"}")
      buildConfigField("String", "CONTENT_PROXY_HOST", "\"contentproxy.signal.org\"")
      buildConfigField("int", "CONTENT_PROXY_PORT", "443")
@@ -1617,7 +1619,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      buildConfigField("String", "SIGNAL_AGENT", "\"OWA\"")
      buildConfigField("String", "SVR2_MRENCLAVE_LEGACY", "\"1240acbd4aa26974184844c8a46b1022d3957ac8a76c1fd8f5b1a15141ee0708\"")
      buildConfigField("String", "SVR2_MRENCLAVE", "\"ced8217b26228e4b210c985786999d095c4958a94faf37b14acaf25c4cbb02a4\"")
-@@ -289,7 +205,7 @@ android {
+@@ -289,7 +207,7 @@ android {
      buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AByD873dTilmOSG0TjKrvpeaKEsUmIO8Vx9BeMmftwUs9v7ikPwM8P3OHyT0+X3EUMZrSe9VUp26Wai51Q9I8mdk0hX/yo7CeFGJyzoOqn8e/i4Ygbn5HoAyXJx5eXfIbqpc0bIxzju4H/HOQeOpt6h742qii5u/cbwOhFZCsMIbElZTaeU+BWMBQiZHIGHT5IE0qCordQKZ5iPZom0HeFa8Yq0ShuEyAl0WINBiY6xE3H/9WnvzXBbMuuk//eRxXgzO8ieCeK8FwQNxbfXqZm6Ro1cMhCOF3u7xoX83QhpN\"")
      buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AJwNSU55fsFCbgaxGRD11wO1juAs8Yr5GF8FPlGzzvdJJIKH5/4CC7ZJSOe3yL2vturVaRU2Cx0n751Vt8wkj1bozK3CBV1UokxV09GWf+hdVImLGjXGYLLhnI1J2TWEe7iWHyb553EEnRb5oxr9n3lUbNAJuRmFM7hrr0Al0F0wrDD4S8lo2mGaXe0MJCOM166F8oYRQqpFeEHfiLnxA1O8ZLh7vMdv4g9jI5phpRBTsJ5IjiJrWeP0zdIGHEssUeprDZ9OUJ14m0v61eYJMKsf59Bn+mAT2a7YfB+Don9O\"")
      buildConfigField("String[]", "LANGUAGES", "new String[]{ ${languagesForBuildConfigProvider.get()} }")
@@ -1626,7 +1628,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      buildConfigField("String", "DEFAULT_CURRENCIES", "\"EUR,AUD,GBP,CAD,CNY\"")
      buildConfigField("String", "GIPHY_API_KEY", "\"3o6ZsYH6U6Eri53TXy\"")
      buildConfigField("String", "SIGNAL_CAPTCHA_URL", "\"https://signalcaptchas.org/registration/generate.html\"")
-@@ -297,42 +213,23 @@ android {
+@@ -297,42 +215,23 @@ android {
      buildConfigField("org.signal.libsignal.net.Network.Environment", "LIBSIGNAL_NET_ENV", "org.signal.libsignal.net.Network.Environment.PRODUCTION")
      buildConfigField("int", "LIBSIGNAL_LOG_LEVEL", "org.signal.libsignal.protocol.logging.SignalProtocolLogger.INFO")
  
@@ -1673,7 +1675,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
        isDefault = true
        isMinifyEnabled = false
        proguardFiles(
-@@ -349,7 +246,6 @@ android {
+@@ -349,7 +248,6 @@ android {
          "proguard/proguard-shortcutbadger.pro",
          "proguard/proguard-retrofit.pro",
          "proguard/proguard-klinker.pro",
@@ -1681,7 +1683,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
          "proguard/proguard-retrolambda.pro",
          "proguard/proguard-okhttp.pro",
          "proguard/proguard-ez-vcard.pro",
-@@ -361,119 +257,33 @@ android {
+@@ -361,119 +259,33 @@ android {
          "proguard/proguard.cfg"
        )
  
@@ -1809,7 +1811,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      }
  
      create("staging") {
-@@ -481,6 +291,12 @@ android {
+@@ -481,6 +293,12 @@ android {
  
        applicationIdSuffix = ".staging"
  
@@ -1822,7 +1824,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
        buildConfigField("String", "SIGNAL_URL", "\"https://chat.staging.signal.org\"")
        buildConfigField("String", "STORAGE_URL", "\"https://storage-staging.signal.org\"")
        buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn-staging.signal.org\"")
-@@ -494,13 +310,10 @@ android {
+@@ -494,13 +312,10 @@ android {
        buildConfigField("String", "ZKGROUP_SERVER_PUBLIC_PARAMS", "\"ABSY21VckQcbSXVNCGRYJcfWHiAMZmpTtTELcDmxgdFbtp/bWsSxZdMKzfCp8rvIs8ocCU3B37fT3r4Mi5qAemeGeR2X+/YmOGR5ofui7tD5mDQfstAI9i+4WpMtIe8KC3wU5w3Inq3uNWVmoGtpKndsNfwJrCg0Hd9zmObhypUnSkfYn2ooMOOnBpfdanRtrvetZUayDMSC5iSRcXKpdlukrpzzsCIvEwjwQlJYVPOQPj4V0F4UXXBdHSLK05uoPBCQG8G9rYIGedYsClJXnbrgGYG3eMTG5hnx4X4ntARBgELuMWWUEEfSK0mjXg+/2lPmWcTZWR9nkqgQQP0tbzuiPm74H2wMO4u1Wafe+UwyIlIT9L7KLS19Aw8r4sPrXZSSsOZ6s7M1+rTJN0bI5CKY2PX29y5Ok3jSWufIKcgKOnWoP67d5b2du2ZVJjpjfibNIHbT/cegy/sBLoFwtHogVYUewANUAXIaMPyCLRArsKhfJ5wBtTminG/PAvuBdJ70Z/bXVPf8TVsR292zQ65xwvWTejROW6AZX6aqucUjlENAErBme1YHmOSpU6tr6doJ66dPzVAWIanmO/5mgjNEDeK7DDqQdB1xd03HT2Qs2TxY3kCK8aAb/0iM0HQiXjxZ9HIgYhbtvGEnDKW5ILSUydqH/KBhW4Pb0jZWnqN/YgbWDKeJxnDbYcUob5ZY5Lt5ZCMKuaGUvCJRrCtuugSMaqjowCGRempsDdJEt+cMaalhZ6gczklJB/IbdwENW9KeVFPoFNFzhxWUIS5ML9riVYhAtE6JE5jX0xiHNVIIPthb458cfA8daR0nYfYAUKogQArm0iBezOO+mPk5vCNWI+wwkyFCqNDXz/qxl1gAntuCJtSfq9OC3NkdhQlgYQ==\"")
        buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AHILOIrFPXX9laLbalbA9+L1CXpSbM/bTJXZGZiuyK1JaI6dK5FHHWL6tWxmHKYAZTSYmElmJ5z2A5YcirjO/yfoemE03FItyaf8W1fE4p14hzb5qnrmfXUSiAIVrhaXVwIwSzH6RL/+EO8jFIjJ/YfExfJ8aBl48CKHgu1+A6kWynhttonvWWx6h7924mIzW0Czj2ROuh4LwQyZypex4GuOPW8sgIT21KNZaafgg+KbV7XM1x1tF3XA17B4uGUaDbDw2O+nR1+U5p6qHPzmJ7ggFjSN6Utu+35dS1sS0P9N\"")
        buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AHYrGb9IfugAAJiPKp+mdXUx+OL9zBolPYHYQz6GI1gWjpEu5me3zVNSvmYY4zWboZHif+HG1sDHSuvwFd0QszSwuSF4X4kRP3fJREdTZ5MCR0n55zUppTwfHRW2S4sdQ0JGz7YDQIJCufYSKh0pGNEHL6hv79Agrdnr4momr3oXdnkpVBIp3HWAQ6IbXQVSG18X36GaicI1vdT0UFmTwU2KTneluC2eyL9c5ff8PcmiS+YcLzh0OKYQXB5ZfQ06d6DiINvDQLy75zcfUOniLAj0lGJiHxGczin/RXisKSR8\"")
@@ -1836,7 +1838,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
        buildConfigField("String", "STRIPE_PUBLISHABLE_KEY", "\"pk_test_sngOd8FnXNkpce9nPXawKrJD00kIDngZkD\"")
      }
    }
-@@ -508,167 +321,44 @@ android {
+@@ -508,167 +323,44 @@ android {
    lint {
      abortOnError = true
      baseline = file("lint-baseline.xml")
@@ -2022,7 +2024,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
      freeCompilerArgs.addAll("-Xjvm-default=all")
      suppressWarnings = true
    }
-@@ -676,7 +366,6 @@ kotlin {
+@@ -676,7 +368,6 @@ kotlin {
  
  dependencies {
    lintChecks(project(":lintchecks"))
@@ -2030,7 +2032,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
    coreLibraryDesugaring(libs.android.tools.desugar)
  
    implementation(project(":lib:archive"))
-@@ -707,7 +396,6 @@ dependencies {
+@@ -707,7 +398,6 @@ dependencies {
    implementation(libs.androidx.window.window)
    implementation(libs.androidx.window.java)
    implementation(libs.androidx.recyclerview)
@@ -2038,7 +2040,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
    implementation(libs.androidx.legacy.support)
    implementation(libs.androidx.preference)
    implementation(libs.androidx.legacy.preference)
-@@ -745,20 +433,25 @@ dependencies {
+@@ -745,20 +435,25 @@ dependencies {
    implementation(libs.androidx.asynclayoutinflater)
    implementation(libs.androidx.asynclayoutinflater.appcompat)
    implementation(libs.androidx.emoji2)
@@ -2069,7 +2071,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
    implementation(libs.signal.ringrtc)
    implementation(libs.leolin.shortcutbadger)
    implementation(libs.glide.glide)
-@@ -773,11 +466,6 @@ dependencies {
+@@ -773,11 +468,6 @@ dependencies {
    }
    implementation(libs.lottie)
    implementation(libs.lottie.compose)
@@ -2081,7 +2083,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
    implementation(libs.signal.android.database.sqlcipher)
    implementation(libs.androidx.sqlite)
    testImplementation(libs.androidx.sqlite.framework)
-@@ -792,22 +480,31 @@ dependencies {
+@@ -792,22 +482,31 @@ dependencies {
    implementation(libs.accompanist.drawablepainter)
    implementation(libs.kotlin.stdlib.jdk8)
    implementation(libs.kotlin.reflect)
@@ -2119,7 +2121,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
  
    androidTestImplementation(libs.androidx.fragment.testing) {
      exclude(group = "androidx.test", module = "core")
-@@ -838,7 +535,7 @@ dependencies {
+@@ -838,7 +537,7 @@ dependencies {
    testImplementation(testLibs.sqlite.jdbc)
    testImplementation(libs.androidx.compose.ui.test.junit4)
  
@@ -2128,7 +2130,7 @@ index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552da
  
    androidTestImplementation(platform(libs.androidx.compose.bom))
    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-@@ -864,306 +561,51 @@ dependencies {
+@@ -864,306 +563,51 @@ dependencies {
    androidTestUtil(testLibs.androidx.test.orchestrator)
  }
  
