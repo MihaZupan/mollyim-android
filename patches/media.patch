@@ -27,52 +27,46 @@ index ed91a14c3fd48c46ea1a1e7d093a0239c793a611..bb69975830c00d562d1e7f31cfe18404
    /**
     * Temporary state object that just denotes what the local store thinks we are.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
-index cb263e7eef1a176c3cdd84a6a4b4d753ca13d14f..2e6262d2e4638771c1bb5c892b98265ca78fefa9 100644
+index 54af55effb47f60c69cd470c644ade5a957d014b..b1b5b4e190fee4956a6d0fb3e502c73fd7137155 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/BackupsSettingsFragment.kt
-@@ -102,7 +102,7 @@ class BackupsSettingsFragment : ComposeFragment() {
+@@ -108,7 +108,7 @@ class BackupsSettingsFragment : ComposeFragment() {
          when (state.backupState) {
            is BackupState.Error -> Unit
  
 -          BackupState.None -> {
 +          is BackupState.None -> {
-             checkoutLauncher.launch(null)
-           }
- 
-@@ -195,12 +195,14 @@ private fun BackupsSettingsContent(
+             if (!state.isLinkedDevice) {
+               checkoutLauncher.launch(null)
+             }
+@@ -214,17 +214,19 @@ private fun BackupsSettingsContent(
              OtherWaysToBackUpHeading()
            }
  
 -          BackupState.None -> {
--            NeverEnabledBackupsRow(
--              onBackupsRowClick = onBackupsRowClick
--            )
 +          is BackupState.None -> {
-+            if (backupsSettingsState.backupState.featureSupported) {
-+              NeverEnabledBackupsRow(
-+                onBackupsRowClick = onBackupsRowClick
-+              )
+             if (backupsSettingsState.isLinkedDevice) {
+               BackupsOffLinkedDeviceRow(onLearnMoreClick = onLearnMoreClick)
+-            } else {
++            } else if (backupsSettingsState.backupState.featureSupported) {
+               NeverEnabledBackupsRow(
+                 onBackupsRowClick = onBackupsRowClick,
+                 displayActionButton = true
+               )
+             }
  
 -            OtherWaysToBackUpHeading()
++            if (backupsSettingsState.isLinkedDevice || backupsSettingsState.backupState.featureSupported) {
 +              OtherWaysToBackUpHeading()
 +            }
            }
  
            is BackupState.Error -> {
-@@ -656,7 +658,7 @@ private fun BackupsSettingsContentBackupTierInternalOverridePreview() {
-   Previews.Preview {
-     BackupsSettingsContent(
-       backupsSettingsState = BackupsSettingsState(
--        backupState = BackupState.None,
-+        backupState = BackupState.None(featureSupported = true),
-         showBackupTierInternalOverride = true,
-         backupTierInternalOverride = null,
-         lastBackupAt = 0.seconds
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
-index 0c5fa895b6f1d36cbde94363f7a571e85ac59c54..12763afb40eb0597174e33185fe89426e76ba246 100644
+index b6e45039309b32e0b5f6251e140c8fd9c262961c..5f95c6abb1dec195206a5e3fd1a268a63097b8c4 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/backups/remote/RemoteBackupsSettingsFragment.kt
-@@ -456,7 +456,7 @@ private fun RemoteBackupsSettingsContent(
+@@ -457,7 +457,7 @@ private fun RemoteBackupsSettingsContent(
              )
            }
  
@@ -81,7 +75,7 @@ index 0c5fa895b6f1d36cbde94363f7a571e85ac59c54..12763afb40eb0597174e33185fe89426
  
            is BackupState.WithTypeAndRenewalTime -> {
              BackupCard(
-@@ -2018,7 +2018,7 @@ private fun BackupReadyToDownloadPreview() {
+@@ -2151,7 +2151,7 @@ private fun BackupReadyToDownloadPreview() {
    Previews.Preview {
      BackupReadyToDownloadRow(
        ready = BackupRestoreState.Ready("12GB"),
@@ -175,7 +169,7 @@ index 873fb740cbdad62b332cc8f88ec3c9db0274fcbb..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
-index f43dbff12fd44ad69c8d4101deedb1169d25db27..9fe7466191e75de2e39fdab0167e2d0e12371ea9 100644
+index 19dce765cbef93a8a3408e3b92fbe6747f93b978..c9b7749940bacce7b4f1e065a15dbacb708e003b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/megaphone/Megaphones.java
 @@ -13,14 +13,13 @@ import androidx.core.app.NotificationManagerCompat;

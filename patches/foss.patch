@@ -164,7 +164,7 @@ index 2fa0281297be845f26c552d5894fc0ca8703df3d..d6ab39ac76a99fb8fe58272b339b17e5
              PlayStoreUtil.openPlayStoreHome(requireContext())
            }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
-index 30a15b3bd02d2e38c0d2a002619dec24dd93033b..72e3db34305c9a0dd2d4bc04d48d754a9ad7c097 100644
+index 2d9d8fb207b2d4f1b575dfc5db2df881748405a0..058261693b45607260d436be482c71bcc76ade27 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsActivity.kt
 @@ -7,8 +7,6 @@ import android.os.Bundle
@@ -214,7 +214,7 @@ index 30a15b3bd02d2e38c0d2a002619dec24dd93033b..72e3db34305c9a0dd2d4bc04d48d754a
          AppSettingsRoute.ChangeNumberRoute.Start -> AppSettingsFragmentDirections.actionDirectToChangeNumberFragment()
          is AppSettingsRoute.DonationsRoute.Donations -> AppSettingsFragmentDirections.actionDirectToManageDonations().setDirectToCheckoutType(appSettingsRoute.directToCheckoutType)
          AppSettingsRoute.NotificationsRoute.NotificationProfiles -> AppSettingsFragmentDirections.actionDirectToNotificationProfiles()
-@@ -108,6 +103,7 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
+@@ -112,6 +107,7 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
      SignalStore.settings.onConfigurationSettingChanged.observe(this) { key ->
        if (key == SettingsValues.THEME) {
          DynamicTheme.setDefaultDayNightMode(this)
@@ -222,7 +222,7 @@ index 30a15b3bd02d2e38c0d2a002619dec24dd93033b..72e3db34305c9a0dd2d4bc04d48d754a
          recreate()
        } else if (key == SettingsValues.LANGUAGE) {
          CachedInflater.from(this).clear()
-@@ -152,12 +148,6 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
+@@ -156,12 +152,6 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
  
    override fun resolveStartBundle(): Bundle? = null
  
@@ -235,7 +235,7 @@ index 30a15b3bd02d2e38c0d2a002619dec24dd93033b..72e3db34305c9a0dd2d4bc04d48d754a
    companion object {
      const val ACTION_CHANGE_NUMBER_SUCCESS = "action_change_number_success"
  
-@@ -183,6 +173,11 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
+@@ -187,6 +177,11 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
      @JvmStatic
      fun notifications(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.NotificationsRoute.Notifications)
  
@@ -247,7 +247,7 @@ index 30a15b3bd02d2e38c0d2a002619dec24dd93033b..72e3db34305c9a0dd2d4bc04d48d754a
      @JvmStatic
      fun changeNumber(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.ChangeNumberRoute.Start)
  
-@@ -192,9 +187,6 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
+@@ -196,9 +191,6 @@ class AppSettingsActivity : DSLSettingsActivity(), GooglePayComponent {
      @JvmStatic
      fun subscriptions(context: Context): Intent = getIntentForStartLocation(context, AppSettingsRoute.DonationsRoute.Donations(directToCheckoutType = InAppPaymentType.RECURRING_DONATION))
  
@@ -430,12 +430,12 @@ index 51032cd0349c046d8af284ae9120107fdca55a92..248d8c79e3b96a3c5446b69b05458274
  }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/CheckoutFlowActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/CheckoutFlowActivity.kt
-index 75712a087ed20ee0f475a5bdaa4468e0e3ba90ed..e0ee53fb044a9f8b75bb474de6c93587f19736ae 100644
+index 6fb53dede9f051d1dc02eb67e0f04e0007644374..f1acee63b75aba0f808f4df3e80a8b17d1334da5 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/CheckoutFlowActivity.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/CheckoutFlowActivity.kt
-@@ -10,20 +10,16 @@ import android.content.Intent
- import android.os.Parcelable
+@@ -11,20 +11,16 @@ import android.os.Parcelable
  import androidx.activity.result.contract.ActivityResultContract
+ import androidx.annotation.VisibleForTesting
  import androidx.fragment.app.Fragment
 -import io.reactivex.rxjava3.subjects.PublishSubject
 -import io.reactivex.rxjava3.subjects.Subject
@@ -454,8 +454,8 @@ index 75712a087ed20ee0f475a5bdaa4468e0e3ba90ed..e0ee53fb044a9f8b75bb474de6c93587
 +class CheckoutFlowActivity : FragmentWrapperActivity() {
  
    companion object {
-     private const val ARG_IN_APP_PAYMENT_TYPE = "in_app_payment_type"
-@@ -34,9 +30,6 @@ class CheckoutFlowActivity : FragmentWrapperActivity(), GooglePayComponent {
+     @VisibleForTesting
+@@ -36,9 +32,6 @@ class CheckoutFlowActivity : FragmentWrapperActivity(), GooglePayComponent {
      }
    }
  
@@ -465,7 +465,7 @@ index 75712a087ed20ee0f475a5bdaa4468e0e3ba90ed..e0ee53fb044a9f8b75bb474de6c93587
    private val inAppPaymentType: InAppPaymentType by lazy {
      intent.extras!!.getSerializableCompat(ARG_IN_APP_PAYMENT_TYPE, InAppPaymentType::class.java)!!
    }
-@@ -45,12 +38,6 @@ class CheckoutFlowActivity : FragmentWrapperActivity(), GooglePayComponent {
+@@ -47,12 +40,6 @@ class CheckoutFlowActivity : FragmentWrapperActivity(), GooglePayComponent {
      return CheckoutNavHostFragment.create(inAppPaymentType)
    }
  
@@ -675,7 +675,7 @@ index 2b54580b46c31128a74e405c441fa3cd2a4175a9..614a0932ec4b58e67abc6109449edd1b
        )
      }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/gateway/GatewaySelectorBottomSheetContent.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/gateway/GatewaySelectorBottomSheetContent.kt
-index eb63cb7fe7d75b7ac9f751aad33693ed784b41aa..9f634fba0e492d106d2a81fba06305f1ffafcbca 100644
+index b996c2dd27aa52529f7eb4d7f78400e08aa51774..8b794bdfcb64056cb2b6782293ee689b404cebd7 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/gateway/GatewaySelectorBottomSheetContent.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/subscription/donate/gateway/GatewaySelectorBottomSheetContent.kt
 @@ -40,7 +40,6 @@ import org.signal.core.ui.compose.DayNightPreviews
@@ -686,7 +686,7 @@ index eb63cb7fe7d75b7ac9f751aad33693ed784b41aa..9f634fba0e492d106d2a81fba06305f1
  import org.signal.donations.InAppPaymentType
  import org.thoughtcrime.securesms.R
  import org.thoughtcrime.securesms.badges.Badges
-@@ -118,17 +117,7 @@ private fun Ready(state: GatewaySelectorState.Ready, onEvent: (GatewaySelectorBo
+@@ -120,17 +119,7 @@ private fun Ready(state: GatewaySelectorState.Ready, onEvent: (GatewaySelectorBo
      when (it) {
        InAppPaymentData.PaymentMethodType.UNKNOWN -> error("Unsupported payment method.")
        InAppPaymentData.PaymentMethodType.GOOGLE_PAY -> {
@@ -9642,18 +9642,18 @@ index e3410140587933429c54d23b4b09acff9823e0f9..00000000000000000000000000000000
 -
 -}
 diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
-index c80581f845d9bf3dd05a3d4cb90a449396c45ea3..7bc0c98b5b9d404adefc02f2315f92f3e6f69338 100644
+index e9b8eb9a55f30aad80cf1cd3622eb93fc132508d..c38c83abf9702f59cfdc0c59e26c498d0dfba140 100644
 --- a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
-@@ -8,7 +8,6 @@ package org.signal.registration
- import android.app.backup.BackupManager
- import android.content.Context
+@@ -12,7 +12,6 @@ import android.content.Context
+ import android.content.pm.PackageManager
  import android.net.Uri
+ import androidx.core.content.ContextCompat
 -import com.google.android.gms.auth.api.phone.SmsRetriever
  import com.google.i18n.phonenumbers.PhoneNumberUtil
  import kotlinx.coroutines.Dispatchers
  import kotlinx.coroutines.flow.Flow
-@@ -106,23 +105,7 @@ class RegistrationRepository(val context: Context, val networkController: Networ
+@@ -112,23 +111,7 @@ class RegistrationRepository(val context: Context, val networkController: Networ
     * @return whether the Play Services SMS retriever was successfully started.
     */
    suspend fun registerSmsListener(): Boolean {
@@ -9679,7 +9679,7 @@ index c80581f845d9bf3dd05a3d4cb90a449396c45ea3..7bc0c98b5b9d404adefc02f2315f92f3
  
    fun getCaptchaUrl(): String = networkController.getCaptchaUrl()
 diff --git a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
-index 85bae65a03a140983f55afda341eee81b17c85d1..277c37c75cc87538d1dab29155f5b020cd52e69d 100644
+index 68f1766061b29cad368991c5a7f6b7e94b372999..3bb4a4e86ee836ae6fa470f539227f7a77c5e9fb 100644
 --- a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
 @@ -65,8 +65,6 @@ import androidx.compose.ui.text.input.TextFieldValue
@@ -9691,7 +9691,7 @@ index 85bae65a03a140983f55afda341eee81b17c85d1..277c37c75cc87538d1dab29155f5b020
  import com.google.i18n.phonenumbers.PhoneNumberUtil
  import org.signal.core.ui.compose.AllDevicePreviews
  import org.signal.core.ui.compose.Buttons
-@@ -130,18 +128,18 @@ fun PhoneNumberScreen(
+@@ -127,18 +125,18 @@ fun PhoneNumberScreen(
      }
    }
  
@@ -9722,7 +9722,7 @@ index 85bae65a03a140983f55afda341eee81b17c85d1..277c37c75cc87538d1dab29155f5b020
  
    LaunchedEffect(state.initialized) {
      if (!state.initialized || hasRequestedPhoneNumberHint || state.nationalNumber.isNotEmpty() || state.preExistingRegistrationData != null) {
-@@ -149,25 +147,26 @@ fun PhoneNumberScreen(
+@@ -146,25 +144,26 @@ fun PhoneNumberScreen(
      }
      hasRequestedPhoneNumberHint = true
  
@@ -9767,9 +9767,9 @@ index 85bae65a03a140983f55afda341eee81b17c85d1..277c37c75cc87538d1dab29155f5b020
 +    prefillFromDeviceNumberIfAllowed()
    }
  
-   if (state.showDialog) {
+   if (state.dialogs.confirmNumber) {
 diff --git a/feature/registration/src/main/java/org/signal/registration/screens/verificationcode/VerificationCodeViewModel.kt b/feature/registration/src/main/java/org/signal/registration/screens/verificationcode/VerificationCodeViewModel.kt
-index 704f3c6fc304b2425ba7a52f45cfcc37b07c1add..1bdadc0e79f3968810df1e09b400e77e7389a3ac 100644
+index 1e72217e326eb420f6f8509f6bf7eb4d1ffb5c65..4d63ee7c8ec17b77a156476b6c45bf2e9d0c48ff 100644
 --- a/feature/registration/src/main/java/org/signal/registration/screens/verificationcode/VerificationCodeViewModel.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/screens/verificationcode/VerificationCodeViewModel.kt
 @@ -14,9 +14,6 @@ import androidx.core.content.ContextCompat
@@ -9782,7 +9782,7 @@ index 704f3c6fc304b2425ba7a52f45cfcc37b07c1add..1bdadc0e79f3968810df1e09b400e77e
  import kotlinx.coroutines.channels.awaitClose
  import kotlinx.coroutines.flow.Flow
  import kotlinx.coroutines.flow.MutableStateFlow
-@@ -62,39 +59,6 @@ class VerificationCodeViewModel(
+@@ -61,39 +58,6 @@ class VerificationCodeViewModel(
       * restart the flow. Checked whenever the screen is foregrounded.
       */
      private val IN_PROGRESS_DATA_TIMEOUT = 15.minutes
@@ -9821,8 +9821,8 @@ index 704f3c6fc304b2425ba7a52f45cfcc37b07c1add..1bdadc0e79f3968810df1e09b400e77e
 -    }
    }
  
-   private val _localState = MutableStateFlow(VerificationCodeState())
-@@ -519,7 +483,7 @@ class VerificationCodeViewModel(
+   private val _state = MutableStateFlow(VerificationCodeState())
+@@ -574,7 +538,7 @@ class VerificationCodeViewModel(
        repository: RegistrationRepository,
        parentState: StateFlow<RegistrationFlowState>,
        parentEventEmitter: (RegistrationFlowEvent) -> Unit

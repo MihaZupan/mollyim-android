@@ -254,7 +254,7 @@ index f890d9d6b617f0aa84814365216f3175fa5c989a..171229eababba879917a3cc0e071f634
          Result.success()
        }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
-index c225aef3417861fa299429551232b3d6feb3e3f3..361f531d890ccbbdf72944f46d01b19b0be4027d 100644
+index 94d77b420be0b3d3fe5fc2a17607c114403d4d37..0ad9ea741c619b706b0cf1d6820edb15248223ce 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/IndividualSendJobV2.kt
 @@ -146,7 +146,7 @@ class IndividualSendJobV2 private constructor(parameters: Parameters, private va
@@ -267,19 +267,10 @@ index c225aef3417861fa299429551232b3d6feb3e3f3..361f531d890ccbbdf72944f46d01b19b
      }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
-index 0b78ad2c2367e0afabbe7c3d8c58e06e612a7b32..7211d56bf42e5d4e4c4b52661b378c2523763060 100644
+index 5fd59f168f11d50a44ffa9a4dd01bae76604ccb1..a7c2b7bd0a4bcab2774e6037f687bddf5df179b8 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJob.java
-@@ -117,7 +117,7 @@ public final class LocalBackupJob extends BaseJob {
-     try (NotificationController notification = GenericForegroundService.startForegroundTask(context,
-                                                                      context.getString(R.string.LocalBackupJob_creating_signal_backup),
-                                                                      NotificationChannels.getInstance().BACKUPS,
--                                                                     R.drawable.ic_signal_backup))
-+                                                                     R.drawable.ic_notification_backup))
-     {
-       updater.setNotification(notification);
-       EventBus.getDefault().register(updater);
-@@ -126,7 +126,7 @@ public final class LocalBackupJob extends BaseJob {
+@@ -127,7 +127,7 @@ public final class LocalBackupJob extends BaseJob {
        String backupPassword  = BackupPassphrase.get(context);
        File   backupDirectory = StorageUtil.getOrCreateBackupDirectory();
        String timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
@@ -289,19 +280,10 @@ index 0b78ad2c2367e0afabbe7c3d8c58e06e612a7b32..7211d56bf42e5d4e4c4b52661b378c25
  
        deleteOldTemporaryBackups(backupDirectory);
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
-index 9d4ed673dcd8f8c247bba28cba625366d31339bd..4a2b8f1fdf757368c33ab08891cd44625d3a797d 100644
+index 684619bd85976388facad1371520b041c9210a19..2dddafaabd5367448a0048b3921ea3827612dc73 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalBackupJobApi29.java
-@@ -89,7 +89,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
-       notification = GenericForegroundService.startForegroundTask(context,
-                                                                   context.getString(R.string.LocalBackupJob_creating_signal_backup),
-                                                                   NotificationChannels.getInstance().BACKUPS,
--                                                                  R.drawable.ic_signal_backup);
-+                                                                  R.drawable.ic_notification_backup);
-     } catch (UnableToStartException e) {
-       Log.w(TAG, "Unable to start foreground backup service, continuing without service");
-     }
-@@ -104,7 +104,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
+@@ -105,7 +105,7 @@ public final class LocalBackupJobApi29 extends BaseJob {
        String       backupPassword  = BackupPassphrase.get(context);
        DocumentFile backupDirectory = DocumentFile.fromTreeUri(context, backupDirectoryUri);
        String       timestamp       = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
@@ -352,7 +334,7 @@ index 48ca27ac4b1aa55663ab0561b1bdea222008cad6..d56ae10a05c252215e4c0edebdc4776e
            false
          }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
-index dd171f217129b5414cce1fdd1b135d042ff509f1..2b2e52dcc0de796e4ce0578d0f3dbfe9ab7324e2 100644
+index 98d71b912304df14cda6a4168cc1026f668482e4..8ffc716420c5f80e7f2e6fa1d22acdbb1e2faa14 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/DataMessageProcessor.kt
 @@ -2,7 +2,6 @@ package org.thoughtcrime.securesms.messages
@@ -450,7 +432,7 @@ index dd171f217129b5414cce1fdd1b135d042ff509f1..2b2e52dcc0de796e4ce0578d0f3dbfe9
      return null
    }
  
-@@ -855,38 +797,8 @@ object DataMessageProcessor {
+@@ -856,38 +798,8 @@ object DataMessageProcessor {
  
      notifyTypingStoppedFromIncomingMessage(context, senderRecipient, threadRecipientId, metadata.sourceDeviceId)
  
@@ -491,7 +473,7 @@ index dd171f217129b5414cce1fdd1b135d042ff509f1..2b2e52dcc0de796e4ce0578d0f3dbfe9
    }
  
    @Throws(StorageFailedException::class)
-@@ -1551,10 +1463,6 @@ object DataMessageProcessor {
+@@ -1552,10 +1464,6 @@ object DataMessageProcessor {
            .firstOrNull()
        }
  
@@ -1114,7 +1096,7 @@ index ebdd02feae04823fe35fcd5e19cb4b553f50c96c..14ac2970321be2a296fc4ac76ac3c6de
  </androidx.core.widget.NestedScrollView>
 \ No newline at end of file
 diff --git a/app/src/main/res/values-fa/strings.xml b/app/src/main/res/values-fa/strings.xml
-index d65dce31f3f8f894a7db4c6fa4ecf0ef9f2a4fde..60a40cc741fcb72a15c6260e77dacc68a855a049 100644
+index 06724e5ab7da64bc4518d4b09df3d75ff8a919e8..a0a2d80f40cf0bd91761e01146fa57e4c6342e0b 100644
 --- a/app/src/main/res/values-fa/strings.xml
 +++ b/app/src/main/res/values-fa/strings.xml
 @@ -1,10 +1,7 @@
@@ -1148,7 +1130,7 @@ index d65dce31f3f8f894a7db4c6fa4ecf0ef9f2a4fde..60a40cc741fcb72a15c6260e77dacc68
      <string name="LocalBackupJobApi29_backup_failed">پشتیبان‌گیری ناموفق بود</string>
      <string name="LocalBackupJobApi29_your_backup_directory_has_been_deleted_or_moved">آدرس ذخیره‌سازی پشتیبان شما پاک شده یا به جای دیگری انتقال یافته است.</string>
      <string name="LocalBackupJobApi29_your_backup_file_is_too_large">حجم فایل پشتیبان شما برای نگهداری در این محل زیاد است.</string>
-@@ -9972,4 +9969,4 @@
+@@ -10010,4 +10007,4 @@
      <string name="RecoveryKeyWarningDialog__dont_share">لغو اشتراک‌گذاری</string>
  
      <!-- EOF -->

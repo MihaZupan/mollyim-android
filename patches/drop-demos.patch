@@ -42922,10 +42922,10 @@ index 801d5987eb69523d0058423e43e3645706af21fc..00000000000000000000000000000000
 -}
 diff --git a/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoNetworkController.kt b/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoNetworkController.kt
 deleted file mode 100644
-index 079514c47409a3ffdf336410865131df045c5a28..0000000000000000000000000000000000000000
+index 5feb47e4a4ef47fe589282c61939782293934f86..0000000000000000000000000000000000000000
 --- a/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoNetworkController.kt
 +++ /dev/null
-@@ -1,1596 +0,0 @@
+@@ -1,1599 +0,0 @@
 -/*
 - * Copyright 2025 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -43141,6 +43141,9 @@ index 079514c47409a3ffdf336410865131df045c5a28..00000000000000000000000000000000
 -          }
 -          400 -> {
 -            RequestResult.NonSuccess(UpdateSessionError.InvalidRequest(response.body.string()))
+-          }
+-          404 -> {
+-            RequestResult.NonSuccess(UpdateSessionError.SessionNotFound(response.body.string()))
 -          }
 -          409 -> {
 -            RequestResult.NonSuccess(UpdateSessionError.RejectedUpdate(response.body.string()))
@@ -44524,10 +44527,10 @@ index 079514c47409a3ffdf336410865131df045c5a28..00000000000000000000000000000000
 -}
 diff --git a/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoStorageController.kt b/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoStorageController.kt
 deleted file mode 100644
-index 22af077aa3105ef7d18779debb8cf2d71c00b47b..0000000000000000000000000000000000000000
+index ac89d3e973017bec1c1bd3e0eeffb8f2de9fe5a3..0000000000000000000000000000000000000000
 --- a/demo/registration/src/main/java/org/signal/registration/sample/dependencies/DemoStorageController.kt
 +++ /dev/null
-@@ -1,447 +0,0 @@
+@@ -1,451 +0,0 @@
 -/*
 - * Copyright 2025 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -44569,6 +44572,7 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -import org.signal.registration.RestoreDecision
 -import org.signal.registration.StorageController
 -import org.signal.registration.StoredProfileData
+-import org.signal.registration.proto.AccountData
 -import org.signal.registration.proto.ProvisioningData
 -import org.signal.registration.proto.RegistrationData
 -import org.signal.registration.sample.RegistrationApplication
@@ -44653,22 +44657,23 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -  override suspend fun commitRegistrationData() = withContext(Dispatchers.IO) {
 -    val file = File(context.filesDir, TEMP_PROTO_FILENAME)
 -    val data = RegistrationData.ADAPTER.decode(file.readBytes())
+-    val accountData = data.accountData ?: AccountData()
 -
 -    // Key material
--    if (data.aciIdentityKeyPair.size > 0) {
--      RegistrationPreferences.aciIdentityKeyPair = IdentityKeyPair(data.aciIdentityKeyPair.toByteArray())
+-    if (accountData.aciIdentityKeyPair.size > 0) {
+-      RegistrationPreferences.aciIdentityKeyPair = IdentityKeyPair(accountData.aciIdentityKeyPair.toByteArray())
 -    }
--    if (data.pniIdentityKeyPair.size > 0) {
--      RegistrationPreferences.pniIdentityKeyPair = IdentityKeyPair(data.pniIdentityKeyPair.toByteArray())
+-    if (accountData.pniIdentityKeyPair.size > 0) {
+-      RegistrationPreferences.pniIdentityKeyPair = IdentityKeyPair(accountData.pniIdentityKeyPair.toByteArray())
 -    }
--    if (data.aciRegistrationId != 0) {
--      RegistrationPreferences.aciRegistrationId = data.aciRegistrationId
+-    if (accountData.aciRegistrationId != 0) {
+-      RegistrationPreferences.aciRegistrationId = accountData.aciRegistrationId
 -    }
--    if (data.pniRegistrationId != 0) {
--      RegistrationPreferences.pniRegistrationId = data.pniRegistrationId
+-    if (accountData.pniRegistrationId != 0) {
+-      RegistrationPreferences.pniRegistrationId = accountData.pniRegistrationId
 -    }
--    if (data.servicePassword.isNotEmpty()) {
--      RegistrationPreferences.servicePassword = data.servicePassword
+-    if (accountData.servicePassword.isNotEmpty()) {
+-      RegistrationPreferences.servicePassword = accountData.servicePassword
 -    }
 -    if (data.accountEntropyPool.isNotEmpty()) {
 -      RegistrationPreferences.aep = AccountEntropyPool(data.accountEntropyPool)
@@ -44676,30 +44681,30 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -    if (data.profileKey.size > 0) {
 -      RegistrationPreferences.profileKey = ProfileKey(data.profileKey.toByteArray())
 -    }
--    RegistrationPreferences.fetchesMessages = data.fetchesMessages
+-    RegistrationPreferences.fetchesMessages = accountData.fetchesMessages
 -
 -    // Pre-keys
--    if (data.aciSignedPreKey.size > 0) {
--      db.signedPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_ACI, SignedPreKeyRecord(data.aciSignedPreKey.toByteArray()))
+-    if (accountData.aciSignedPreKey.size > 0) {
+-      db.signedPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_ACI, SignedPreKeyRecord(accountData.aciSignedPreKey.toByteArray()))
 -    }
--    if (data.pniSignedPreKey.size > 0) {
--      db.signedPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_PNI, SignedPreKeyRecord(data.pniSignedPreKey.toByteArray()))
+-    if (accountData.pniSignedPreKey.size > 0) {
+-      db.signedPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_PNI, SignedPreKeyRecord(accountData.pniSignedPreKey.toByteArray()))
 -    }
--    if (data.aciLastResortKyberPreKey.size > 0) {
--      db.kyberPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_ACI, KyberPreKeyRecord(data.aciLastResortKyberPreKey.toByteArray()))
+-    if (accountData.aciLastResortKyberPreKey.size > 0) {
+-      db.kyberPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_ACI, KyberPreKeyRecord(accountData.aciLastResortKyberPreKey.toByteArray()))
 -    }
--    if (data.pniLastResortKyberPreKey.size > 0) {
--      db.kyberPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_PNI, KyberPreKeyRecord(data.pniLastResortKyberPreKey.toByteArray()))
+-    if (accountData.pniLastResortKyberPreKey.size > 0) {
+-      db.kyberPreKeys.insert(RegistrationDatabase.ACCOUNT_TYPE_PNI, KyberPreKeyRecord(accountData.pniLastResortKyberPreKey.toByteArray()))
 -    }
 -
 -    // Account identity
--    if (data.e164.isNotEmpty() && data.aci.isNotEmpty() && data.pni.isNotEmpty() && data.servicePassword.isNotEmpty() && data.accountEntropyPool.isNotEmpty()) {
+-    if (accountData.e164.isNotEmpty() && accountData.aci.isNotEmpty() && accountData.pni.isNotEmpty() && accountData.servicePassword.isNotEmpty() && data.accountEntropyPool.isNotEmpty()) {
 -      RegistrationPreferences.saveRegistrationData(
 -        NewRegistrationData(
--          e164 = data.e164,
--          aci = ACI.parseOrThrow(data.aci),
--          pni = PNI.parseOrThrow(data.pni),
--          servicePassword = data.servicePassword,
+-          e164 = accountData.e164,
+-          aci = ACI.parseOrThrow(accountData.aci),
+-          pni = PNI.parseOrThrow(accountData.pni),
+-          servicePassword = accountData.servicePassword,
 -          aep = AccountEntropyPool(data.accountEntropyPool)
 -        )
 -      )
@@ -44707,7 +44712,7 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -
 -    // Linked-device data (persisted so the link-and-sync step can authenticate as this device and the
 -    // home screen can show the linked account).
--    data.linkedDeviceData?.let { linkData ->
+-    accountData.linkedDeviceData?.let { linkData ->
 -      RegistrationPreferences.linkedDeviceId = linkData.deviceId
 -      RegistrationPreferences.ephemeralBackupKey = linkData.ephemeralBackupKey?.toByteArray()
 -    }
@@ -44717,8 +44722,8 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -      RegistrationPreferences.pin = data.pin
 -      RegistrationPreferences.pinAlphanumeric = data.pin.any { !it.isDigit() }
 -    }
--    if (data.temporaryMasterKey.size > 0) {
--      RegistrationPreferences.temporaryMasterKey = MasterKey(data.temporaryMasterKey.toByteArray())
+-    if (data.masterKeyForInitialDataRestore.size > 0) {
+-      RegistrationPreferences.temporaryMasterKey = MasterKey(data.masterKeyForInitialDataRestore.toByteArray())
 -    }
 -    RegistrationPreferences.registrationLockEnabled = data.registrationLockEnabled
 -
@@ -44734,10 +44739,10 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -      RegistrationPreferences.saveProvisioningData(
 -        NetworkController.ProvisioningMessage(
 -          accountEntropyPool = data.accountEntropyPool,
--          e164 = data.e164,
+-          e164 = accountData.e164,
 -          pin = data.pin.ifEmpty { null },
--          aciIdentityKeyPair = IdentityKeyPair(data.aciIdentityKeyPair.toByteArray()),
--          pniIdentityKeyPair = IdentityKeyPair(data.pniIdentityKeyPair.toByteArray()),
+-          aciIdentityKeyPair = IdentityKeyPair(accountData.aciIdentityKeyPair.toByteArray()),
+-          pniIdentityKeyPair = IdentityKeyPair(accountData.pniIdentityKeyPair.toByteArray()),
 -          platform = when (prov.platform) {
 -            ProvisioningData.Platform.ANDROID -> NetworkController.ProvisioningMessage.Platform.ANDROID
 -            ProvisioningData.Platform.IOS -> NetworkController.ProvisioningMessage.Platform.IOS
@@ -44828,10 +44833,10 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -    backups.sortedByDescending { it.date }
 -  }
 -
--  override fun restoreLocalBackupV1(uri: Uri, passphrase: String): Flow<LocalBackupRestoreProgress> = flow {
--    Log.d(TAG, "Starting simulated V1 local backup restore from: $uri")
+-  override fun restoreLocalBackupV1(rootUri: Uri, backupUri: Uri, passphrase: String): Flow<LocalBackupRestoreProgress> = flow {
+-    Log.d(TAG, "Starting simulated V1 local backup restore from: $backupUri")
 -
--    require(DocumentFile.fromSingleUri(context, uri)?.exists() == true) { "Backup file does not exist: $uri" }
+-    require(DocumentFile.fromSingleUri(context, backupUri)?.exists() == true) { "Backup file does not exist: $backupUri" }
 -
 -    emit(LocalBackupRestoreProgress.Preparing)
 -    delay(SIMULATED_STAGE_DELAY_MS)
@@ -44842,9 +44847,11 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -      delay(SIMULATED_STAGE_DELAY_MS)
 -    }
 -
--    emit(LocalBackupRestoreProgress.Complete)
+-    emit(LocalBackupRestoreProgress.Complete(restoredSvrPin = null, restoredProfileKey = null))
 -    Log.d(TAG, "Simulated V1 restore complete.")
 -  }.flowOn(Dispatchers.IO)
+-
+-  override suspend fun verifyLocalBackupKey(backupUri: Uri, aep: AccountEntropyPool): Boolean = true
 -
 -  override fun restoreLocalBackupV2(rootUri: Uri, backupUri: Uri, aep: AccountEntropyPool): Flow<LocalBackupRestoreProgress> = flow {
 -    Log.d(TAG, "Starting simulated V2 local backup restore from backup=$backupUri, root=$rootUri")
@@ -44860,7 +44867,7 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -      delay(SIMULATED_STAGE_DELAY_MS)
 -    }
 -
--    emit(LocalBackupRestoreProgress.Complete)
+-    emit(LocalBackupRestoreProgress.Complete(restoredSvrPin = null, restoredProfileKey = null))
 -    Log.d(TAG, "Simulated V2 restore complete.")
 -  }.flowOn(Dispatchers.IO)
 -
@@ -44932,7 +44939,7 @@ index 22af077aa3105ef7d18779debb8cf2d71c00b47b..00000000000000000000000000000000
 -
 -        // Decrypt + parse the backup proto to prove the round-trip worked. We intentionally do NOT
 -        // import the frames into a database -- that is the app's full backup-restore pipeline.
--        trySend(LinkAndSyncProgress.Restoring)
+-        trySend(LinkAndSyncProgress.Finalizing)
 -        val downloadedBytes = tempFile.length()
 -        var frameCount = 0
 -        EncryptedBackupReader.createForLocalOrLinking(
@@ -50333,10 +50340,10 @@ index 06da45362586f7fb80a258978f87a01797efc361..00000000000000000000000000000000
 \ No newline at end of file
 diff --git a/demo/video/src/androidTest/java/org/thoughtcrime/video/app/transcode/VideoTranscodeInstrumentationTest.kt b/demo/video/src/androidTest/java/org/thoughtcrime/video/app/transcode/VideoTranscodeInstrumentationTest.kt
 deleted file mode 100644
-index 6bef8819b066c65ba132d0228b1ca9a4615400c1..0000000000000000000000000000000000000000
+index b9c8759f2c51ba9f09b8bf356e871c6a8aff1469..0000000000000000000000000000000000000000
 --- a/demo/video/src/androidTest/java/org/thoughtcrime/video/app/transcode/VideoTranscodeInstrumentationTest.kt
 +++ /dev/null
-@@ -1,202 +0,0 @@
+@@ -1,204 +0,0 @@
 -/*
 - * Copyright 2026 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -50355,13 +50362,15 @@ index 6bef8819b066c65ba132d0228b1ca9a4615400c1..00000000000000000000000000000000
 -import org.junit.Before
 -import org.junit.Test
 -import org.junit.runner.RunWith
--import org.signal.core.util.video.TranscodingPreset
 -import org.thoughtcrime.securesms.video.StreamingTranscoder
+-import org.thoughtcrime.securesms.video.TranscodingConfig
 -import org.thoughtcrime.securesms.video.exceptions.VideoSourceException
+-import org.thoughtcrime.securesms.video.videoconverter.MediaConverter.VIDEO_CODEC_H264
 -import org.thoughtcrime.securesms.video.videoconverter.exceptions.CodecUnavailableException
 -import org.thoughtcrime.securesms.video.videoconverter.exceptions.EncodingException
 -import org.thoughtcrime.securesms.video.videoconverter.exceptions.HdrDecoderUnavailableException
 -import org.thoughtcrime.securesms.video.videoconverter.mediadatasource.InputStreamMediaDataSource
+-import org.thoughtcrime.securesms.video.videoconverter.utils.VideoConstants
 -import java.io.File
 -import java.io.FileInputStream
 -import java.io.FileNotFoundException
@@ -50401,26 +50410,26 @@ index 6bef8819b066c65ba132d0228b1ca9a4615400c1..00000000000000000000000000000000
 -  }
 -
 -  @Test
--  fun transcodeAllVideos_level1() {
--    transcodeAllVideos(TranscodingPreset.LEVEL_1)
+-  fun transcodeAllVideos_standard() {
+-    transcodeAllVideos(VideoConstants.DEFAULT_LVL1_STANDARD, "LVL1")
 -  }
 -
 -  @Test
--  fun transcodeAllVideos_level2() {
--    transcodeAllVideos(TranscodingPreset.LEVEL_2)
+-  fun transcodeAllVideos_short_standard() {
+-    transcodeAllVideos(VideoConstants.DEFAULT_LVL2_SHORT_STANDARD, "LVL2 SHORT")
 -  }
 -
 -  @Test
--  fun transcodeAllVideos_level3() {
--    transcodeAllVideos(TranscodingPreset.LEVEL_3)
+-  fun transcodeAllVideos_long_standard() {
+-    transcodeAllVideos(VideoConstants.DEFAULT_LVL2_LONG_STANDARD, "LVL2 LONG")
 -  }
 -
 -  @Test
--  fun transcodeAllVideos_level3H265() {
--    transcodeAllVideos(TranscodingPreset.LEVEL_3_H265)
+-  fun transcodeAllVideos_high() {
+-    transcodeAllVideos(VideoConstants.DEFAULT_HIGH, "HIGH")
 -  }
 -
--  private fun transcodeAllVideos(preset: TranscodingPreset) {
+-  private fun transcodeAllVideos(qualityTier: TranscodingConfig.QualityTier, name: String) {
 -    val videoFiles = getVideoFileNames()
 -    Assume.assumeTrue(
 -      "No sample videos found in test assets. Set 'sample.videos.dir' in local.properties to a directory containing video files.",
@@ -50434,32 +50443,32 @@ index 6bef8819b066c65ba132d0228b1ca9a4615400c1..00000000000000000000000000000000
 -    val deviceWarnings = mutableListOf<String>()
 -
 -    for (videoFileName in videoFiles) {
--      Log.i(TAG, "Transcoding '$videoFileName' with preset ${preset.name}...")
+-      Log.i(TAG, "Transcoding '$videoFileName' with tier $name...")
 -      try {
--        transcodeVideo(videoFileName, preset)
--        Log.i(TAG, "Successfully transcoded '$videoFileName' with preset ${preset.name}")
+-        transcodeVideo(videoFileName, qualityTier, name)
+-        Log.i(TAG, "Successfully transcoded '$videoFileName' with tier $name")
 -      } catch (e: HdrDecoderUnavailableException) {
--        Log.w(TAG, "No decoder available for HDR video '$videoFileName' with preset ${preset.name} (device limitation)", e)
--        deviceWarnings.add("$videoFileName [${preset.name}]: ${e::class.simpleName}: ${e.message}")
+-        Log.w(TAG, "No decoder available for HDR video '$videoFileName' with tier $name (device limitation)", e)
+-        deviceWarnings.add("$videoFileName [$name]: ${e::class.simpleName}: ${e.message}")
 -      } catch (e: FileNotFoundException) {
--        Log.w(TAG, "Skipping '$videoFileName' with preset ${preset.name}: encoder not available on this device", e)
+-        Log.w(TAG, "Skipping '$videoFileName' with tier $name: encoder not available on this device", e)
 -      } catch (e: EncodingException) {
 -        val isHdrDeviceLimitation = e.isHdrInput && !e.toneMapApplied
 -        if (isHdrDeviceLimitation) {
--          Log.w(TAG, "Video '$videoFileName' failed with preset ${preset.name} (HDR device limitation, toneMap=${e.toneMapApplied}, decoder=${e.decoderName}, encoder=${e.encoderName})", e)
--          deviceWarnings.add("$videoFileName [${preset.name}]: ${e::class.simpleName}: ${e.message}")
+-          Log.w(TAG, "Video '$videoFileName' failed with tier $name (HDR device limitation, toneMap=${e.toneMapApplied}, decoder=${e.decoderName}, encoder=${e.encoderName})", e)
+-          deviceWarnings.add("$videoFileName [$name]: ${e::class.simpleName}: ${e.message}")
 -        } else {
--          Log.e(TAG, "Failed to transcode '$videoFileName' with preset ${preset.name} (hdr=${e.isHdrInput}, toneMap=${e.toneMapApplied}, decoder=${e.decoderName}, encoder=${e.encoderName})", e)
+-          Log.e(TAG, "Failed to transcode '$videoFileName' with tier $name (hdr=${e.isHdrInput}, toneMap=${e.toneMapApplied}, decoder=${e.decoderName}, encoder=${e.encoderName})", e)
 -          failures.add("$videoFileName: ${e::class.simpleName}: ${e.message}")
 -        }
 -      } catch (e: VideoSourceException) {
--        Log.w(TAG, "Device cannot read video source '$videoFileName' with preset ${preset.name} (device limitation)", e)
--        deviceWarnings.add("$videoFileName [${preset.name}]: ${e::class.simpleName}: ${e.message}")
+-        Log.w(TAG, "Device cannot read video source '$videoFileName' with tier $name (device limitation)", e)
+-        deviceWarnings.add("$videoFileName [$name]: ${e::class.simpleName}: ${e.message}")
 -      } catch (e: CodecUnavailableException) {
--        Log.w(TAG, "All codecs exhausted for '$videoFileName' with preset ${preset.name} (device limitation)", e)
--        deviceWarnings.add("$videoFileName [${preset.name}]: ${e::class.simpleName}: ${e.message}")
+-        Log.w(TAG, "All codecs exhausted for '$videoFileName' with tier $name (device limitation)", e)
+-        deviceWarnings.add("$videoFileName [$name]: ${e::class.simpleName}: ${e.message}")
 -      } catch (e: Exception) {
--        Log.e(TAG, "Failed to transcode '$videoFileName' with preset ${preset.name}", e)
+-        Log.e(TAG, "Failed to transcode '$videoFileName' with tier $name", e)
 -        failures.add("$videoFileName: ${e::class.simpleName}: ${e.message}")
 -      }
 -    }
@@ -50470,15 +50479,15 @@ index 6bef8819b066c65ba132d0228b1ca9a4615400c1..00000000000000000000000000000000
 -
 -    if (failures.isNotEmpty()) {
 -      Assert.fail(
--        "${failures.size}/${videoFiles.size} video(s) failed transcoding with ${preset.name}:\n" +
+-        "${failures.size}/${videoFiles.size} video(s) failed transcoding with $name:\n" +
 -          failures.joinToString("\n")
 -      )
 -    }
 -  }
 -
--  private fun transcodeVideo(videoFileName: String, preset: TranscodingPreset) {
+-  private fun transcodeVideo(videoFileName: String, qualityTier: TranscodingConfig.QualityTier, name: String) {
 -    val inputFile = createTempFile("input-", "-$videoFileName")
--    val outputFile = createTempFile("output-${preset.name}-", "-$videoFileName")
+-    val outputFile = createTempFile("output-$name-", "-$videoFileName")
 -
 -    testContext.assets.open(videoFileName).use { input ->
 -      inputFile.outputStream().use { output ->
@@ -50492,27 +50501,27 @@ index 6bef8819b066c65ba132d0228b1ca9a4615400c1..00000000000000000000000000000000
 -    val transcoder = StreamingTranscoder.createManuallyForTesting(
 -      dataSource,
 -      null,
--      preset.videoCodec,
--      preset.videoBitRate,
--      preset.audioBitRate,
--      preset.videoShortEdge,
+-      VIDEO_CODEC_H264,
+-      (qualityTier.videoBitrateMbps * VideoConstants.MB).toInt(),
+-      qualityTier.audioBitrateKbps * VideoConstants.KB,
+-      qualityTier.resolution,
 -      true
 -    )
 -
 -    outputFile.outputStream().use { outputStream ->
 -      transcoder.transcode(
--        { percent -> Log.d(TAG, "  $videoFileName [${preset.name}]: $percent%") },
+-        { percent -> Log.d(TAG, "  $videoFileName [$name]: $percent%") },
 -        outputStream,
 -        null
 -      )
 -    }
 -
 -    Assert.assertTrue(
--      "Transcoded output for '$videoFileName' with ${preset.name} is empty",
+-      "Transcoded output for '$videoFileName' with $name is empty",
 -      outputFile.length() > 0
 -    )
 -
--    Log.i(TAG, "Output for '$videoFileName' with ${preset.name}: ${outputFile.length()} bytes")
+-    Log.i(TAG, "Output for '$videoFileName' with $name: ${outputFile.length()} bytes")
 -  }
 -
 -  private fun getVideoFileNames(): List<String> {
@@ -50584,7 +50593,7 @@ index c601e2c60859abc5487ba9b86b2ea735904d2bcb..00000000000000000000000000000000
 -</manifest>
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/MainActivity.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/MainActivity.kt
 deleted file mode 100644
-index 2792fef62019c22a224d198ebc424108b0ff014d..0000000000000000000000000000000000000000
+index 880572e7746fb89bc3eb6fb2e4c4d1c54a90656b..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/MainActivity.kt
 +++ /dev/null
 @@ -1,206 +0,0 @@
@@ -50683,9 +50692,9 @@ index 2792fef62019c22a224d198ebc424108b0ff014d..00000000000000000000000000000000
 -
 -  NavDisplay(
 -    backStack = backStack,
--    transitionSpec = TransitionSpecs.HorizontalSlide.transitionSpec,
--    popTransitionSpec = TransitionSpecs.HorizontalSlide.popTransitionSpec,
--    predictivePopTransitionSpec = TransitionSpecs.HorizontalSlide.predictivePopTransitionSpec,
+-    transitionSpec = { TransitionSpecs.HorizontalSlide.transitionSpec },
+-    popTransitionSpec = { TransitionSpecs.HorizontalSlide.popTransitionSpec },
+-    predictivePopTransitionSpec = { TransitionSpecs.HorizontalSlide.predictivePopTransitionSpec },
 -    entryProvider = entryProvider {
 -      addEntryProvider(
 -        key = Screen.Home,
@@ -50796,10 +50805,10 @@ index 2792fef62019c22a224d198ebc424108b0ff014d..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/BatchTranscodeViewModel.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/batch/BatchTranscodeViewModel.kt
 deleted file mode 100644
-index cf0ba1b058969baaff09c504c1125c8f680b0859..0000000000000000000000000000000000000000
+index afccf39bd42f57c95172ea3ca54897bdf72d1232..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/BatchTranscodeViewModel.kt
 +++ /dev/null
-@@ -1,223 +0,0 @@
+@@ -1,222 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -50822,7 +50831,6 @@ index cf0ba1b058969baaff09c504c1125c8f680b0859..00000000000000000000000000000000
 -import kotlinx.coroutines.flow.StateFlow
 -import kotlinx.coroutines.flow.asStateFlow
 -import kotlinx.coroutines.launch
--import org.thoughtcrime.securesms.video.TranscodingPreset
 -import org.thoughtcrime.securesms.video.videoconverter.MediaConverter
 -import org.thoughtcrime.video.app.transcode.TranscodeSettings
 -import org.thoughtcrime.video.app.transcode.TranscodeTestRepository
@@ -50959,11 +50967,11 @@ index cf0ba1b058969baaff09c504c1125c8f680b0859..00000000000000000000000000000000
 -    onProgress: (Int) -> Unit
 -  ): TranscodeTestRepository.TranscodeResult {
 -    val outputTag = "preset%02d".format(profileIndex + 1)
--    return if (profile.isPreset && profile.presetName != null) {
--      repository.transcodeWithPreset(
+-    return if (profile.quality != null) {
+-      repository.transcodeWithQuality(
 -        context = context,
 -        inputUri = inputUri,
--        preset = TranscodingPreset.valueOf(profile.presetName),
+-        quality = profile.quality,
 -        enableFastStart = profile.enableFastStart,
 -        enableAudioRemux = profile.enableAudioRemux,
 -        outputTag = outputTag,
@@ -50974,7 +50982,7 @@ index cf0ba1b058969baaff09c504c1125c8f680b0859..00000000000000000000000000000000
 -        context = context,
 -        inputUri = inputUri,
 -        options = TranscodeTestRepository.CustomTranscodingOptions(
--          videoCodec = if (profile.useHevc) MediaConverter.VIDEO_CODEC_H265 else MediaConverter.VIDEO_CODEC_H264,
+-          videoCodec = MediaConverter.VIDEO_CODEC_H264,
 -          videoResolution = profile.videoResolution,
 -          videoBitrate = (profile.videoMegaBitrate * MEGABIT).roundToInt(),
 -          audioBitrate = profile.audioKiloBitrate * KILOBIT,
@@ -51015,10 +51023,10 @@ index cf0ba1b058969baaff09c504c1125c8f680b0859..00000000000000000000000000000000
 -    private const val KILOBIT = 1_000
 -
 -    fun profileSummary(profile: TranscodeSettings, index: Int): String {
--      return if (profile.isPreset) {
--        "Profile ${index + 1}: ${profile.presetName}"
+-      return if (profile.quality != null) {
+-        "Profile ${index + 1}: ${profile.quality.name}"
 -      } else {
--        "Profile ${index + 1}: ${profile.videoResolution.shortEdge}p/${if (profile.useHevc) "H265" else "H264"}/${"%.1f".format(profile.videoMegaBitrate)}Mbps"
+-        "Profile ${index + 1}: ${profile.videoResolution.shortEdge}p/${"%.1f".format(profile.videoMegaBitrate)}Mbps"
 -      }
 -    }
 -  }
@@ -51070,10 +51078,10 @@ index 4f3b9f9aa9289d138e9140a2d96018ba927d78c8..00000000000000000000000000000000
 -)
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchConfigScreen.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchConfigScreen.kt
 deleted file mode 100644
-index b53c3a1843b621285106da98be5ea9c2ab563ecf..0000000000000000000000000000000000000000
+index a0dc0403e7aaaf5fed74cbd473163a4eccefdad7..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchConfigScreen.kt
 +++ /dev/null
-@@ -1,180 +0,0 @@
+@@ -1,177 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -51108,6 +51116,7 @@ index b53c3a1843b621285106da98be5ea9c2ab563ecf..00000000000000000000000000000000
 -import androidx.compose.ui.unit.dp
 -import androidx.lifecycle.viewmodel.compose.viewModel
 -import org.thoughtcrime.video.app.batch.BatchTranscodeViewModel
+-import org.thoughtcrime.video.app.transcode.TranscodeQuality
 -import org.thoughtcrime.video.app.transcode.TranscodeSettings
 -import org.thoughtcrime.video.app.transcode.VideoResolution
 -import org.thoughtcrime.video.app.ui.composables.LabeledButton
@@ -51177,11 +51186,11 @@ index b53c3a1843b621285106da98be5ea9c2ab563ecf..00000000000000000000000000000000
 -        modifier = Modifier.fillMaxWidth()
 -      ) {
 -        Column(modifier = Modifier.weight(1f)) {
--          if (profile.isPreset) {
--            Text("Preset: ${profile.presetName}", style = MaterialTheme.typography.bodyMedium)
+-          if (profile.quality != null) {
+-            Text("Quality: ${profile.quality.name}", style = MaterialTheme.typography.bodyMedium)
 -          } else {
 -            Text(
--              "${profile.videoResolution.shortEdge}p / ${if (profile.useHevc) "H.265" else "H.264"} / ${"%.1f".format(profile.videoMegaBitrate)} Mbps",
+-              "${profile.videoResolution.shortEdge}p / ${"%.1f".format(profile.videoMegaBitrate)} Mbps",
 -              style = MaterialTheme.typography.bodyMedium
 -            )
 -          }
@@ -51230,24 +51239,20 @@ index b53c3a1843b621285106da98be5ea9c2ab563ecf..00000000000000000000000000000000
 -  val vm: BatchTranscodeViewModel = viewModel()
 -  vm.addProfile(
 -    TranscodeSettings(
--      isPreset = true,
--      presetName = "LEVEL_2",
+-      quality = TranscodeQuality.STANDARD,
 -      videoResolution = VideoResolution.SD,
 -      videoMegaBitrate = 1.25f,
 -      audioKiloBitrate = 128,
--      useHevc = false,
 -      enableFastStart = true,
 -      enableAudioRemux = true
 -    )
 -  )
 -  vm.addProfile(
 -    TranscodeSettings(
--      isPreset = false,
--      presetName = null,
+-      quality = null,
 -      videoResolution = VideoResolution.HD,
 -      videoMegaBitrate = 2.5f,
 -      audioKiloBitrate = 192,
--      useHevc = true,
 -      enableFastStart = true,
 -      enableAudioRemux = false
 -    )
@@ -51256,10 +51261,10 @@ index b53c3a1843b621285106da98be5ea9c2ab563ecf..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchProfileConfigScreen.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchProfileConfigScreen.kt
 deleted file mode 100644
-index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..0000000000000000000000000000000000000000
+index 5adeb18e662cffcad015e2e64e1d61d9c678cb2f..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchProfileConfigScreen.kt
 +++ /dev/null
-@@ -1,138 +0,0 @@
+@@ -1,130 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -51288,29 +51293,26 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -import androidx.compose.ui.Modifier
 -import androidx.compose.ui.tooling.preview.Preview
 -import androidx.compose.ui.unit.dp
--import org.thoughtcrime.securesms.video.TranscodingPreset
--import org.thoughtcrime.securesms.video.videoconverter.utils.DeviceCapabilities
+-import org.thoughtcrime.video.app.transcode.TranscodeQuality
 -import org.thoughtcrime.video.app.transcode.TranscodeSettings
--import org.thoughtcrime.video.app.transcode.calculateAudioKiloBitrateFromPreset
--import org.thoughtcrime.video.app.transcode.calculateVideoMegaBitrateFromPreset
+-import org.thoughtcrime.video.app.transcode.calculateAudioKiloBitrateFromQuality
+-import org.thoughtcrime.video.app.transcode.calculateVideoMegaBitrateFromQuality
 -import org.thoughtcrime.video.app.transcode.composables.CustomSettings
--import org.thoughtcrime.video.app.transcode.composables.PresetPicker
--import org.thoughtcrime.video.app.transcode.convertPresetToVideoResolution
+-import org.thoughtcrime.video.app.transcode.composables.QualityPicker
+-import org.thoughtcrime.video.app.transcode.convertQualityToVideoResolution
 -import org.thoughtcrime.video.app.ui.composables.LabeledButton
 -import kotlin.math.roundToInt
 -
 -@Composable
 -fun BatchProfileConfigScreen(
 -  onSaveProfile: (TranscodeSettings) -> Unit,
--  hevcCapable: Boolean = DeviceCapabilities.canEncodeHevc(),
 -  modifier: Modifier = Modifier
 -) {
 -  var useAutoTranscodingSettings by remember { mutableStateOf(true) }
--  var transcodingPreset by remember { mutableStateOf(TranscodingPreset.LEVEL_2) }
--  var videoResolution by remember { mutableStateOf(convertPresetToVideoResolution(TranscodingPreset.LEVEL_2)) }
--  var videoMegaBitrate by remember { mutableFloatStateOf(calculateVideoMegaBitrateFromPreset(TranscodingPreset.LEVEL_2)) }
--  var audioKiloBitrate by remember { mutableIntStateOf(calculateAudioKiloBitrateFromPreset(TranscodingPreset.LEVEL_2)) }
--  var useHevc by remember { mutableStateOf(false) }
+-  var transcodeQuality by remember { mutableStateOf(TranscodeQuality.STANDARD) }
+-  var videoResolution by remember { mutableStateOf(convertQualityToVideoResolution(TranscodeQuality.STANDARD)) }
+-  var videoMegaBitrate by remember { mutableFloatStateOf(calculateVideoMegaBitrateFromQuality(TranscodeQuality.STANDARD)) }
+-  var audioKiloBitrate by remember { mutableIntStateOf(calculateAudioKiloBitrateFromQuality(TranscodeQuality.STANDARD)) }
 -  var enableFastStart by remember { mutableStateOf(true) }
 -  var enableAudioRemux by remember { mutableStateOf(true) }
 -
@@ -51337,13 +51339,13 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -    }
 -
 -    if (useAutoTranscodingSettings) {
--      PresetPicker(
--        selectedTranscodingPreset = transcodingPreset,
--        onPresetSelected = {
--          transcodingPreset = it
--          videoResolution = convertPresetToVideoResolution(it)
--          videoMegaBitrate = calculateVideoMegaBitrateFromPreset(it)
--          audioKiloBitrate = calculateAudioKiloBitrateFromPreset(it)
+-      QualityPicker(
+-        selectedTranscodeQuality = transcodeQuality,
+-        onQualitySelected = {
+-          transcodeQuality = it
+-          videoResolution = convertQualityToVideoResolution(it)
+-          videoMegaBitrate = calculateVideoMegaBitrateFromQuality(it)
+-          audioKiloBitrate = calculateAudioKiloBitrateFromQuality(it)
 -        },
 -        modifier = Modifier.padding(vertical = 16.dp)
 -      )
@@ -51351,8 +51353,6 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -      CustomSettings(
 -        selectedResolution = videoResolution,
 -        onResolutionSelected = { videoResolution = it },
--        useHevc = useHevc,
--        onUseHevcSettingChanged = { useHevc = it },
 -        fastStartChecked = enableFastStart,
 -        onFastStartSettingCheckChanged = { enableFastStart = it },
 -        audioRemuxChecked = enableAudioRemux,
@@ -51361,7 +51361,6 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -        updateVideoSliderPosition = { videoMegaBitrate = it },
 -        audioSliderPosition = audioKiloBitrate,
 -        updateAudioSliderPosition = { audioKiloBitrate = it.roundToInt() },
--        hevcCapable = hevcCapable,
 -        modifier = Modifier.padding(vertical = 16.dp)
 -      )
 -    }
@@ -51371,12 +51370,10 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -      onClick = {
 -        onSaveProfile(
 -          TranscodeSettings(
--            isPreset = useAutoTranscodingSettings,
--            presetName = if (useAutoTranscodingSettings) transcodingPreset.name else null,
+-            quality = if (useAutoTranscodingSettings) transcodeQuality else null,
 -            videoResolution = videoResolution,
 -            videoMegaBitrate = videoMegaBitrate,
 -            audioKiloBitrate = audioKiloBitrate,
--            useHevc = useHevc,
 -            enableFastStart = enableFastStart,
 -            enableAudioRemux = enableAudioRemux
 -          )
@@ -51396,7 +51393,7 @@ index 9f735d1cc1397968fd28a6a781b7ee1c30957f49..00000000000000000000000000000000
 -@Preview(showBackground = true)
 -@Composable
 -private fun BatchProfileConfigScreenCustomPreview() {
--  BatchProfileConfigScreen(onSaveProfile = {}, hevcCapable = true)
+-  BatchProfileConfigScreen(onSaveProfile = {})
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchTranscodingScreen.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/batch/composables/BatchTranscodingScreen.kt
 deleted file mode 100644
@@ -51756,10 +51753,10 @@ index a3cdfa29de97a9b09253500823f5c9c152dc2171..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/Constants.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/Constants.kt
 deleted file mode 100644
-index 9eb2feadebbdcfcc1d52cd91655d9b25c442e90d..0000000000000000000000000000000000000000
+index e08bd9d0c23f89fc9afe74749fe7aea0ca58d27c..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/Constants.kt
 +++ /dev/null
-@@ -1,47 +0,0 @@
+@@ -1,42 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -51767,8 +51764,8 @@ index 9eb2feadebbdcfcc1d52cd91655d9b25c442e90d..00000000000000000000000000000000
 -
 -package org.thoughtcrime.video.app.transcode
 -
--import org.thoughtcrime.securesms.video.TranscodingPreset
--import org.thoughtcrime.securesms.video.TranscodingQuality
+-import org.thoughtcrime.securesms.video.TranscodingConfig.QualityTier
+-import org.thoughtcrime.securesms.video.videoconverter.utils.VideoConstants
 -
 -/**
 - * A dumping ground for constants that should be referenced across the sample app.
@@ -51777,9 +51774,6 @@ index 9eb2feadebbdcfcc1d52cd91655d9b25c442e90d..00000000000000000000000000000000
 -internal const val MIN_VIDEO_MEGABITRATE = 0.5f
 -internal const val MAX_VIDEO_MEGABITRATE = 4f
 -internal val OPTIONS_AUDIO_KILOBITRATES = listOf(64, 96, 128, 160, 192)
--
--private const val MEGABIT = 1_000_000
--private const val KILOBIT = 1_000
 -
 -enum class VideoResolution(val longEdge: Int, val shortEdge: Int) {
 -  SD(854, 480),
@@ -51793,26 +51787,24 @@ index 9eb2feadebbdcfcc1d52cd91655d9b25c442e90d..00000000000000000000000000000000
 -  }
 -}
 -
--internal fun calculateVideoMegaBitrateFromPreset(preset: TranscodingPreset): Float {
--  val quality = TranscodingQuality.createFromPreset(preset, -1)
--  return quality.targetVideoBitRate.toFloat() / MEGABIT
+-enum class TranscodeQuality(val qualityTier: QualityTier) {
+-  STANDARD(VideoConstants.DEFAULT_LVL1_STANDARD),
+-  HIGH(VideoConstants.DEFAULT_HIGH)
 -}
 -
--internal fun calculateAudioKiloBitrateFromPreset(preset: TranscodingPreset): Int {
--  val quality = TranscodingQuality.createFromPreset(preset, -1)
--  return quality.targetAudioBitRate / KILOBIT
--}
+-internal fun calculateVideoMegaBitrateFromQuality(quality: TranscodeQuality): Float = quality.qualityTier.videoBitrateMbps
 -
--internal fun convertPresetToVideoResolution(preset: TranscodingPreset) = when (preset) {
--  TranscodingPreset.LEVEL_3, TranscodingPreset.LEVEL_3_H265 -> VideoResolution.HD
--  else -> VideoResolution.SD
+-internal fun calculateAudioKiloBitrateFromQuality(quality: TranscodeQuality): Int = quality.qualityTier.audioBitrateKbps
+-
+-internal fun convertQualityToVideoResolution(quality: TranscodeQuality): VideoResolution {
+-  return VideoResolution.entries.firstOrNull { it.shortEdge == quality.qualityTier.resolution } ?: VideoResolution.SD
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestRepository.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestRepository.kt
 deleted file mode 100644
-index b16d220a1eea2b35f2f7ed8b5d9b74d1d6688f70..0000000000000000000000000000000000000000
+index 617ebccd59aed7b68950c83788235401fd4b3377..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestRepository.kt
 +++ /dev/null
-@@ -1,241 +0,0 @@
+@@ -1,240 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -51832,7 +51824,6 @@ index b16d220a1eea2b35f2f7ed8b5d9b74d1d6688f70..00000000000000000000000000000000
 -import kotlinx.coroutines.isActive
 -import org.signal.core.util.logging.Log
 -import org.thoughtcrime.securesms.video.StreamingTranscoder
--import org.thoughtcrime.securesms.video.TranscodingPreset
 -import org.thoughtcrime.securesms.video.postprocessing.Mp4FaststartPostProcessor
 -import org.thoughtcrime.securesms.video.videoconverter.mediadatasource.InputStreamMediaDataSource
 -import java.io.File
@@ -51848,13 +51839,13 @@ index b16d220a1eea2b35f2f7ed8b5d9b74d1d6688f70..00000000000000000000000000000000
 -  data class TranscodeResult(val outputUri: Uri, val originalFile: File, val originalSize: Long, val outputSize: Long)
 -
 -  /**
--   * Transcode a video using a [TranscodingPreset] and save the result to the Downloads folder.
+-   * Transcode a video using a [TranscodeQuality] and save the result to the Downloads folder.
 -   */
 -  @RequiresApi(26)
--  suspend fun transcodeWithPreset(
+-  suspend fun transcodeWithQuality(
 -    context: Context,
 -    inputUri: Uri,
--    preset: TranscodingPreset,
+-    quality: TranscodeQuality,
 -    enableFastStart: Boolean,
 -    enableAudioRemux: Boolean,
 -    outputTag: String = "preset01",
@@ -51862,7 +51853,7 @@ index b16d220a1eea2b35f2f7ed8b5d9b74d1d6688f70..00000000000000000000000000000000
 -  ): TranscodeResult {
 -    return doTranscode(context, inputUri, enableFastStart, outputTag, onProgress) { inputFile ->
 -      val dataSource = FileMediaDataSource(inputFile)
--      StreamingTranscoder(dataSource, null, preset, DEFAULT_FILE_SIZE_LIMIT, enableAudioRemux)
+-      StreamingTranscoder(dataSource, null, listOf(quality.qualityTier), DEFAULT_FILE_SIZE_LIMIT, enableAudioRemux)
 -    }
 -  }
 -
@@ -52056,10 +52047,10 @@ index b16d220a1eea2b35f2f7ed8b5d9b74d1d6688f70..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestViewModel.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestViewModel.kt
 deleted file mode 100644
-index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..0000000000000000000000000000000000000000
+index 3c23c9686968ad62913df93599e138185fdefa6e..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodeTestViewModel.kt
 +++ /dev/null
-@@ -1,132 +0,0 @@
+@@ -1,128 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -52083,7 +52074,6 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -import kotlinx.coroutines.flow.StateFlow
 -import kotlinx.coroutines.flow.asStateFlow
 -import kotlinx.coroutines.launch
--import org.thoughtcrime.securesms.video.TranscodingPreset
 -import org.thoughtcrime.securesms.video.videoconverter.MediaConverter
 -import kotlin.math.roundToInt
 -
@@ -52096,13 +52086,12 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -
 -  var selectedVideo: Uri? by mutableStateOf(null)
 -
--  var transcodingPreset by mutableStateOf(TranscodingPreset.LEVEL_2)
+-  var transcodeQuality by mutableStateOf(TranscodeQuality.STANDARD)
 -    private set
 -
--  var videoMegaBitrate by mutableFloatStateOf(calculateVideoMegaBitrateFromPreset(transcodingPreset))
--  var videoResolution by mutableStateOf(convertPresetToVideoResolution(transcodingPreset))
--  var audioKiloBitrate by mutableIntStateOf(calculateAudioKiloBitrateFromPreset(transcodingPreset))
--  var useHevc by mutableStateOf(false)
+-  var videoMegaBitrate by mutableFloatStateOf(calculateVideoMegaBitrateFromQuality(transcodeQuality))
+-  var videoResolution by mutableStateOf(convertQualityToVideoResolution(transcodeQuality))
+-  var audioKiloBitrate by mutableIntStateOf(calculateAudioKiloBitrateFromQuality(transcodeQuality))
 -  var useAutoTranscodingSettings by mutableStateOf(true)
 -  var enableFastStart by mutableStateOf(true)
 -  var enableAudioRemux by mutableStateOf(true)
@@ -52110,11 +52099,11 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -  private val _transcodingState = MutableStateFlow<TranscodingState>(TranscodingState.Idle)
 -  val transcodingState: StateFlow<TranscodingState> = _transcodingState.asStateFlow()
 -
--  fun updateTranscodingPreset(preset: TranscodingPreset) {
--    transcodingPreset = preset
--    videoResolution = convertPresetToVideoResolution(preset)
--    videoMegaBitrate = calculateVideoMegaBitrateFromPreset(preset)
--    audioKiloBitrate = calculateAudioKiloBitrateFromPreset(preset)
+-  fun updateTranscodeQuality(quality: TranscodeQuality) {
+-    transcodeQuality = quality
+-    videoResolution = convertQualityToVideoResolution(quality)
+-    videoMegaBitrate = calculateVideoMegaBitrateFromQuality(quality)
+-    audioKiloBitrate = calculateAudioKiloBitrateFromQuality(quality)
 -  }
 -
 -  fun startTranscode(context: Context) {
@@ -52122,12 +52111,10 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -    _transcodingState.value = TranscodingState.InProgress(0)
 -
 -    val settings = TranscodeSettings(
--      isPreset = useAutoTranscodingSettings,
--      presetName = if (useAutoTranscodingSettings) transcodingPreset.name else null,
+-      quality = if (useAutoTranscodingSettings) transcodeQuality else null,
 -      videoResolution = videoResolution,
 -      videoMegaBitrate = videoMegaBitrate,
 -      audioKiloBitrate = audioKiloBitrate,
--      useHevc = useHevc,
 -      enableFastStart = enableFastStart,
 -      enableAudioRemux = enableAudioRemux
 -    )
@@ -52135,10 +52122,10 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -    transcodeJob = viewModelScope.launch(Dispatchers.IO) {
 -      try {
 -        val result = if (useAutoTranscodingSettings) {
--          repository.transcodeWithPreset(
+-          repository.transcodeWithQuality(
 -            context = context,
 -            inputUri = video,
--            preset = transcodingPreset,
+-            quality = transcodeQuality,
 -            enableFastStart = enableFastStart,
 -            enableAudioRemux = enableAudioRemux,
 -            onProgress = { percent -> _transcodingState.value = TranscodingState.InProgress(percent) }
@@ -52148,7 +52135,7 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -            context = context,
 -            inputUri = video,
 -            options = TranscodeTestRepository.CustomTranscodingOptions(
--              videoCodec = if (useHevc) MediaConverter.VIDEO_CODEC_H265 else MediaConverter.VIDEO_CODEC_H264,
+-              videoCodec = MediaConverter.VIDEO_CODEC_H264,
 -              videoResolution = videoResolution,
 -              videoBitrate = (videoMegaBitrate * MEGABIT).roundToInt(),
 -              audioBitrate = audioKiloBitrate * KILOBIT,
@@ -52194,10 +52181,10 @@ index 59d1d1e1b515300432ac72b88eebdc2d0651f86b..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodingState.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodingState.kt
 deleted file mode 100644
-index 8c5fbc0adb47435af3dd008d617605a9a06fbcf8..0000000000000000000000000000000000000000
+index 92d3617b2e3dbdd602b1ffabe916d81836ad4b33..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/TranscodingState.kt
 +++ /dev/null
-@@ -1,34 +0,0 @@
+@@ -1,32 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -52223,21 +52210,19 @@ index 8c5fbc0adb47435af3dd008d617605a9a06fbcf8..00000000000000000000000000000000
 -}
 -
 -data class TranscodeSettings(
--  val isPreset: Boolean,
--  val presetName: String?,
+-  val quality: TranscodeQuality?,
 -  val videoResolution: VideoResolution,
 -  val videoMegaBitrate: Float,
 -  val audioKiloBitrate: Int,
--  val useHevc: Boolean,
 -  val enableFastStart: Boolean,
 -  val enableAudioRemux: Boolean
 -)
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/ConfigurationSelection.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/ConfigurationSelection.kt
 deleted file mode 100644
-index 7fb34d7f34936af1f8850a5086740db8933999f4..0000000000000000000000000000000000000000
+index 0714c2e94ded61a48a23ba3175ca80d6dd38fce0..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/ConfigurationSelection.kt
 +++ /dev/null
-@@ -1,310 +0,0 @@
+@@ -1,287 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -52271,11 +52256,10 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -import androidx.compose.ui.unit.dp
 -import androidx.compose.ui.unit.sp
 -import androidx.lifecycle.viewmodel.compose.viewModel
--import org.thoughtcrime.securesms.video.TranscodingPreset
--import org.thoughtcrime.securesms.video.videoconverter.utils.DeviceCapabilities
 -import org.thoughtcrime.video.app.transcode.MAX_VIDEO_MEGABITRATE
 -import org.thoughtcrime.video.app.transcode.MIN_VIDEO_MEGABITRATE
 -import org.thoughtcrime.video.app.transcode.OPTIONS_AUDIO_KILOBITRATES
+-import org.thoughtcrime.video.app.transcode.TranscodeQuality
 -import org.thoughtcrime.video.app.transcode.TranscodeTestViewModel
 -import org.thoughtcrime.video.app.transcode.VideoResolution
 -import org.thoughtcrime.video.app.ui.composables.LabeledButton
@@ -52287,7 +52271,6 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -@Composable
 -fun ConfigureEncodingParameters(
 -  onTranscodeClicked: () -> Unit,
--  hevcCapable: Boolean = DeviceCapabilities.canEncodeHevc(),
 -  modifier: Modifier = Modifier,
 -  viewModel: TranscodeTestViewModel = viewModel()
 -) {
@@ -52327,17 +52310,15 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -      )
 -    }
 -    if (viewModel.useAutoTranscodingSettings) {
--      PresetPicker(
--        viewModel.transcodingPreset,
--        viewModel::updateTranscodingPreset,
+-      QualityPicker(
+-        viewModel.transcodeQuality,
+-        viewModel::updateTranscodeQuality,
 -        modifier = Modifier.padding(vertical = 16.dp)
 -      )
 -    } else {
 -      CustomSettings(
 -        selectedResolution = viewModel.videoResolution,
 -        onResolutionSelected = { viewModel.videoResolution = it },
--        useHevc = viewModel.useHevc,
--        onUseHevcSettingChanged = { viewModel.useHevc = it },
 -        fastStartChecked = viewModel.enableFastStart,
 -        onFastStartSettingCheckChanged = { viewModel.enableFastStart = it },
 -        audioRemuxChecked = viewModel.enableAudioRemux,
@@ -52346,7 +52327,6 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -        updateVideoSliderPosition = { viewModel.videoMegaBitrate = it },
 -        audioSliderPosition = viewModel.audioKiloBitrate,
 -        updateAudioSliderPosition = { viewModel.audioKiloBitrate = it.roundToInt() },
--        hevcCapable = hevcCapable,
 -        modifier = Modifier.padding(vertical = 16.dp)
 -      )
 -    }
@@ -52359,9 +52339,9 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -}
 -
 -@Composable
--internal fun PresetPicker(
--  selectedTranscodingPreset: TranscodingPreset,
--  onPresetSelected: (TranscodingPreset) -> Unit,
+-internal fun QualityPicker(
+-  selectedTranscodeQuality: TranscodeQuality,
+-  onQualitySelected: (TranscodeQuality) -> Unit,
 -  modifier: Modifier = Modifier
 -) {
 -  Row(
@@ -52370,20 +52350,20 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -      .fillMaxWidth()
 -      .selectableGroup()
 -  ) {
--    TranscodingPreset.entries.forEach {
+-    TranscodeQuality.entries.forEach {
 -      Column(
 -        horizontalAlignment = Alignment.CenterHorizontally,
 -        modifier = Modifier
 -          .selectable(
--            selected = selectedTranscodingPreset == it,
+-            selected = selectedTranscodeQuality == it,
 -            onClick = {
--              onPresetSelected(it)
+-              onQualitySelected(it)
 -            },
 -            role = Role.RadioButton
 -          )
 -      ) {
 -        RadioButton(
--          selected = selectedTranscodingPreset == it,
+-          selected = selectedTranscodeQuality == it,
 -          onClick = null,
 -          modifier = Modifier.semantics { contentDescription = it.name }
 -        )
@@ -52400,8 +52380,6 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -internal fun CustomSettings(
 -  selectedResolution: VideoResolution,
 -  onResolutionSelected: (VideoResolution) -> Unit,
--  useHevc: Boolean,
--  onUseHevcSettingChanged: (Boolean) -> Unit,
 -  fastStartChecked: Boolean,
 -  onFastStartSettingCheckChanged: (Boolean) -> Unit,
 -  audioRemuxChecked: Boolean,
@@ -52410,7 +52388,6 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -  updateVideoSliderPosition: (Float) -> Unit,
 -  audioSliderPosition: Int,
 -  updateAudioSliderPosition: (Float) -> Unit,
--  hevcCapable: Boolean,
 -  modifier: Modifier = Modifier
 -) {
 -  Row(
@@ -52444,21 +52421,6 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -  }
 -  VideoBitrateSlider(videoSliderPosition, updateVideoSliderPosition)
 -  AudioBitrateSlider(audioSliderPosition, updateAudioSliderPosition)
--
--  if (hevcCapable) {
--    Row(
--      verticalAlignment = Alignment.CenterVertically,
--      modifier = Modifier
--        .padding(vertical = 8.dp, horizontal = 8.dp)
--        .fillMaxWidth()
--    ) {
--      Checkbox(
--        checked = useHevc,
--        onCheckedChange = { onUseHevcSettingChanged(it) }
--      )
--      Text(text = "Use HEVC encoder", style = MaterialTheme.typography.bodySmall)
--    }
--  }
 -
 -  Row(
 -    verticalAlignment = Alignment.CenterVertically,
@@ -52546,7 +52508,7 @@ index 7fb34d7f34936af1f8850a5086740db8933999f4..00000000000000000000000000000000
 -  val vm: TranscodeTestViewModel = viewModel()
 -  vm.selectedVideo = Uri.parse("content://media/video/1")
 -  vm.useAutoTranscodingSettings = false
--  ConfigureEncodingParameters(onTranscodeClicked = {}, hevcCapable = true)
+-  ConfigureEncodingParameters(onTranscodeClicked = {})
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/HomeScreen.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/HomeScreen.kt
 deleted file mode 100644
@@ -52605,10 +52567,10 @@ index 4d72cd58208608255e2b3b9082c8d0a43802db64..00000000000000000000000000000000
 -}
 diff --git a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/TranscodingScreen.kt b/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/TranscodingScreen.kt
 deleted file mode 100644
-index c008072a97cac2d6f2c97948426380fea9373c2b..0000000000000000000000000000000000000000
+index 60b6411d7ec0018ed0c46d4c9a9466c47fb02224..0000000000000000000000000000000000000000
 --- a/demo/video/src/main/java/org/thoughtcrime/video/app/transcode/composables/TranscodingScreen.kt
 +++ /dev/null
-@@ -1,223 +0,0 @@
+@@ -1,221 +0,0 @@
 -/*
 - * Copyright 2024 Signal Messenger, LLC
 - * SPDX-License-Identifier: AGPL-3.0-only
@@ -52643,6 +52605,7 @@ index c008072a97cac2d6f2c97948426380fea9373c2b..00000000000000000000000000000000
 -import androidx.compose.ui.unit.dp
 -import androidx.compose.ui.unit.sp
 -import androidx.core.content.FileProvider
+-import org.thoughtcrime.video.app.transcode.TranscodeQuality
 -import org.thoughtcrime.video.app.transcode.TranscodeSettings
 -import org.thoughtcrime.video.app.transcode.TranscodingState
 -import org.thoughtcrime.video.app.transcode.VideoResolution
@@ -52715,15 +52678,14 @@ index c008072a97cac2d6f2c97948426380fea9373c2b..00000000000000000000000000000000
 -
 -        Text("Transcode Settings", style = MaterialTheme.typography.titleMedium)
 -        Spacer(modifier = Modifier.height(4.dp))
--        if (state.settings.isPreset) {
--          StatsText("Mode: Preset (${state.settings.presetName})")
+-        if (state.settings.quality != null) {
+-          StatsText("Mode: ${state.settings.quality.name}")
 -        } else {
 -          StatsText("Mode: Custom")
 -        }
 -        StatsText("Resolution: ${state.settings.videoResolution.name} (${state.settings.videoResolution.shortEdge}p)")
 -        StatsText("Video bitrate: ${"%.2f".format(state.settings.videoMegaBitrate)} Mbps")
 -        StatsText("Audio bitrate: ${state.settings.audioKiloBitrate} kbps")
--        StatsText("Codec: ${if (state.settings.useHevc) "HEVC (H.265)" else "AVC (H.264)"}")
 -        StatsText("Fast start: ${if (state.settings.enableFastStart) "Yes" else "No"}")
 -        StatsText("Audio remux: ${if (state.settings.enableAudioRemux) "Yes" else "No"}")
 -        Spacer(modifier = Modifier.height(12.dp))
@@ -52808,12 +52770,10 @@ index c008072a97cac2d6f2c97948426380fea9373c2b..00000000000000000000000000000000
 -      originalSize = 52_428_800L,
 -      outputSize = 12_582_912L,
 -      settings = TranscodeSettings(
--        isPreset = true,
--        presetName = "LEVEL_2",
+-        quality = TranscodeQuality.STANDARD,
 -        videoResolution = VideoResolution.SD,
 -        videoMegaBitrate = 2.0f,
 -        audioKiloBitrate = 192,
--        useHevc = false,
 -        enableFastStart = true,
 -        enableAudioRemux = true
 -      )

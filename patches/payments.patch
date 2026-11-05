@@ -41,10 +41,10 @@ index fc8575f3019fa30845c27d8540bd32f506b54f39..8026be2395e968f0e74a8eff9fabef13
      void onShowUnverifiedProfileSheet(boolean forGroup);
      void onUpdateSignalClicked();
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/BackupRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/BackupRepository.kt
-index 028d3ffa989e18d0b14cf87b9d2e7440ca1a6811..43691b8eb5eaff4a3e874c140ef1e0527c48e8a4 100644
+index 8a63a3ba4330db8fab9d6849f94f8ffb996125dd..9ce0b19d5f354391923d99ed1285950e92b43119 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/BackupRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/BackupRepository.kt
-@@ -172,7 +172,6 @@ import java.io.File
+@@ -173,7 +173,6 @@ import java.io.File
  import java.io.IOException
  import java.io.InputStream
  import java.io.OutputStream
@@ -52,7 +52,7 @@ index 028d3ffa989e18d0b14cf87b9d2e7440ca1a6811..43691b8eb5eaff4a3e874c140ef1e052
  import java.time.ZonedDateTime
  import java.util.Currency
  import java.util.Locale
-@@ -2064,7 +2063,8 @@ object BackupRepository {
+@@ -2089,7 +2088,8 @@ object BackupRepository {
        Log.d(TAG, "Accessing price via billing api.")
        AppDependencies.billingApi.queryProduct()?.price
      } else {
@@ -1090,7 +1090,7 @@ index 61c2380bec154e8dfb60259fe821402ba44fa7a2..dfe0326d6cf16f28930a3bee25b746a9
      DELETE,
      END_POLL,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationUpdateItem.java b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationUpdateItem.java
-index 867f6b7bb05d860443e0b141149266c043b0be82..87fff5190a1cd2bbe8256dff3d29974446f10c78 100644
+index 91c4d32a4dd73211c9e410c50a604f125833aa69..87fff5190a1cd2bbe8256dff3d29974446f10c78 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationUpdateItem.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationUpdateItem.java
 @@ -20,7 +20,6 @@ import android.widget.TextView;
@@ -1126,7 +1126,7 @@ index 867f6b7bb05d860443e0b141149266c043b0be82..87fff5190a1cd2bbe8256dff3d299744
        });
  
        actionButton.setText(R.string.ConversationActivity__invite_to_signal);
--    } else if (conversationMessage.getMessageRecord().isPaymentsRequestToActivate() && !conversationMessage.getMessageRecord().isOutgoing() && !SignalStore.payments().mobileCoinPaymentsEnabled()) {
+-    } else if (conversationMessage.getMessageRecord().isPaymentsRequestToActivate() && !conversationMessage.getMessageRecord().isOutgoing() && !SignalStore.payments().mobileCoinPaymentsEnabled() && SignalStore.account().isPrimaryDevice()) {
 -      actionButton.setText(R.string.ConversationUpdateItem_activate_payments);
 -      actionButton.setVisibility(VISIBLE);
 -      actionButton.setOnClickListener(v -> {
@@ -1136,7 +1136,7 @@ index 867f6b7bb05d860443e0b141149266c043b0be82..87fff5190a1cd2bbe8256dff3d299744
 -          passthroughClickListener.onClick(v);
 -        }
 -      });
--    } else if (conversationMessage.getMessageRecord().isPaymentsActivated() && !conversationMessage.getMessageRecord().isOutgoing()) {
+-    } else if (conversationMessage.getMessageRecord().isPaymentsActivated() && !conversationMessage.getMessageRecord().isOutgoing() && SignalStore.account().isPrimaryDevice()) {
 -      actionButton.setText(R.string.ConversationUpdateItem_send_payment);
 -      actionButton.setVisibility(VISIBLE);
 -      actionButton.setOnClickListener(v -> {
@@ -1903,7 +1903,7 @@ index 80cea0db9f4fd8926fb6818a4c2fd11f4e22a77c..4d68dfdc6f779616ac47eb7cbd045382
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/keyboard/AttachmentKeyboardFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/keyboard/AttachmentKeyboardFragment.kt
-index 0ea399f60db62302f69082d1a7a00f0f6a513920..db093fdaae6470ca9000558fc3632d4003f9d4d6 100644
+index bebce332f34fee437c20e5886b8e830c2b8a926f..db093fdaae6470ca9000558fc3632d4003f9d4d6 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/keyboard/AttachmentKeyboardFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversation/v2/keyboard/AttachmentKeyboardFragment.kt
 @@ -25,9 +25,7 @@ import org.thoughtcrime.securesms.conversation.AttachmentKeyboard
@@ -1939,7 +1939,7 @@ index 0ea399f60db62302f69082d1a7a00f0f6a513920..db093fdaae6470ca9000558fc3632d40
  
    private fun updateButtonsAvailable(recipient: Recipient) {
 -    val paymentsValues = SignalStore.payments
--    val isPaymentsAvailable = paymentsValues.paymentsAvailability.isSendAllowed && !recipient.isSelf && !recipient.isGroup && recipient.isRegistered
+-    val isPaymentsAvailable = paymentsValues.paymentsAvailability.isSendAllowed && !recipient.isSelf && !recipient.isGroup && recipient.isRegistered && SignalStore.account.isPrimaryDevice
 -
 -    if (!isPaymentsAvailable) {
 -      attachmentKeyboardView.filterAttachmentKeyboardButtons(removePaymentFilter)
@@ -2026,7 +2026,7 @@ index 2305851640bbe317a96160c920e439a31c61a658..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/database/MessageTable.kt b/app/src/main/java/org/thoughtcrime/securesms/database/MessageTable.kt
-index 6138d8a71793fecbc097ae2f7cfa03bdda426902..d1967c32bdb3c171515542bc89190fe87925bc9e 100644
+index c57d652eaab9dc22ffa816fd1b32dd1df4b894bc..c8424f3dfdec2af0c70cf4999e4f575fcd28a6d3 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/database/MessageTable.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/database/MessageTable.kt
 @@ -2200,7 +2200,7 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat

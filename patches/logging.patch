@@ -2262,7 +2262,7 @@ index 0000000000000000000000000000000000000000..a2f755f9255363f6dec1098f80d35cc1
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
-index 0319dd540918dbbf0b29262fb4dceae99549df2a..43c0c31e885e56867c50e29de6eac62c7fd9ac72 100644
+index 4e6accf7f04bbc92f0bc662608db9ffe5ae2afba..072533b25135b0f62c61244f2ad92f3c6c925621 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsState.kt
 @@ -5,7 +5,6 @@ import org.thoughtcrime.securesms.emoji.EmojiFiles
@@ -2280,9 +2280,9 @@ index 0319dd540918dbbf0b29262fb4dceae99549df2a..43c0c31e885e56867c50e29de6eac62c
 -  val pnpInitialized: Boolean,
    val useConversationItemV2ForMedia: Boolean,
    val hasPendingOneTimeDonation: Boolean,
-   val hevcEncoding: Boolean,
+   val forceSplitPane: Boolean,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
-index 3602aaf510456a9b9d3d65cf7a8c04f13e2137f5..fde28e23c6c89d2d40fa33f2fd13ebb3e64d2027 100644
+index e7052474734ce097479e1f99ded9622287832331..3a4a8a77f0575b4039158f72d98b3385cf8850cf 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsViewModel.kt
 @@ -47,11 +47,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
@@ -2309,7 +2309,7 @@ index 3602aaf510456a9b9d3d65cf7a8c04f13e2137f5..fde28e23c6c89d2d40fa33f2fd13ebb3
    fun setUseBuiltInEmoji(enabled: Boolean) {
      preferenceDataStore.putBoolean(InternalValues.FORCE_BUILT_IN_EMOJI, enabled)
      refresh()
-@@ -165,10 +155,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -160,10 +150,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
      repository.addRemoteMegaphone(RemoteMegaphoneRecord.ActionId.DONATE)
    }
  
@@ -2320,7 +2320,7 @@ index 3602aaf510456a9b9d3d65cf7a8c04f13e2137f5..fde28e23c6c89d2d40fa33f2fd13ebb3
    fun enqueueSubscriptionRedemption() {
      repository.enqueueSubscriptionRedemption()
    }
-@@ -219,7 +205,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -214,7 +200,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
  
    private fun getState() = InternalSettingsState(
      seeMoreUserDetails = SignalStore.internal.recipientDetails,
@@ -2328,19 +2328,19 @@ index 3602aaf510456a9b9d3d65cf7a8c04f13e2137f5..fde28e23c6c89d2d40fa33f2fd13ebb3
      showArchiveStateHint = SignalStore.internal.showArchiveStateHint,
      gv2forceInvites = SignalStore.internal.gv2ForceInvites,
      gv2ignoreP2PChanges = SignalStore.internal.gv2IgnoreP2PChanges,
-@@ -239,7 +224,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
+@@ -234,7 +219,6 @@ class InternalSettingsViewModel(private val repository: InternalSettingsReposito
      delayResends = SignalStore.internal.delayResends,
      disableStorageService = SignalStore.internal.storageServiceDisabled,
      canClearOnboardingState = SignalStore.story.hasDownloadedOnboardingStory && Stories.isFeatureEnabled(),
 -    pnpInitialized = SignalStore.misc.hasPniInitializedDevices,
      useConversationItemV2ForMedia = SignalStore.internal.useConversationItemV2Media,
      hasPendingOneTimeDonation = SignalStore.inAppPayments.getPendingOneTimeDonation() != null,
-     hevcEncoding = SignalStore.internal.hevcEncoding,
+     forceSplitPane = SignalStore.internal.forceSplitPane,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java b/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
-index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841bf356e030 100644
+index 993b8b8e589765123e987c605fb1620a83ca0606..5666ebf070d854160aa308b192eddfcf76ace11a 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java
-@@ -46,7 +46,6 @@ import androidx.annotation.Nullable;
+@@ -45,7 +45,6 @@ import androidx.annotation.Nullable;
  import androidx.appcompat.content.res.AppCompatResources;
  import androidx.compose.ui.platform.ComposeView;
  import androidx.coordinatorlayout.widget.CoordinatorLayout;
@@ -2348,7 +2348,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import androidx.core.view.ViewCompat;
  import androidx.lifecycle.ViewModelProvider;
  import androidx.recyclerview.widget.DefaultItemAnimator;
-@@ -68,6 +67,7 @@ import org.greenrobot.eventbus.ThreadMode;
+@@ -67,6 +66,7 @@ import org.greenrobot.eventbus.ThreadMode;
  import org.signal.core.ui.BottomSheetUtil;
  import org.signal.core.ui.WindowSizeClassExtensionsKt;
  import org.signal.core.ui.compose.Snackbars;
@@ -2356,7 +2356,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.signal.core.ui.view.Stub;
  import org.signal.core.util.AppForegroundObserver;
  import org.signal.core.util.DimensionUnit;
-@@ -88,9 +88,6 @@ import org.thoughtcrime.securesms.backup.v2.ArchiveRestoreProgressState;
+@@ -87,9 +87,6 @@ import org.thoughtcrime.securesms.backup.v2.ArchiveRestoreProgressState;
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlert;
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlertBottomSheet;
  import org.thoughtcrime.securesms.backup.v2.ui.BackupAlertDelegate;
@@ -2366,7 +2366,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.thoughtcrime.securesms.banner.Banner;
  import org.thoughtcrime.securesms.banner.BannerManager;
  import org.thoughtcrime.securesms.banner.banners.ArchiveRestoreStatusBanner;
-@@ -104,7 +101,6 @@ import org.thoughtcrime.securesms.banner.banners.OutdatedBuildBanner;
+@@ -103,7 +100,6 @@ import org.thoughtcrime.securesms.banner.banners.OutdatedBuildBanner;
  import org.thoughtcrime.securesms.banner.banners.ServiceOutageBanner;
  import org.thoughtcrime.securesms.banner.banners.UnauthorizedBanner;
  import org.thoughtcrime.securesms.banner.banners.UsernameOutOfSyncBanner;
@@ -2374,7 +2374,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.thoughtcrime.securesms.components.SignalProgressDialog;
  import org.thoughtcrime.securesms.components.compose.DeleteSyncEducationDialog;
  import org.thoughtcrime.securesms.components.menu.ActionItem;
-@@ -112,8 +108,6 @@ import org.thoughtcrime.securesms.components.menu.SignalBottomActionBar;
+@@ -111,8 +107,6 @@ import org.thoughtcrime.securesms.components.menu.SignalBottomActionBar;
  import org.thoughtcrime.securesms.components.menu.SignalContextMenu;
  import org.thoughtcrime.securesms.components.settings.app.AppSettingsActivity;
  import org.thoughtcrime.securesms.components.settings.app.chats.folders.ChatFolderRecord;
@@ -2383,7 +2383,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.thoughtcrime.securesms.components.snackbars.SnackbarState;
  import org.thoughtcrime.securesms.components.spoiler.SpoilerAnnotation;
  import org.thoughtcrime.securesms.components.voice.VoiceNoteMediaControllerOwner;
-@@ -151,7 +145,6 @@ import org.thoughtcrime.securesms.main.MainSnackbarHostKey;
+@@ -150,7 +144,6 @@ import org.thoughtcrime.securesms.main.MainSnackbarHostKey;
  import org.thoughtcrime.securesms.main.MainToolbarMode;
  import org.thoughtcrime.securesms.main.MainToolbarViewModel;
  import org.thoughtcrime.securesms.main.Material3OnScrollHelperBinder;
@@ -2391,7 +2391,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.thoughtcrime.securesms.notifications.MarkReadReceiver;
  import org.thoughtcrime.securesms.profiles.manage.UsernameEditFragment;
  import org.thoughtcrime.securesms.ratelimit.RecaptchaProofBottomSheetFragment;
-@@ -167,7 +160,6 @@ import org.thoughtcrime.securesms.util.CachedInflater;
+@@ -166,7 +159,6 @@ import org.thoughtcrime.securesms.util.CachedInflater;
  import org.thoughtcrime.securesms.util.ConversationUtil;
  import org.thoughtcrime.securesms.util.RemoteConfig;
  import org.thoughtcrime.securesms.util.SignalLocalMetrics;
@@ -2399,7 +2399,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  import org.thoughtcrime.securesms.util.SnapToTopDataObserver;
  import org.thoughtcrime.securesms.util.TextSecurePreferences;
  import org.thoughtcrime.securesms.util.ViewUtil;
-@@ -318,7 +310,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -317,7 +309,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
  
    @Override
    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -2407,7 +2407,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
      BackupAlertDelegate.delegate(getParentFragmentManager(), getViewLifecycleOwner().getLifecycle());
  
      lifecycleDisposable = new LifecycleDisposable();
-@@ -419,7 +410,9 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -418,7 +409,9 @@ public class ConversationListFragment extends MainFragment implements Conversati
        pullView.onUserDrag(progress);
      });
  
@@ -2418,7 +2418,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
      itemAnimator      = new ConversationListItemAnimator();
  
      chatFolderAdapter = new ChatFolderAdapter(this);
-@@ -432,12 +425,13 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -431,12 +424,13 @@ public class ConversationListFragment extends MainFragment implements Conversati
      list.setLayoutManager(new LinearLayoutManager(requireActivity()));
      list.setItemAnimator(itemAnimator);
      list.addItemDecoration(archiveDecoration);
@@ -2434,7 +2434,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
  
      initializeViewModel();
      initializeListAdapters();
-@@ -460,8 +454,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -459,8 +453,6 @@ public class ConversationListFragment extends MainFragment implements Conversati
        SelfVerificationFailureSheet.show(getParentFragmentManager());
      }
  
@@ -2443,7 +2443,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
      chatListBackHandler = new ChatListBackHandler(false);
      requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), chatListBackHandler);
  
-@@ -554,48 +546,11 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -553,48 +545,11 @@ public class ConversationListFragment extends MainFragment implements Conversati
        setAdapter(defaultAdapter);
      }
  
@@ -2492,7 +2492,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
      if (this.bannerManager != null) {
        this.bannerManager.updateContent(bannerView.get());
      }
-@@ -836,10 +791,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -835,10 +790,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
          new UnauthorizedBanner(requireContext()),
          new ServiceOutageBanner(requireContext()),
          new OutdatedBuildBanner(),
@@ -2504,7 +2504,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
          new CdsTemporaryErrorBanner(getChildFragmentManager()),
          new CdsPermanentErrorBanner(getChildFragmentManager()),
          new UsernameOutOfSyncBanner((usernameSyncState) -> {
-@@ -1366,17 +1318,10 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -1354,17 +1306,10 @@ public class ConversationListFragment extends MainFragment implements Conversati
    void updateEmptyState(boolean isConversationEmpty) {
      if (isConversationEmpty) {
        Log.i(TAG, "Received an empty data set.");
@@ -2522,7 +2522,7 @@ index 9bf8dda77fa33a183e2ae58f64473ab4bb12e4b6..0f4dac9c04051f3da7cb56be0b1c841b
    }
  
    @Override
-@@ -1908,7 +1853,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
+@@ -1896,7 +1841,7 @@ public class ConversationListFragment extends MainFragment implements Conversati
          if (absoluteDx > 0) {
            if (archiveDrawable == null) {
              archiveDrawable = Objects.requireNonNull(AppCompatResources.getDrawable(requireContext(), getArchiveIconRes()));
@@ -3066,7 +3066,7 @@ index 5ee36e818556bdfba4ba4512e843c91a9574f3c0..00000000000000000000000000000000
 -  public override fun getKeysToIncludeInBackup(): List<String> = emptyList()
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
-index 9fe15e183d90d125e0d83cb17d296fb0aac95801..14d3003185aab89efb5bbcd02a84f6b00d1fc26c 100644
+index b3c4824e4362726df38089daa6bc3be0d9a9a218..ae7c73efb9567df55e3569f8ea60d97766617f8f 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/InternalValues.kt
 @@ -25,7 +25,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
@@ -3077,7 +3077,7 @@ index 9fe15e183d90d125e0d83cb17d296fb0aac95801..14d3003185aab89efb5bbcd02a84f6b0
      const val DISABLE_STORAGE_SERVICE: String = "internal.disable_storage_service"
      const val LAST_SCROLL_POSITION: String = "internal.last_scroll_position"
      const val CONVERSATION_ITEM_V2_MEDIA: String = "internal.conversation_item_v2_media"
-@@ -93,11 +92,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
+@@ -92,11 +91,6 @@ class InternalValues internal constructor(store: KeyValueStore) : SignalStoreVal
     */
    var delayResends by booleanValue(DELAY_RESENDS, false).defaultForExternalUsers()
  

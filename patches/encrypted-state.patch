@@ -1001,10 +1001,10 @@ index affb3a23fd139e24e65a7e46337ca87c568f09f6..23557464f7e647ba5ba86d4145deb239
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
-index e8d2fcd25e242f107a820c28b33789ce20e5f0e3..e4288ddcee4186051fa402e4c0eba2537fe464f4 100644
+index 92951893bd4c9bb679aa698c23f8e3a883945e85..50248357464eab1832d1fa8b0641a79cb5a8d161 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/backup/v2/processor/AccountDataArchiveProcessor.kt
-@@ -45,6 +45,7 @@ import org.thoughtcrime.securesms.recipients.Recipient
+@@ -44,6 +44,7 @@ import org.thoughtcrime.securesms.recipients.Recipient
  import org.thoughtcrime.securesms.recipients.RecipientId
  import org.thoughtcrime.securesms.util.Environment
  import org.thoughtcrime.securesms.util.ProfileUtil
@@ -1012,7 +1012,7 @@ index e8d2fcd25e242f107a820c28b33789ce20e5f0e3..e4288ddcee4186051fa402e4c0eba253
  import org.thoughtcrime.securesms.util.TextSecurePreferences
  import org.thoughtcrime.securesms.webrtc.CallDataMode
  import org.whispersystems.signalservice.api.push.UsernameLinkComponents
-@@ -52,8 +53,6 @@ import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.AppleIAPOr
+@@ -51,8 +52,6 @@ import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.AppleIAPOr
  import org.whispersystems.signalservice.api.storage.IAPSubscriptionId.GooglePlayBillingPurchaseToken
  import org.whispersystems.signalservice.api.subscriptions.SubscriberId
  import java.util.Currency
@@ -1021,7 +1021,7 @@ index e8d2fcd25e242f107a820c28b33789ce20e5f0e3..e4288ddcee4186051fa402e4c0eba253
  
  /**
   * Handles importing/exporting [AccountData] frames for an archive.
-@@ -76,12 +75,7 @@ object AccountDataArchiveProcessor {
+@@ -75,12 +74,7 @@ object AccountDataArchiveProcessor {
  
      val backupSubscriberRecord = db.inAppPaymentSubscriberTable.getBackupsSubscriber()
  
@@ -1035,19 +1035,19 @@ index e8d2fcd25e242f107a820c28b33789ce20e5f0e3..e4288ddcee4186051fa402e4c0eba253
  
      val mobileAutoDownload = TextSecurePreferences.getMobileMediaDownloadAllowed(context)
      val wifiAutoDownload = TextSecurePreferences.getWifiMediaDownloadAllowed(context)
-@@ -277,9 +271,9 @@ object AccountDataArchiveProcessor {
+@@ -276,9 +270,9 @@ object AccountDataArchiveProcessor {
      SignalStore.story.userHasSeenGroupStoryEducationSheet = settings.hasSeenGroupStoryEducationSheet
      SignalStore.story.viewedReceiptsEnabled = settings.storyViewReceiptsEnabled ?: settings.readReceipts
-     SignalStore.backup.optimizeStorage = settings.optimizeOnDeviceStorage
--    SignalStore.backup.backupTier = settings.backupTier?.toLocalBackupTier()
-+    SignalStore.backup.backupTier = if (SignalStore.account.isPrimaryDevice) settings.backupTier?.toLocalBackupTier() else null
+     SignalStore.backup.optimizeStorage = !importState.backupMode.isLinkAndSync && settings.optimizeOnDeviceStorage
+-    SignalStore.backup.backupTier = MessageBackupTier.fromBackupLevel(settings.backupTier)
++    SignalStore.backup.backupTier = if (SignalStore.account.isPrimaryDevice) MessageBackupTier.fromBackupLevel(settings.backupTier) else null
      SignalStore.settings.sentMediaQuality = settings.defaultSentMediaQuality.toLocalSentMediaQuality()
 -    SignalStore.settings.setTheme(settings.appTheme.toLocalTheme())
 +    SignalStore.settings.setTheme(settings.appTheme.toLocalTheme(), false)  // MOLLY: FIXME
      SignalStore.settings.setCallDataMode(settings.callsUseLessDataSetting.toLocalCallDataMode())
      SignalStore.settings.automaticVerificationEnabled = settings.allowAutomaticKeyVerification
  
-@@ -288,7 +282,7 @@ object AccountDataArchiveProcessor {
+@@ -287,7 +281,7 @@ object AccountDataArchiveProcessor {
        val mobileAndWifiDownloadSet = autoDownloadSettings.toLocalAutoDownloadSet(AccountData.AutoDownloadSettings.AutoDownloadOption.WIFI_AND_CELLULAR)
        val wifiDownloadSet = mobileAndWifiDownloadSet + autoDownloadSettings.toLocalAutoDownloadSet(AccountData.AutoDownloadSettings.AutoDownloadOption.WIFI)
  
@@ -1056,7 +1056,7 @@ index e8d2fcd25e242f107a820c28b33789ce20e5f0e3..e4288ddcee4186051fa402e4c0eba253
          putStringSet(TextSecurePreferences.MEDIA_DOWNLOAD_MOBILE_PREF, mobileAndWifiDownloadSet)
          putStringSet(TextSecurePreferences.MEDIA_DOWNLOAD_WIFI_PREF, wifiDownloadSet)
          apply()
-@@ -297,7 +291,7 @@ object AccountDataArchiveProcessor {
+@@ -296,7 +290,7 @@ object AccountDataArchiveProcessor {
  
      val screenLockTimeoutMinutes = settings.screenLockTimeoutMinutes
      if (screenLockTimeoutMinutes != null) {
@@ -4021,7 +4021,7 @@ index b9093d8883b7b90bd46d1330d89b10ae3ab21854..e2840c23da0eeab5194a59a7d04cb6ae
    /**
     * Stores the ID offset that was determined during the big migration that moved all SMS messages into the MMS table.
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
-index d7d265b8d7f1bc6c1dacbc3aacbdf71b8f3d0c52..7d0c4cf75eeb46689c3f5b05eda2bfa5f8e8b9ad 100644
+index 125cc28a327c6b90bf0ea5db7e18de8438c4c3b3..0adc438957e8eba5e45ca06ffa3156b1cac6ae1d 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SettingsValues.java
 @@ -7,6 +7,7 @@ import android.text.TextUtils;

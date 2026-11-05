@@ -321,7 +321,7 @@ index 2a7c103b2467441dd285d9abc051d27685adf2a9..5087d58376b512d95c44f12db50c3b64
            } finally {
              i++;
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/BackupMediaRestoreService.kt b/app/src/main/java/org/thoughtcrime/securesms/service/BackupMediaRestoreService.kt
-index a11d864e03b1a25d21e8a80f98b8a2d8d3094a8d..58d0665a14e0ee16e3b1555951dfa22842b0565e 100644
+index 7e15f72b2874dcf9de528e4c7098e7b6645f845f..0c09c52db971c8d6044e5431a6a7ae4956233008 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/BackupMediaRestoreService.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/BackupMediaRestoreService.kt
 @@ -5,6 +5,7 @@ import android.app.PendingIntent
@@ -332,7 +332,7 @@ index a11d864e03b1a25d21e8a80f98b8a2d8d3094a8d..58d0665a14e0ee16e3b1555951dfa228
  import androidx.core.app.NotificationCompat
  import org.signal.core.util.ByteSize
  import org.signal.core.util.PendingIntentFlags
-@@ -19,7 +20,6 @@ import org.thoughtcrime.securesms.notifications.NotificationIds
+@@ -20,7 +21,6 @@ import org.thoughtcrime.securesms.notifications.NotificationIds
  import org.thoughtcrime.securesms.service.BackupMediaRestoreService.Companion.hasTimedOut
  import java.util.concurrent.CopyOnWriteArraySet
  import java.util.concurrent.locks.ReentrantLock
@@ -340,7 +340,7 @@ index a11d864e03b1a25d21e8a80f98b8a2d8d3094a8d..58d0665a14e0ee16e3b1555951dfa228
  import kotlin.concurrent.withLock
  
  /**
-@@ -49,7 +49,7 @@ class BackupMediaRestoreService : SafeForegroundService() {
+@@ -50,7 +50,7 @@ class BackupMediaRestoreService : SafeForegroundService() {
      private val controllerLock = ReentrantLock()
  
      @JvmStatic
@@ -350,71 +350,34 @@ index a11d864e03b1a25d21e8a80f98b8a2d8d3094a8d..58d0665a14e0ee16e3b1555951dfa228
        controllerLock.withLock {
          val started = if (hasTimedOut) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/BackupProgressService.kt b/app/src/main/java/org/thoughtcrime/securesms/service/BackupProgressService.kt
-index 637288e52db07513db4bdef16d54a3570d4d7dd5..dc9a68ba5ec07f15f00099b67ecae059fa938916 100644
+index 9732277ea64a962673cb69401a8532e6ba71ca7f..90625b7e841fb92bc0c6a378da1a2f31de654b91 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/BackupProgressService.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/BackupProgressService.kt
-@@ -12,6 +12,7 @@ import android.app.PendingIntent
- import android.content.Context
+@@ -13,6 +13,7 @@ import android.content.Context
  import android.content.Intent
  import android.content.pm.PackageManager
+ import android.os.PowerManager
 +import androidx.annotation.CheckResult
  import androidx.core.app.NotificationCompat
  import androidx.core.app.NotificationManagerCompat
  import androidx.core.content.ContextCompat
-@@ -22,7 +23,6 @@ import org.thoughtcrime.securesms.R
+@@ -23,7 +24,6 @@ import org.thoughtcrime.securesms.MainActivity
  import org.thoughtcrime.securesms.notifications.NotificationChannels
  import org.thoughtcrime.securesms.notifications.NotificationIds
  import java.util.concurrent.locks.ReentrantLock
 -import javax.annotation.CheckReturnValue
  import kotlin.concurrent.withLock
- 
- /**
-@@ -44,7 +44,7 @@ class BackupProgressService : SafeForegroundService() {
-     private var progress: Float = 0f
-     private var indeterminate: Boolean = true
+ import kotlin.time.Duration.Companion.hours
+ import org.signal.core.ui.R as CoreUiR
+@@ -50,7 +50,7 @@ class BackupProgressService : SafeForegroundService() {
+     private const val WAKE_LOCK_TAG = "signal:backupProgress"
+     private val WAKE_LOCK_TIMEOUT = 2.hours.inWholeMilliseconds
  
 -    @CheckReturnValue
 +    @CheckResult
      fun start(context: Context, startingTitle: String): Controller {
        controllerLock.withLock {
          if (controller != null) {
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/SafeForegroundService.kt b/app/src/main/java/org/thoughtcrime/securesms/service/SafeForegroundService.kt
-index 3a0486d770bf707b6edaf0f508d3ec643f81f89d..21a298cc83629fc99383ce5755ff9c75645a55fc 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/service/SafeForegroundService.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/service/SafeForegroundService.kt
-@@ -13,13 +13,13 @@ import android.content.Intent
- import android.os.Build
- import android.os.Bundle
- import android.os.IBinder
-+import androidx.annotation.CheckResult
- import androidx.annotation.RequiresApi
- import androidx.core.app.ServiceCompat
- import org.signal.core.util.logging.Log
- import org.thoughtcrime.securesms.jobs.ForegroundServiceUtil
- import org.thoughtcrime.securesms.jobs.UnableToStartException
- import java.util.concurrent.locks.ReentrantLock
--import javax.annotation.CheckReturnValue
- import kotlin.concurrent.withLock
- 
- /**
-@@ -44,7 +44,7 @@ abstract class SafeForegroundService : Service() {
-      * Safely starts the target foreground service.
-      * @return False if we tried to start the service but failed, otherwise true.
-      */
--    @CheckReturnValue
-+    @CheckResult
-     fun start(context: Context, serviceClass: Class<out SafeForegroundService>, extras: Bundle = Bundle.EMPTY): Boolean {
-       stateLock.withLock {
-         val state = currentState(serviceClass)
-@@ -135,7 +135,7 @@ abstract class SafeForegroundService : Service() {
-      *
-      * @return True if we updated a started service, otherwise false.
-      */
--    @CheckReturnValue
-+    @CheckResult
-     fun update(context: Context, serviceClass: Class<out SafeForegroundService>, extras: Bundle = Bundle.EMPTY): Boolean {
-       stateLock.withLock {
-         val state = currentState(serviceClass)
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/views/CircularProgressMaterialButton.kt b/app/src/main/java/org/thoughtcrime/securesms/util/views/CircularProgressMaterialButton.kt
 index e3ee567d05808998d4538971cd6a562a493000f5..006a729dada984944d51d81ccf99c26078fbbe8b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/views/CircularProgressMaterialButton.kt
@@ -599,6 +562,41 @@ index e013909b6396ebb35f07c1b16c7dc226b85a40c0..0b60964f025843a6f837fa4b3be4e924
 +    prev = cur
 +  }
 +}
+diff --git a/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt b/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
+index d46ee471fe5ae894eb3eee1d337b813f42f59919..3098bbec493ef0060001f76f6ca30d86d20e31f4 100644
+--- a/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
++++ b/core/util/src/main/java/org/signal/core/util/SafeForegroundService.kt
+@@ -13,11 +13,11 @@ import android.content.Intent
+ import android.os.Build
+ import android.os.Bundle
+ import android.os.IBinder
++import androidx.annotation.CheckResult
+ import androidx.annotation.RequiresApi
+ import androidx.core.app.ServiceCompat
+ import org.signal.core.util.logging.Log
+ import java.util.concurrent.locks.ReentrantLock
+-import javax.annotation.CheckReturnValue
+ import kotlin.concurrent.withLock
+ 
+ /**
+@@ -43,7 +43,7 @@ abstract class SafeForegroundService : Service() {
+      * Safely starts the target foreground service.
+      * @return False if we tried to start the service but failed, otherwise true.
+      */
+-    @CheckReturnValue
++    @CheckResult
+     fun start(context: Context, serviceClass: Class<out SafeForegroundService>, extras: Bundle = Bundle.EMPTY): Boolean {
+       stateLock.withLock {
+         val state = currentState(serviceClass)
+@@ -136,7 +136,7 @@ abstract class SafeForegroundService : Service() {
+      *
+      * @return True if we updated a started service, otherwise false.
+      */
+-    @CheckReturnValue
++    @CheckResult
+     fun update(context: Context, serviceClass: Class<out SafeForegroundService>, extras: Bundle = Bundle.EMPTY): Boolean {
+       stateLock.withLock {
+         val state = currentState(serviceClass)
 diff --git a/core/util/src/main/java/org/signal/core/util/ServiceUtil.java b/core/util/src/main/java/org/signal/core/util/ServiceUtil.java
 index e75f0d7507b535c8259ba006a3ee6dfc325d663c..0489bc73e39c889821543e34df37b29d2b2c3365 100644
 --- a/core/util/src/main/java/org/signal/core/util/ServiceUtil.java

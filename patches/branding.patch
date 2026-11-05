@@ -228,24 +228,6 @@ zJ5pJGWM{1RrK-QB;n}-Co}Dyjy`;&4!oqKp+-%F7wwvU;$Ol;;`tK=pDJ-1x!X&H4
 z71^fojLglqgcu5V7+*>~_G3DsI@6)zRAT69-YC;sGbXxZgw1ZwQ1Ut___N1%8+UVr
 wtSiG8f2s2=do=baTWt0F<2va{y8Hui|EK&1UfnL11O_LAr>mdKI;Vst085IvE&u=k
 
-diff --git a/app/src/main/res/drawable-hdpi/ic_signal_backup.png b/app/src/main/res/drawable-hdpi/ic_signal_backup.png
-deleted file mode 100644
-index a5475d1e16dd77aa995978d51d27c621202f82e5..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 424
-zcmeAS@N?(olHy`uVBq!ia0vp^Dj>|k3?#4J%UA`ZBm#UwT-^(N{$m5O-l6+|YS>GH
-z{DK(_!W%c<c^{s0ZY=`?qlKr7V@SoVsZ%2RSPVIwb8{a2Gndnpof4Ji_Ue0}_oD{K
-zkcZV0jU4}$7nDlB)BC@2wO%*JPV0}-LQWD&3J*JXb10-lf9!lcU5#@^RdUnMfR&Rw
-zUOBVPSUY<K$5+`#)jOSaLJE9;j?@J?i1fd1_}#nU@m{WqR!{5e*Vwno_jw&rc^Dy9
-z;$Qrrqh|9I7KQNgSvv|`-k<YViF27FyfII-qWV%s5!0uzyE$`B?s#8b{`OG9yk8}n
-z*VN?&y}6_|hk3gQ&MMc}+&%a1+~cBpdD*eHH%)&|X}r}v<F(U+jyoy+8IN=yb*vJ&
-zn`+tkX5Gg<&rQqbOB_k^sVKMJ{xO3&p<$zR1dGO7<zrEPJHu2{4;XV^_DzyI%@pff
-zFtf}c<oZjiz7x;OC;yOrR_%2^pfc^9yoTn!-;Dnlj=be(->n+71Q@Igp00i_>zopr
-E0DOnQ0{{R3
-
 diff --git a/app/src/main/res/drawable-hdpi/ic_signal_refresh.png b/app/src/main/res/drawable-hdpi/ic_signal_refresh.png
 deleted file mode 100644
 index 08d363509c35ae9ed8adcd720a95e475b30c623b..0000000000000000000000000000000000000000
@@ -356,21 +338,6 @@ zA7LAM`Kx_+OiHDTO@YHS-KNLsdRFYgJKL1~Ht~oi3HsOZZdt~5j@h`>W%kZ3xjXu2
 z1Z|pO{c7!^%^a^(boX%I)lFWVmA}5`+MPlzL-j^s#uXn-7GG`%GvTY9HA!%f62q#A
 zqSY}E!;ETM7g{EDJ<^O(d?R)2YOmqeq!-BxCAqJ%s!wkI*!S7;`0KU%{>`>G;AM9z
 TJ=`e|bUlNotDnm{r-UW|bdP+k
-
-diff --git a/app/src/main/res/drawable-mdpi/ic_signal_backup.png b/app/src/main/res/drawable-mdpi/ic_signal_backup.png
-deleted file mode 100644
-index d293499eed3757ea26a7e020198460442125a292..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 296
-zcmeAS@N?(olHy`uVBq!ia0vp^5+KaM3?#3wJbMbn3GfMVbuaMwj}6FrhwcNa;V236
-z3uchAOPjdm`rm0&D^h`C+dW+zLn>~yPIByGG2~%Zjh^=J|6^8l6Wih&njU;w6MQ-9
-z4#<^P|FT}c;^egMiiHh1D><Ux?^&Uf^whBA;?5bOj{@%eF<g;+D<H1prKs|=L>0%)
-zhhlej%nn%Ib!uV2<P@&?i^{Iei@rLWTYa(c-uBI9;cN66Wb=&G6rYRmPrKRY@`10I
-zX#soXk!eoaCQ~c=W~l5tboP<1%3Q_sJgd_aY@;uxuig~;;^p1oThjA2*dNaR9rpj<
-aY<o#zcGdVZ_f`YFz~JfX=d#Wzp$P!vdV`t(
 
 diff --git a/app/src/main/res/drawable-mdpi/ic_signal_refresh.png b/app/src/main/res/drawable-mdpi/ic_signal_refresh.png
 deleted file mode 100644
@@ -534,26 +501,6 @@ z=$xmyMVO=a*69~%c6vh0(=V_$iaTzNjjR{{Fr#Anl=n>QAH9iuH;?5?VfOb|lfM<j
 zN#8DS%Fvg+QFEi|E6Yu$#qAAOJeGKGsBqca`FThF=dI7H)Y30jzAfv{spb#&-y(H5
 zhRdAi#jX7g(ep$+_iTt~s{WRp#_t?DwdmjT`P20+PRLx`^2b;U7;g-ou6{1-oD!M<
 DYM}2F
-
-diff --git a/app/src/main/res/drawable-xhdpi/ic_signal_backup.png b/app/src/main/res/drawable-xhdpi/ic_signal_backup.png
-deleted file mode 100644
-index c352bcbfb9395fc4dc66e7b361017d71aff13a5f..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 537
-zcmeAS@N?(olHy`uVBq!ia0vp^1|ZDA3?vioaBc-s5&=FTuI>ds|FHpC@6dffHS8rp
-ze!&a^dTBkoZrZcR-)CT8T<PiJ7*cU-Z&-9uvjflM)YJR^_gc3uY2v+57i!PbEk9}T
-zSC;?$%c2^hT>o^f`02*H*S7xbMY%ACOm9sa1<pRB4^B(k5+1RcGVKUpd9}<tV;Qr<
-z1~a2oYfY-H{~!5oX@1pB{5wzVhnugT%(=+v5}$G2cHcARt?6q{Mfx6JFPS5#EmME>
-z@nXBgfASs-A#+68ZxpvPoZnTQ;&gq9$>WN=*y?wJCnV)0KSnvKGIKB$&RMf;y+kQn
-zPtIJ`7sY1WH4F3-bp06~)M@LzzvpW6l=-9K!F{G$avFujclr|cuZ}2TtiAO5N8$Ru
-z*&EI3;-<FbhVA2FoF`Qvx%OU2Zf^k-!_VE;KUSSPS;Kl^+ceW1F22Gh%2yn@Zo1!>
-zda89n+t9Y-)!fO7)slW+6u+;N4r01B>*4dNjNL{5raaiVY&Y}XAR!0!Cp_h6Pp#SZ
-zqCA@4Ax<jPGyl!^<DX1!Ctv+ixc~8w!%NeitaVjq+03$K(rVKfr+at)R_!;8@6*2V
-zdv3?8$$PCi4Yo=s2d(1CNzjaa(!qD<k=Ei)_87fJ_d9E6rf)DYUi+y2U*%7xp#L(}
-UuRQDxf$_-T>FVdQ&MBb@0GW;SV*mgE
 
 diff --git a/app/src/main/res/drawable-xhdpi/ic_signal_refresh.png b/app/src/main/res/drawable-xhdpi/ic_signal_refresh.png
 deleted file mode 100644
@@ -766,30 +713,6 @@ zKFH4H#U@4oc`9TVFit43?44<#hMZQ7hlfaCeJ~5`;P0Z7dppR-lZFct8*wtTF*u?-
 z@cOb6+{H&Ti@6uH^N%D`+4&@Rv)9~6(e+RhUcrwyZEpGQe@FVBle{0jHn!wd_qhqa
 k$M{=qZGJNq+WwFI08$!2xmA)R{Qv*}07*qoM6N<$g2Vq`^#A|>
 
-diff --git a/app/src/main/res/drawable-xxhdpi/ic_signal_backup.png b/app/src/main/res/drawable-xxhdpi/ic_signal_backup.png
-deleted file mode 100644
-index 4be8c6de1dbf7a92fe3f50d8be24a2956e4d1d71..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 760
-zcmV<U0tfwxP)<h;3K|Lk000e1NJLTq002k;002k`0{{R3VlzW^0000OP)t-sM{rF4
-z|NsC0|NsC0|NsC0|NsC0|NsC09ZOZd00007bW%=J02yJ9+q*iLh*ItV00M|fL_t(|
-z+U1zrcB?Q9L?ewP{{N4Az`zv7#>vTJ=ZS*WMt6t4{-Vqs5%%vQGEw%Q6y&n0Uax9b
-z>7TQzQ3%?V^&w|D75;j8@b3?u%8dcWQjU#=_ZgneC77lyHizJE<#<_EyFp%See{lB
-z7S}vjxdZSr-rAzJIfqt-V3GqRHWLoowUfdEZo-sA&QWniku>Ju<XA2P!Du<G`}wqD
-z87k@|`GZ4f#7FsIoMV@QoEa(Tkjjj6_M~dI0|;ASCYHW>^A2O_X3AsNRCnBq37W}w
-z)0DuD4r5@`;7r$3qk|63<?I)U%;?Zuv4@fU$Z8HqtjehUwI(|n(~<?sWENcSOd`t~
-zty3+&O)-jsfSytm<GHH)MvI5y=Q%%)h?a7<u7_1V&NbxtZTPX9c;FC2Ma@9UvB67B
-zLmT8MWVr-FHp)ENVX~x*?g=S|<#%0nT*pd68yXW1gcD$_Buz)eZZ$x$r+HJ?5qb`l
-zG-e~wte(~gErM9;Vw<zY#$!%7etDssvaXTk^|hXz{>*D^Qn&h@inF0uGs+m-J~@kY
-zj5Go|jqCS=wj@Q6yi<`(!c8ub=RNNf_~MZHmt4mMDv{?M<k+@v2uQB`k^k<lr0Elg
-z>VdpvzP<*b)x{MQ(woCt9Ol-wjA7OMUW?u7IBy4h^)7~eM0DK`ns#j)gP&H?*|N?+
-z@0e@$H>I;ijyz<p<s|M-|9b86jGzX!^46Jw`}kpe4*F#sRr}mzXYMRcrf_7^v=Qm@
-zaA&71NEudI)#wx{T<nz;@Mdc*t9q^_0Pv2S+ID=pQdY<!NhF-PEWYND^gU<t`{-j;
-q41Vf<F3&G9lsR&BEcpMIKcOGa(mxA0hxm8^0000<MNUMnLSTaJBz=Pb
-
 diff --git a/app/src/main/res/drawable-xxhdpi/ic_signal_refresh.png b/app/src/main/res/drawable-xxhdpi/ic_signal_refresh.png
 deleted file mode 100644
 index 9555fde8dabe8c708d1a27cc79fc8bfe43e99fe0..0000000000000000000000000000000000000000
@@ -868,35 +791,6 @@ z3iMjza8vnSkjUa30g4@Np9$M%1QWCic+fFx!<eAmf{ZjK6yYQjw3}#F2_*HXOU0eV
 znV>ZWI8~z0#qLAr#lOsw30i}UQuJZwW#f(VS?4i}M=_QdOX+zepbUX0WgaGFpp8j1
 z5+H(aJPt!qr~n}EYR`=CSj*>FEtW1Ij8uc|0+MF4SEvO{T>@7ybB$fY_(gmb^RE(~
 s55n{38L0my^V2V+*1@mTe(|s34@XdOY+~#N+W-In07*qoM6N<$g8MAV`Tzg`
-
-diff --git a/app/src/main/res/drawable-xxxhdpi/ic_signal_backup.png b/app/src/main/res/drawable-xxxhdpi/ic_signal_backup.png
-deleted file mode 100644
-index 4a02ff687a1ce303d84cb6ec0f0a43dc8cced053..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 1015
-zcmV<T0|@+yP)<h;3K|Lk000e1NJLTq003YB003YJ0{{R3)kcR30000OP)t-sM{rF4
-z|NsC0|NsC0|NsC0|NsC0|NsC09ZOZd00007bW%=J02pJF!R9!7%{lr200W0fL_t(|
-z+U;4{j-x;fT$d02|BqJ*C^fWkA21{BN>fh>kn&M&yPN#^#eV?-)EuvmFjEcrR&w?2
-z4Sjvp{j)2+$4J=0P6Pao$Mi4X342|#uUGt881yz9U{p^a<W@lBeJuh?D{`BgA-INA
-z$}1mU0~|*P7PbCI0C23juiNJPZ>9U(?uD;PA+}38iT!C=;6K(TQYpU`F*|F5W5voU
-zzX~&ETLXjeE-ftZJHBXn35y#skU#qLXD7nvEf^o&<?cd-Zp|sJCw}-gfP)rh8VATv
-z_4?401xyJLOwS0+OZY$r<^(i021&t;^@~`^zh*%vL}vG4ex|b|SQ<4;(76`M0I@9s
-zi6#T7Zsx(t)H)oeC%P@e7`gXqO!#pT!66>Ctj1XGg;0+wp;oa>PQRlpXE1xVPToWx
-zRfd$Y+<=g$TtkZzy8>}+$DqL+RT9WthB%gMq89PVqD=ZOz5Oye62v`vLewh*n5<&b
-zS0?m&*2k0t9utjo%|PvbaKESM8iuNwO!NtSVOMXZp^X|N{{Du~@XSE;=qERjGyaP{
-zSY*S=J05s0cSI(Cc<Zs~a3woi(a104E}D0-NoyNdvaoBNahbL#TLp%j+!hqRqXRx1
-z=q5-~ZLxsi9Saz>YcNv6L6&4)7X}UkxH^0g=*YlftsMnC+pG=P%FvfYV2MAkq{(dy
-zow2_Eo_|FMa}<@taltRJx<5rKH7i1pb_s!Ar$Q?hQgk-I-b(CLj;$iYn|0)FND(lw
-zD5`?ZuAd_jX6rIkw4Pz=;FBSRBU)Ak;US`<vs)Af7#NBGQbV@M6Q<DNY%r@DmnsXO
-zs@FekhpChX+8kf@Qy&`O_wkc?rpfjr2G~xqO{U1FQ^bqZ_@2mCiyZ0g_xdu;H>{lp
-zX{aa<EUD1MbB5Xnlg5nC4g16mOOCl*hk&-iajmhNo~F4(x7oG+qRs93^cmzPI_;X!
-z@-dcKiF)9qJqEH#YMj7u(#Sjjv$tS!G5Mo3Ac3PV@ys$B`kCKSC;A-hKIZK7ms#|-
-zE%{|DQuMCJp)nN&7(y=w@p2;DbyYTOG1xkKYA}N_CX9z#6($6ps-oOiGVjpg_FeWx
-z(cY0Ff4PpKULQb~PO||e_X!fJX(bI#)VG1TH^C1O{_urNjn#wrI-b8ucpii?J<kC9
-lA^PD9spqI)sr}+##a}E0Z;(Yxc+vm>002ovPDHLkV1l&|-(3Iz
 
 diff --git a/app/src/main/res/drawable-xxxhdpi/ic_signal_refresh.png b/app/src/main/res/drawable-xxxhdpi/ic_signal_refresh.png
 deleted file mode 100644
@@ -2703,7 +2597,7 @@ index b008346be1370bb99146e58c28e936e97a85e5f3..00000000000000000000000000000000
 -      android:fillColor="#3B45FD"/>
 -</vector>
 diff --git a/app/src/main/res/values-zh-rTW/strings.xml b/app/src/main/res/values-zh-rTW/strings.xml
-index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124e9ac4dbc 100644
+index 9a472dea48b7db68e21499b0ae3f61c4fafa5fad..f73247e6564a7fa3581dcd42f87e1b6af3e1f0d2 100644
 --- a/app/src/main/res/values-zh-rTW/strings.xml
 +++ b/app/src/main/res/values-zh-rTW/strings.xml
 @@ -1,10 +1,7 @@
@@ -3608,7 +3502,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
  
      <string name="Recipient_unknown">未知</string>
      <!-- Name to use for a user across the UI when they are unregistered and have no other name available -->
-@@ -5005,19 +5002,19 @@
+@@ -5031,19 +5028,19 @@
      <string name="NewDeviceTransferSetup__preparing_to_connect_to_old_android_device">正在準備連結到舊的Android裝置…</string>
      <string name="NewDeviceTransferSetup__take_a_moment_should_be_ready_soon">稍等片刻，應快準備好了</string>
      <string name="NewDeviceTransferSetup__waiting_for_old_device_to_connect">正在等待舊的Android裝置連接…</string>
@@ -3636,7 +3530,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="OldDeviceTransferSetup__create_a_backup">建立備份</string>
      <string name="OldDeviceTransferSetup__an_unexpected_error_occurred_while_attempting_to_connect_to_your_old_device">嘗試連接到新的Android裝置時發生未預期的錯誤。</string>
  
-@@ -5060,7 +5057,7 @@
+@@ -5086,7 +5083,7 @@
  
      <!-- DeviceTransferFragment -->
      <string name="DeviceTransfer__transferring_data">移轉資料</string>
@@ -3645,7 +3539,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="DeviceTransfer__d_messages_so_far">到目前為止 %1$d 則訊息…</string>
      <!-- Filled in with total percentage of messages transferred -->
      <string name="DeviceTransfer__s_of_messages_so_far">訊息目前進度 %1$s%%…</string>
-@@ -5074,7 +5071,7 @@
+@@ -5100,7 +5097,7 @@
      <!-- OldDeviceTransferInstructionsFragment -->
      <string name="OldDeviceTransferInstructions__transfer_account">轉移帳號</string>
      <string name="OldDeviceTransferInstructions__first_bullet">1.</string>
@@ -3654,7 +3548,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="OldDeviceTransferInstructions__second_bullet">2.</string>
      <string name="OldDeviceTransferInstructions__tap_on_transfer_or_restore_account">"點擊“轉移或還原帳號”"</string>
      <string name="OldDeviceTransferInstructions__third_bullet">3.</string>
-@@ -5160,7 +5157,7 @@
+@@ -5186,7 +5183,7 @@
      <!-- GroupLinkBottomSheetDialogFragment -->
      <string name="GroupLinkBottomSheet_share_hint_requiring_approval">知道此連結的任何人都可以查看群組的名稱和圖片，並請求加入。 與你信任的人分享。</string>
      <string name="GroupLinkBottomSheet_share_hint_not_requiring_approval">知道此連結的任何人都可以查看該群組的名稱和圖片，然後加入該群組。 與你信任的人分享。</string>
@@ -3663,7 +3557,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="GroupLinkBottomSheet_copy">複製</string>
      <string name="GroupLinkBottomSheet_qr_code">QR 碼</string>
      <string name="GroupLinkBottomSheet_share">分享</string>
-@@ -5343,7 +5340,7 @@
+@@ -5369,7 +5366,7 @@
      <string name="payment_info_card_about_mobilecoin">有關MobileCoin</string>
      <string name="payment_info_card_mobilecoin_is_a_new_privacy_focused_digital_currency">MobileCoin是一種新的注重隱私的數位貨幣。</string>
      <string name="payment_info_card_adding_funds">加值資金</string>
@@ -3672,7 +3566,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="payment_info_card_cashing_out">兌現</string>
      <string name="payment_info_card_you_can_cash_out_mobilecoin">你可以隨時在支援MobileCoin的交易所兌現MobileCoin。 只需在該交易所轉帳到你的帳戶即可。</string>
      <string name="payment_info_card_hide_this_card">隱藏這張卡？</string>
-@@ -5364,12 +5361,12 @@
+@@ -5390,12 +5387,12 @@
      <!-- DeactivateWalletFragment -->
      <string name="DeactivateWalletFragment__deactivate_wallet">停用電子錢包</string>
      <string name="DeactivateWalletFragment__your_balance">你的餘額</string>
@@ -3687,7 +3581,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="DeactivateWalletFragment__error_deactivating_wallet">停用錢包時錯誤。</string>
    <!-- Removed by excludeNonTranslatables <string name="DeactivateWalletFragment__learn_more__we_recommend_transferring_your_funds" translatable="false">https://support.signal.org/hc/articles/360057625692#payments_deactivate</string> -->
  
-@@ -5858,7 +5855,7 @@
+@@ -5884,7 +5881,7 @@
      <!--    Header for the screen that displays the licenses of the open-source software dependencies of the Signal app-->
      <string name="HelpSettingsFragment__licenses">許可證</string>
      <string name="HelpSettingsFragment__terms_amp_privacy_policy">服務條款與隱私權政策</string>
@@ -3696,7 +3590,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <string name="HelpFragment__licenced_under_the_agplv3">依據 GNU AGPLv3 的條款授權</string>
      <!-- Non-English translations should use "Signal is a nonprofit." instead, dropping the 501c3 reference. -->
      <string name="HelpSettingsFragment__signal_is_a_501c3">Signal 是一個非營利組織</string>
-@@ -6383,9 +6380,9 @@
+@@ -6409,9 +6406,9 @@
      <string name="MySupportPreference__checking_subscription">正在檢查定期贊助…</string>
  
      <!-- Title of dialog telling user they need to update signal as it expired -->
@@ -3708,7 +3602,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Button text of expiration dialog, will take user to update the app -->
      <string name="UpdateSignalExpiredDialog__update_action">更新</string>
      <!-- Button text of expiration dialog to cancel the dialog.  -->
-@@ -6394,7 +6391,7 @@
+@@ -6420,7 +6417,7 @@
      <!-- Title of dialog telling user they need to re-register signal -->
      <string name="ReregisterSignalDialog__title">裝置未註冊</string>
      <!-- Message of dialog telling user they need to re-register signal as it is no longer registered -->
@@ -3717,7 +3611,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Button text of re-registration dialog to re-register the device.  -->
      <string name="ReregisterSignalDialog__reregister_action">重新註冊</string>
      <!-- Button text of re-registration dialog to cancel the dialog.  -->
-@@ -6713,7 +6710,7 @@
+@@ -6739,7 +6736,7 @@
      <!-- Displayed in a toast when we fail to open the ringtone picker -->
      <string name="NotificationSettingsFragment__failed_to_open_picker">無法開啟選擇器。</string>
      <!-- Banner title when notification permission is disabled -->
@@ -3726,7 +3620,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Banner action when notification permission is disabled -->
      <string name="NotificationSettingsFragment__turn_on">開啟</string>
  
-@@ -7968,7 +7965,7 @@
+@@ -7994,7 +7991,7 @@
      <!-- Title of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
      <string name="TurnOnSignalBackups__title">開啟 Signal 安全備份</string>
      <!-- Body of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
@@ -3735,7 +3629,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will take the user to the flow to enable backups -->
      <string name="TurnOnSignalBackups__turn_on">開啟</string>
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will simply dismiss the megaphone -->
-@@ -8047,16 +8044,16 @@
+@@ -8073,16 +8070,16 @@
      <string name="UseNewOnDeviceBackups__not_now">現在不要</string>
  
      <!-- Title of a megaphone shown to prompt the user to open Signal on their primary device -->
@@ -3753,9 +3647,9 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
 -    <string name="OnDeviceBackupsScreen__to_restore_a_backup">"如要還原備份，請安裝全新的 Signal 。開啟應用程式並輕按「還原備份」，再找出備份檔案位置。"</string>
 +    <string name="OnDeviceBackupsScreen__to_restore_a_backup">"如要還原備份，請安裝全新的 Molly 。開啟應用程式並輕按「還原備份」，再找出備份檔案位置。"</string>
      <!-- Body of a dialog shown when turning on on-device backups while "Optimize Signal storage" is enabled, warning that optimized media won\'t be included -->
-     <string name="OnDeviceBackupsScreen__you_have_optimize_signal_storage_on">You have \"Optimize Signal storage\" on. If you want to include all media in your on-device backup, turn the setting off.</string>
+     <string name="OnDeviceBackupsScreen__you_have_optimize_signal_storage_on">你已啟用「最佳化 Signal 儲存空間」。如果想將所有媒體都包含在裝置上備份中，請關閉此設定。</string>
      <!-- Dialog action that takes the user to the "Optimize Signal storage" setting -->
-@@ -8436,9 +8433,9 @@
+@@ -8462,9 +8459,9 @@
      <!-- Setting description for syncing automated chat limit trimming (deleting messages automatically by length or date) to linked devices -->
      <string name="ManageStorageSettingsFragment_apply_limits_description">啟用後，聊天訊息量上限也會應用在已連結裝置並刪除訊息。</string>
      <!-- Setting section title header for storage optimization -->
@@ -3767,7 +3661,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Setting row explanation for storage optimization -->
      <string name="ManageStorageSettingsFragment__unused_media_will_be_offloaded">未使用的媒體將被卸載，但可以隨時從備份中下載。</string>
      <!-- Dialog message for paid tier pending dialog -->
-@@ -8611,7 +8608,7 @@
+@@ -8639,7 +8636,7 @@
      <!-- Displays the date the subscription expired. Placeholder is the date. -->
      <string name="RemoteBackupsSettingsFragment__expired_on_s">到期日為 %1$s</string>
      <!-- Displayed at the top of the screen when no backup is currently enabled -->
@@ -3776,7 +3670,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Section header for other ways to back up -->
      <string name="RemoteBackupsSettingsFragment__other_ways_to_backup">其他備份方式</string>
      <!-- Row title for performing on-device backup -->
-@@ -8906,7 +8903,7 @@
+@@ -8944,7 +8941,7 @@
      <!-- Bottom sheet title -->
      <string name="MessageBackupsKeyRecordScreen__keep_your_key_safe">妥善保管你的金鑰</string>
      <!-- Bottom sheet subtitle -->
@@ -3785,7 +3679,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Checkbox label -->
      <string name="MessageBackupsKeyRecordScreen__ive_recorded_my_key">我已記錄我的金鑰</string>
      <!-- Sheet action button label -->
-@@ -8918,13 +8915,13 @@
+@@ -8956,13 +8953,13 @@
      <!-- Dialog title for confirming you need to disable optimized storage and download media to rotate AEP key -->
      <string name="MessageBackupsKeyRecordScreen__download_media">下載媒體</string>
      <!-- Dialog body for confirming you need to disable optimized storage and download media to rotate AEP key -->
@@ -3801,7 +3695,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
      <!-- Dialog title shown when user attempts to exit backup setup before completion -->
      <string name="MessageBackupsKeyRecordScreen__exit_backup_setup">要退出備份設定嗎？</string>
      <!-- Dialog body warning user that backup setup is incomplete -->
-@@ -9053,7 +9050,7 @@
+@@ -9091,7 +9088,7 @@
      <!-- Row title for restore/transfer without using a previous device -->
      <string name="WelcomeFragment_restore_action_i_dont_have_my_old_phone">我沒有我的舊手機</string>
      <!-- Row subtitle for restore/transfer without using a previous device -->
@@ -3810,7 +3704,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
  
      <!-- Screen title for selecting which restore method to use during registration -->
      <string name="SelectRestoreMethodFragment__restore_or_transfer_account">還原或轉移帳戶</string>
-@@ -9705,7 +9702,7 @@
+@@ -9743,7 +9740,7 @@
      <string name="CouldNotCompleteBackupRestoreSheet__body_error">發生錯誤，無法還原你的備份。這可能由於在還原備份的過程中，你的備份資料夾在裝置上被移動了。</string>
  
      <!-- Body of the sheet shown when a local backup restore could not be completed, explaining how to try again -->
@@ -3819,7 +3713,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
  
      <!-- Title of the sheet shown when the server reports a verification code was requested for the user\'s phone number -->
      <string name="VerificationCodeRequestedBottomSheet__title">已要求驗證碼</string>
-@@ -9768,4 +9765,4 @@
+@@ -9806,4 +9803,4 @@
      <string name="RecoveryKeyWarningDialog__dont_share">切勿分享</string>
  
      <!-- EOF -->
@@ -3827,7 +3721,7 @@ index e4095aacccbeada1c5583602fccd7fa8e2c7011d..5ccaede963004259488f9ae1e5f3b124
 +</resources>
 \ No newline at end of file
 diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
-index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39448d5d35 100644
+index 87b1c4701a8c5530431060b435065a790981c15c..b99547d65a93a84f72dfa000e3d2088e40100088 100644
 --- a/app/src/main/res/values/strings.xml
 +++ b/app/src/main/res/values/strings.xml
 @@ -7,10 +7,10 @@
@@ -4782,7 +4676,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
  
      <string name="Recipient_unknown">Unknown</string>
      <!-- Name to use for a user across the UI when they are unregistered and have no other name available -->
-@@ -5143,19 +5140,19 @@
+@@ -5169,19 +5166,19 @@
      <string name="NewDeviceTransferSetup__preparing_to_connect_to_old_android_device">Preparing to connect to old Android device…</string>
      <string name="NewDeviceTransferSetup__take_a_moment_should_be_ready_soon">Taking a moment, should be ready soon</string>
      <string name="NewDeviceTransferSetup__waiting_for_old_device_to_connect">Waiting for old Android device to connect…</string>
@@ -4810,7 +4704,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="OldDeviceTransferSetup__create_a_backup">Create a backup</string>
      <string name="OldDeviceTransferSetup__an_unexpected_error_occurred_while_attempting_to_connect_to_your_old_device">An unexpected error occurred while attempting to connect to your new Android device.</string>
  
-@@ -5198,7 +5195,7 @@
+@@ -5224,7 +5221,7 @@
  
      <!-- DeviceTransferFragment -->
      <string name="DeviceTransfer__transferring_data">Transferring data</string>
@@ -4819,7 +4713,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="DeviceTransfer__d_messages_so_far">%1$d messages so far…</string>
      <!-- Filled in with total percentage of messages transferred -->
      <string name="DeviceTransfer__s_of_messages_so_far">%1$s%% of messages so far…</string>
-@@ -5212,7 +5209,7 @@
+@@ -5238,7 +5235,7 @@
      <!-- OldDeviceTransferInstructionsFragment -->
      <string name="OldDeviceTransferInstructions__transfer_account">Transfer Account</string>
      <string name="OldDeviceTransferInstructions__first_bullet">1.</string>
@@ -4828,7 +4722,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="OldDeviceTransferInstructions__second_bullet">2.</string>
      <string name="OldDeviceTransferInstructions__tap_on_transfer_or_restore_account">Tap on "Transfer or restore account"</string>
      <string name="OldDeviceTransferInstructions__third_bullet">3.</string>
-@@ -5298,7 +5295,7 @@
+@@ -5324,7 +5321,7 @@
      <!-- GroupLinkBottomSheetDialogFragment -->
      <string name="GroupLinkBottomSheet_share_hint_requiring_approval">Anyone with this link can view the group\'s name and photo and request to join. Share it with people you trust.</string>
      <string name="GroupLinkBottomSheet_share_hint_not_requiring_approval">Anyone with this link can view the group\'s name and photo and join the group. Share it with people you trust.</string>
@@ -4837,7 +4731,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="GroupLinkBottomSheet_copy">Copy</string>
      <string name="GroupLinkBottomSheet_qr_code">QR Code</string>
      <string name="GroupLinkBottomSheet_share">Share</string>
-@@ -5488,7 +5485,7 @@
+@@ -5514,7 +5511,7 @@
      <string name="payment_info_card_about_mobilecoin">About MobileCoin</string>
      <string name="payment_info_card_mobilecoin_is_a_new_privacy_focused_digital_currency">MobileCoin is a new privacy focused digital currency.</string>
      <string name="payment_info_card_adding_funds">Adding funds</string>
@@ -4846,7 +4740,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="payment_info_card_cashing_out">Cashing out</string>
      <string name="payment_info_card_you_can_cash_out_mobilecoin">You can cash out MobileCoin anytime on an exchange that supports MobileCoin. Just make a transfer to your account at that exchange.</string>
      <string name="payment_info_card_hide_this_card">Hide this card?</string>
-@@ -5509,12 +5506,12 @@
+@@ -5535,12 +5532,12 @@
      <!-- DeactivateWalletFragment -->
      <string name="DeactivateWalletFragment__deactivate_wallet">Deactivate Wallet</string>
      <string name="DeactivateWalletFragment__your_balance">Your balance</string>
@@ -4861,7 +4755,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="DeactivateWalletFragment__error_deactivating_wallet">Error deactivating wallet.</string>
      <string name="DeactivateWalletFragment__learn_more__we_recommend_transferring_your_funds" translatable="false">https://support.signal.org/hc/articles/360057625692#payments_deactivate</string>
  
-@@ -6013,7 +6010,7 @@
+@@ -6039,7 +6036,7 @@
      <!--    Header for the screen that displays the licenses of the open-source software dependencies of the Signal app-->
      <string name="HelpSettingsFragment__licenses">Licenses</string>
      <string name="HelpSettingsFragment__terms_amp_privacy_policy">Terms &amp; Privacy Policy</string>
@@ -4870,7 +4764,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <string name="HelpFragment__licenced_under_the_agplv3">Licensed under the GNU AGPLv3</string>
      <!-- Non-English translations should use "Signal is a nonprofit." instead, dropping the 501c3 reference. -->
      <string name="HelpSettingsFragment__signal_is_a_501c3">Signal is a 501c3 nonprofit</string>
-@@ -6548,9 +6545,9 @@
+@@ -6574,9 +6571,9 @@
      <string name="MySupportPreference__checking_subscription">Checking subscription…</string>
  
      <!-- Title of dialog telling user they need to update signal as it expired -->
@@ -4882,7 +4776,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Button text of expiration dialog, will take user to update the app -->
      <string name="UpdateSignalExpiredDialog__update_action">Update</string>
      <!-- Button text of expiration dialog to cancel the dialog.  -->
-@@ -6559,7 +6556,7 @@
+@@ -6585,7 +6582,7 @@
      <!-- Title of dialog telling user they need to re-register signal -->
      <string name="ReregisterSignalDialog__title">Device not registered</string>
      <!-- Message of dialog telling user they need to re-register signal as it is no longer registered -->
@@ -4891,7 +4785,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Button text of re-registration dialog to re-register the device.  -->
      <string name="ReregisterSignalDialog__reregister_action">Re-register</string>
      <!-- Button text of re-registration dialog to cancel the dialog.  -->
-@@ -6878,7 +6875,7 @@
+@@ -6904,7 +6901,7 @@
      <!-- Displayed in a toast when we fail to open the ringtone picker -->
      <string name="NotificationSettingsFragment__failed_to_open_picker">Failed to open picker.</string>
      <!-- Banner title when notification permission is disabled -->
@@ -4900,7 +4794,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Banner action when notification permission is disabled -->
      <string name="NotificationSettingsFragment__turn_on">Turn on</string>
  
-@@ -8161,7 +8158,7 @@
+@@ -8187,7 +8184,7 @@
      <!-- Title of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
      <string name="TurnOnSignalBackups__title">Turn on Signal Secure Backups</string>
      <!-- Body of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups -->
@@ -4909,7 +4803,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will take the user to the flow to enable backups -->
      <string name="TurnOnSignalBackups__turn_on">Turn on</string>
      <!-- Button of a megaphone shown at the bottom of the chat list to prompt the user to enable message backups that will simply dismiss the megaphone -->
-@@ -8240,16 +8237,16 @@
+@@ -8266,16 +8263,16 @@
      <string name="UseNewOnDeviceBackups__not_now">Not now</string>
  
      <!-- Title of a megaphone shown to prompt the user to open Signal on their primary device -->
@@ -4929,7 +4823,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Body of a dialog shown when turning on on-device backups while "Optimize Signal storage" is enabled, warning that optimized media won\'t be included -->
      <string name="OnDeviceBackupsScreen__you_have_optimize_signal_storage_on">You have \"Optimize Signal storage\" on. If you want to include all media in your on-device backup, turn the setting off.</string>
      <!-- Dialog action that takes the user to the "Optimize Signal storage" setting -->
-@@ -8632,9 +8629,9 @@
+@@ -8658,9 +8655,9 @@
      <!-- Setting description for syncing automated chat limit trimming (deleting messages automatically by length or date) to linked devices -->
      <string name="ManageStorageSettingsFragment_apply_limits_description">When enabled, chat limits will also delete messages from your linked devices.</string>
      <!-- Setting section title header for storage optimization -->
@@ -4941,7 +4835,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Setting row explanation for storage optimization -->
      <string name="ManageStorageSettingsFragment__unused_media_will_be_offloaded">Unused media will be offloaded, but can be downloaded from your backup anytime.</string>
      <!-- Dialog message for paid tier pending dialog -->
-@@ -8811,7 +8808,7 @@
+@@ -8839,7 +8836,7 @@
      <!-- Displays the date the subscription expired. Placeholder is the date. -->
      <string name="RemoteBackupsSettingsFragment__expired_on_s">Expired on %1$s</string>
      <!-- Displayed at the top of the screen when no backup is currently enabled -->
@@ -4950,7 +4844,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Section header for other ways to back up -->
      <string name="RemoteBackupsSettingsFragment__other_ways_to_backup">Other ways to backup</string>
      <!-- Row title for performing on-device backup -->
-@@ -9109,7 +9106,7 @@
+@@ -9147,7 +9144,7 @@
      <!-- Bottom sheet title -->
      <string name="MessageBackupsKeyRecordScreen__keep_your_key_safe">Keep your key safe</string>
      <!-- Bottom sheet subtitle -->
@@ -4959,7 +4853,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Checkbox label -->
      <string name="MessageBackupsKeyRecordScreen__ive_recorded_my_key">I\'ve recorded my key</string>
      <!-- Sheet action button label -->
-@@ -9121,13 +9118,13 @@
+@@ -9159,13 +9156,13 @@
      <!-- Dialog title for confirming you need to disable optimized storage and download media to rotate AEP key -->
      <string name="MessageBackupsKeyRecordScreen__download_media">Download media</string>
      <!-- Dialog body for confirming you need to disable optimized storage and download media to rotate AEP key -->
@@ -4975,7 +4869,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
      <!-- Dialog title shown when user attempts to exit backup setup before completion -->
      <string name="MessageBackupsKeyRecordScreen__exit_backup_setup">Exit backup setup?</string>
      <!-- Dialog body warning user that backup setup is incomplete -->
-@@ -9258,7 +9255,7 @@
+@@ -9296,7 +9293,7 @@
      <!-- Row title for restore/transfer without using a previous device -->
      <string name="WelcomeFragment_restore_action_i_dont_have_my_old_phone">I don\'t have my old phone</string>
      <!-- Row subtitle for restore/transfer without using a previous device -->
@@ -4984,7 +4878,7 @@ index 6dedd63fa11f6662d21a8ba7acc7247acc7d21a8..ba7c76a1e44087de652a598d0fa8ee39
  
      <!-- Screen title for selecting which restore method to use during registration -->
      <string name="SelectRestoreMethodFragment__restore_or_transfer_account">Restore or transfer account</string>
-@@ -9914,7 +9911,7 @@
+@@ -9952,7 +9949,7 @@
      <string name="CouldNotCompleteBackupRestoreSheet__body_error">An error occurred and your backup can\'t be restored. This may be because the backup folder was moved on your device while your backup was restoring.</string>
  
      <!-- Body of the sheet shown when a local backup restore could not be completed, explaining how to try again -->
@@ -5688,7 +5582,7 @@ index 7a0c37c6ea96d7be2c13c49c47a1fd784020a6a8..a6282510393f6a6e353a2b18e15ecda3
 +</resources>
 \ No newline at end of file
 diff --git a/feature/media-send/src/main/res/values-es/strings.xml b/feature/media-send/src/main/res/values-es/strings.xml
-index 4198ad835cc3a814662eda4f633d2524697881ef..b99cbcd3b7b9c12072757de09e4d89c84145cb3d 100644
+index 2ddf0f828c188cc8725b7b93f050657ccfe0e9d1..fed62957583b630669e1aac4afd8a68f3a47fce5 100644
 --- a/feature/media-send/src/main/res/values-es/strings.xml
 +++ b/feature/media-send/src/main/res/values-es/strings.xml
 @@ -1,5 +1,4 @@

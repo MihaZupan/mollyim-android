@@ -8,9 +8,9 @@ This branch contains the maintained patch series, tooling and documentation.
 | `v8.20.4/molly-patches` | Ordinary history forked from fixed 8.19.2 patch-management commit `644daeb9f02cba0203baef5f9eee4ef4cde7345d`. |
 | `v8.20.4/molly` | The source port; current source/tree pins are recorded in the manifest after synchronization. |
 
-**Port in progress, not an accepted version checkpoint.** Until regeneration,
-patch files and source/tree pins retain their 8.19.2 inputs and require proposal
-mode. A synchronized series establishes tree agreement, not runtime acceptance.
+**Port in progress, not an accepted version checkpoint.** The regenerated
+36-patch series reconstructs the recorded 8.20.4 candidate source tree.
+A synchronized series establishes tree agreement, not runtime acceptance.
 The 8.19.2 refs and original reference/source histories remain unchanged.
 The known timeout backup/restore defect is **deferred, not fixed**. Its excluded
 commit37 remains on `migration/archive/signal-8.19.2-timeout-repair-037-20261104`;

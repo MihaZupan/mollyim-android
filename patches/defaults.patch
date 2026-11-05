@@ -326,7 +326,7 @@ index 3d077a615b67cf6091b20196802710f747a8b066..06c16f131dd702ccfac2b94f4d21d3df
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
-index 25a28ced51f0bac261348637f096845ffd2a8c20..21788b6eabcc353b81b09e1ebef220c013707311 100644
+index 105420e1c644a5d07916cf3377c3491f446bede1..0d68ade22edbcfe396e870e29d757cc3a8b14962 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/RemoteConfig.kt
 @@ -618,17 +618,14 @@ object RemoteConfig {
@@ -416,7 +416,7 @@ index 25a28ced51f0bac261348637f096845ffd2a8c20..21788b6eabcc353b81b09e1ebef220c0
    /** Whether or not SEPA debit payments for donations are enabled. */
    val sepaDebitDonations: Boolean by remoteBoolean(
      key = "android.sepa.debit.donations.5",
-@@ -1223,14 +1186,6 @@ object RemoteConfig {
+@@ -1215,14 +1178,6 @@ object RemoteConfig {
      hotSwappable = true
    )
  
@@ -431,7 +431,7 @@ index 25a28ced51f0bac261348637f096845ffd2a8c20..21788b6eabcc353b81b09e1ebef220c0
    @JvmStatic
    @get:JvmName("pinLimit")
    val pinLimit: Int by remoteInt(
-@@ -1239,22 +1194,6 @@ object RemoteConfig {
+@@ -1231,22 +1186,6 @@ object RemoteConfig {
      hotSwappable = true
    )
  

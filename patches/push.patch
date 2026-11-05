@@ -86,7 +86,7 @@ index ab13a232035b93f3b0544f3d6568b9321d18b553..00000000000000000000000000000000
 -}
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkCommandReceiver.kt b/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkCommandReceiver.kt
 deleted file mode 100644
-index 61be90fbc15c8a1fdff3c2ec3e19ed39ddc645d7..0000000000000000000000000000000000000000
+index b5bc6040c14d077a9568ae11dafe7d1bc03c652a..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/signal/benchmark/BenchmarkCommandReceiver.kt
 +++ /dev/null
 @@ -1,219 +0,0 @@
@@ -108,6 +108,7 @@ index 61be90fbc15c8a1fdff3c2ec3e19ed39ddc645d7..00000000000000000000000000000000
 -import org.signal.benchmark.setup.OtherClient
 -import org.signal.core.util.ThreadUtil
 -import org.signal.core.util.logging.Log
+-import org.signal.network.websocket.WebSocketRequestMessage
 -import org.thoughtcrime.securesms.database.SignalDatabase
 -import org.thoughtcrime.securesms.database.TestDbUtils
 -import org.thoughtcrime.securesms.dependencies.AppDependencies
@@ -115,7 +116,6 @@ index 61be90fbc15c8a1fdff3c2ec3e19ed39ddc645d7..00000000000000000000000000000000
 -import org.thoughtcrime.securesms.recipients.Recipient
 -import org.whispersystems.signalservice.internal.push.Envelope
 -import org.whispersystems.signalservice.internal.websocket.BenchmarkWebSocketConnection
--import org.signal.network.websocket.WebSocketRequestMessage
 -import kotlin.random.Random
 -
 -/**
@@ -311,7 +311,7 @@ index 61be90fbc15c8a1fdff3c2ec3e19ed39ddc645d7..00000000000000000000000000000000
 -}
 diff --git a/app/src/benchmarkShared/java/org/whispersystems/signalservice/internal/websocket/BenchmarkWebSocketConnection.kt b/app/src/benchmarkShared/java/org/whispersystems/signalservice/internal/websocket/BenchmarkWebSocketConnection.kt
 deleted file mode 100644
-index 0b894e274b6a334ebdf80e3aaea5d620db8bdc0b..0000000000000000000000000000000000000000
+index 0977b2c814ce19ef3a25aeefadf341652d6d034c..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/whispersystems/signalservice/internal/websocket/BenchmarkWebSocketConnection.kt
 +++ /dev/null
 @@ -1,187 +0,0 @@
@@ -325,10 +325,10 @@ index 0b894e274b6a334ebdf80e3aaea5d620db8bdc0b..00000000000000000000000000000000
 -import io.reactivex.rxjava3.core.Observable
 -import io.reactivex.rxjava3.core.Single
 -import io.reactivex.rxjava3.subjects.BehaviorSubject
+-import org.signal.core.util.JsonUtils
 -import org.signal.network.websocket.WebSocketRequestMessage
 -import org.signal.network.websocket.WebSocketResponseMessage
 -import org.signal.network.websocket.WebsocketResponse
--import org.signal.core.util.JsonUtils
 -import org.thoughtcrime.securesms.util.SignalTrace
 -import org.whispersystems.signalservice.api.websocket.WebSocketConnectionState
 -import org.whispersystems.signalservice.internal.push.SendMessageResponse
@@ -2143,7 +2143,7 @@ index 84627cbb30ccfe2a1f5c8c2f115a76a3ba999724..25e62b92c5ba0bd710cc61489777c3fd
        }
      ),
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
-index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811c5d63450 100644
+index e8ba1cca2b07e7c73e1b77b3a3c2f174d9336a29..3c9c6f3bb205df7484495c4ae97bac852f6f5778 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/internal/InternalSettingsFragment.kt
 @@ -1,9 +1,5 @@
@@ -2299,7 +2299,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
        sectionHeaderPref(DSLSettingsText.from("Storage Service"))
  
        switchPref(
-@@ -711,15 +673,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -698,15 +660,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
  
        sectionHeaderPref(DSLSettingsText.from("Calling options"))
  
@@ -2315,7 +2315,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
        radioListPref(
          title = DSLSettingsText.from("Bandwidth mode"),
          listItems = CallManager.DataMode.entries.map { it.name }.toTypedArray(),
-@@ -867,7 +820,7 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -854,7 +807,7 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
            SignalDatabase.remoteMegaphones.debugRemoveAll()
            MegaphoneDatabase.getInstance(AppDependencies.application).let {
              it.delete(Megaphones.Event.REMOTE_MEGAPHONE)
@@ -2324,7 +2324,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
            }
            // Force repository database cache refresh
            MegaphoneRepository(AppDependencies.application).onFirstEverAppLaunch()
-@@ -903,13 +856,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -890,13 +843,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
          }
        )
  
@@ -2338,7 +2338,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
        dividerPref()
  
        sectionHeaderPref(DSLSettingsText.from("CDS"))
-@@ -978,15 +924,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -965,15 +911,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
  
        sectionHeaderPref(DSLSettingsText.from("PNP"))
  
@@ -2354,7 +2354,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
        clickPref(
          title = DSLSettingsText.from("Corrupt username"),
          summary = DSLSettingsText.from("Changes our local username without telling the server so it falls out of sync. Refresh profile afterwards to trigger corruption."),
-@@ -1089,42 +1026,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -1076,42 +1013,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
        .show()
    }
  
@@ -2397,7 +2397,7 @@ index 9439d09746ddd7d769808a13a572f270eedfd7c9..a4e4720cf7f6d26a7e186cdbb7560811
    private fun refreshAttributes() {
      AppDependencies.jobManager
        .startChain(RefreshAttributesJob())
-@@ -1264,21 +1165,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
+@@ -1251,21 +1152,6 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
      }
    }
  
@@ -2836,10 +2836,10 @@ index f9596f45f84f2b370b41eacbef962381258bd45c..54dc3cfaf9056c9ed7b08600b61534e3
      @Override
      public @NonNull FcmRefreshJob create(@NonNull Parameters parameters, @Nullable byte[] serializedData) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/MessageFetchJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/MessageFetchJob.java
-index d9cb2c4eaff752064cd0d19829076c81cce81d55..bf46126bfab2ffb78882386d0a1d006553138807 100644
+index 20aef25c370e7e0aa89e162b1e325be7d127afcc..63734ee586eb4d82a22cc19c2b2417fd1baf0622 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/MessageFetchJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/MessageFetchJob.java
-@@ -113,10 +113,10 @@ public final class MessageFetchJob extends BaseJob {
+@@ -114,10 +114,10 @@ public final class MessageFetchJob extends BaseJob {
        }
  
        if (Build.VERSION.SDK_INT < 31) {
@@ -2853,10 +2853,10 @@ index d9cb2c4eaff752064cd0d19829076c81cce81d55..bf46126bfab2ffb78882386d0a1d0065
            Log.w(TAG, "Failed to start foreground service. Running without a foreground service.");
          }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java b/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
-index f8ef77e832e896a6cbdf94155edbc4b6cabb2086..6be7040028a85db187221f49792ec79673a9a1b5 100644
+index 69b6af91134c8212d04b4c4b669b65cd485cfd3f..0f6a4f378b2b179f2ef5bf0b15acfe8e4163f18b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/RefreshAttributesJob.java
-@@ -117,7 +117,7 @@ public class RefreshAttributesJob extends BaseJob {
+@@ -119,7 +119,7 @@ public class RefreshAttributesJob extends BaseJob {
  
    private void setPrimaryDeviceAttributes(@NonNull SvrValues svrValues, @NonNull AccountAttributes.Capabilities capabilities) throws IOException {
      int       registrationId              = SignalStore.account().getRegistrationId();
@@ -2865,7 +2865,7 @@ index f8ef77e832e896a6cbdf94155edbc4b6cabb2086..6be7040028a85db187221f49792ec796
      byte[]    unidentifiedAccessKey       = UnidentifiedAccess.deriveAccessKeyFrom(ProfileKeyUtil.getSelfProfileKey());
      boolean   universalUnidentifiedAccess = TextSecurePreferences.isUniversalUnidentifiedAccess(context);
      String    registrationLockV2          = null;
-@@ -134,6 +134,7 @@ public class RefreshAttributesJob extends BaseJob {
+@@ -136,6 +136,7 @@ public class RefreshAttributesJob extends BaseJob {
      byte[] encryptedDeviceName = (deviceName == null) ? null : DeviceNameCipher.encryptDeviceName(deviceName.getBytes(StandardCharsets.UTF_8), SignalStore.account().getAciIdentityKey());
  
      Log.i(TAG, "Calling setAccountAttributes() reglockV2? " + !TextUtils.isEmpty(registrationLockV2) + ", pin? " + svrValues.hasPin() + ", restoredAEP? " + SignalStore.account().restoredAccountEntropyPool() +
@@ -3144,7 +3144,7 @@ index 0000000000000000000000000000000000000000..4dca4616dff449267c496afa84ae892a
 +  }
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
-index 650ad7dc306118285ede9e5b1be1f646fee1d27b..bda9ae729d8e710fb52176c4ae30530e94f3563d 100644
+index f638c859a4ed20435ab8ee1d6bd21440e2f85e1c..284dd46522703c239f7bb5f7faba7d6060fe6579 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/keyvalue/SignalStore.kt
 @@ -37,7 +37,7 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
@@ -3174,7 +3174,7 @@ index 650ad7dc306118285ede9e5b1be1f646fee1d27b..bda9ae729d8e710fb52176c4ae30530e
            labs.keysToIncludeInBackup
        }
  
-@@ -273,9 +273,9 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
+@@ -281,9 +281,9 @@ class SignalStore(context: Application, private val store: KeyValueStore) {
        get() = instance!!.backupValues
  
      @JvmStatic
@@ -3318,7 +3318,7 @@ index 0000000000000000000000000000000000000000..f12d279d7e29b9d5c8f652561f06c5b9
 +    get() = enabled && registrationStatus == RegistrationStatus.REGISTERED
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
-index 0c8c931e648b77e8de8563d3f1acd9f106a0af3e..5446cd35546a3f45a45d46af97004b620c79251d 100644
+index 539296986b57a5dc29db98baa3278ff32d67cfff..28ad2acb3cd4bb35bd9eaaff82de124e62c737a0 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt
 @@ -94,7 +94,8 @@ object LinkDeviceRepository {
@@ -3341,10 +3341,10 @@ index 0c8c931e648b77e8de8563d3f1acd9f106a0af3e..5446cd35546a3f45a45d46af97004b62
        Log.w(TAG, "Failed while reading the protobuf.", e)
      }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt b/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
-index 07c72616be7020e8d176769d38911401579f7de8..cb0a8a4cf664f496d0c426f86a85d9461d0af188 100644
+index 96a70c337e92bb3ebed71ef24f013bd4d8cec6c0..ac603b346b5fe56e89c7e27148d1e116465f8c05 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/messages/IncomingMessageObserver.kt
-@@ -26,7 +26,6 @@ import org.thoughtcrime.securesms.groups.GroupsV2ProcessingLock
+@@ -27,7 +27,6 @@ import org.thoughtcrime.securesms.groups.GroupsV2ProcessingLock
  import org.thoughtcrime.securesms.groups.v2.processing.GroupsV2StateProcessor
  import org.thoughtcrime.securesms.jobmanager.Job
  import org.thoughtcrime.securesms.jobmanager.impl.BackoffUtil
@@ -3352,7 +3352,7 @@ index 07c72616be7020e8d176769d38911401579f7de8..cb0a8a4cf664f496d0c426f86a85d946
  import org.thoughtcrime.securesms.jobs.PushProcessMessageErrorJob
  import org.thoughtcrime.securesms.jobs.PushProcessMessageJob
  import org.thoughtcrime.securesms.jobs.RequestGroupV2InfoJob
-@@ -34,12 +33,14 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore
+@@ -35,11 +34,13 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore
  import org.thoughtcrime.securesms.keyvalue.isDecisionPending
  import org.thoughtcrime.securesms.messages.MessageDecryptor.FollowUpOperation
  import org.thoughtcrime.securesms.messages.protocol.BufferedProtocolStore
@@ -3363,7 +3363,6 @@ index 07c72616be7020e8d176769d38911401579f7de8..cb0a8a4cf664f496d0c426f86a85d946
  import org.thoughtcrime.securesms.notifications.NotificationChannels
 -import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess.Companion.toApplicableSystemHttpProxy
  import org.thoughtcrime.securesms.recipients.RecipientId
- import org.thoughtcrime.securesms.service.SafeForegroundService
  import org.thoughtcrime.securesms.util.AlarmSleepTimer
 -import org.thoughtcrime.securesms.util.Environment
  import org.thoughtcrime.securesms.util.SignalLocalMetrics
@@ -3973,10 +3972,10 @@ index 066b9dba992ae76a015f603d9ca22b9f75a83699..003cbd8da3987b66d2be46c568e6b7ec
    }
  }
 diff --git a/app/src/main/res/navigation/app_settings_with_change_number.xml b/app/src/main/res/navigation/app_settings_with_change_number.xml
-index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c0b35eed0 100644
+index 80f3f6a378088512465c1b9fe3bcdc7fc6385851..a999e5e5e7d9179e3b98995930ef1d7febf3c6e9 100644
 --- a/app/src/main/res/navigation/app_settings_with_change_number.xml
 +++ b/app/src/main/res/navigation/app_settings_with_change_number.xml
-@@ -92,6 +92,13 @@
+@@ -99,6 +99,13 @@
              app:exitAnim="@anim/fragment_open_exit"
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
@@ -3990,7 +3989,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
          <action
              android:id="@+id/action_appSettingsFragment_to_dataAndStorageSettingsFragment"
              app:destination="@id/dataAndStorageSettingsFragment"
-@@ -267,12 +274,8 @@
+@@ -280,12 +287,8 @@
          android:name="org.thoughtcrime.securesms.linkdevice.LinkDeviceFragment"
          android:label="link_device_fragment">
          <action
@@ -4005,7 +4004,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
          <action
              android:id="@+id/action_linkDeviceFragment_to_editDeviceNameFragment"
              app:destination="@id/editDeviceNameFragment"
-@@ -308,16 +311,21 @@
+@@ -321,16 +324,21 @@
          android:id="@+id/addLinkDeviceFragment"
          android:name="org.thoughtcrime.securesms.linkdevice.AddLinkDeviceFragment"
          android:label="link_device_add_fragment">
@@ -4031,7 +4030,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      <dialog
          android:id="@+id/linkDeviceSyncBottomSheet"
          android:name="org.thoughtcrime.securesms.linkdevice.LinkDeviceSyncBottomSheet" />
-@@ -519,12 +527,32 @@
+@@ -532,12 +540,32 @@
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
  
@@ -4064,7 +4063,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      <!-- region Data and Storage -->
  
      <fragment
-@@ -538,13 +566,6 @@
+@@ -551,13 +579,6 @@
              app:exitAnim="@anim/fragment_open_exit"
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
@@ -4078,7 +4077,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      </fragment>
  
      <fragment
-@@ -552,8 +573,6 @@
+@@ -565,8 +586,6 @@
          android:name="org.thoughtcrime.securesms.components.settings.app.storage.ManageStorageSettingsFragment"
          android:label="storage_preference_fragment" />
  
@@ -4087,7 +4086,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      <!-- endregion -->
  
      <!-- region Help -->
-@@ -582,6 +601,13 @@
+@@ -595,6 +614,13 @@
              app:exitAnim="@anim/fragment_open_exit"
              app:popEnterAnim="@anim/fragment_close_enter"
              app:popExitAnim="@anim/fragment_close_exit" />
@@ -4101,7 +4100,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      </fragment>
  
      <fragment
-@@ -661,8 +687,10 @@
+@@ -674,8 +700,10 @@
          app:popUpToInclusive="true" />
  
      <action
@@ -4114,7 +4113,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
          app:enterAnim="@anim/fragment_open_enter"
          app:exitAnim="@anim/fragment_open_exit"
          app:popEnterAnim="@anim/fragment_close_enter"
-@@ -993,13 +1021,6 @@
+@@ -1016,13 +1044,6 @@
          android:name="org.thoughtcrime.securesms.components.settings.app.subscription.manage.ManageDonationsFragment"
          android:label="manage_donations_fragment"
          tools:layout="@layout/dsl_settings_fragment">
@@ -4128,7 +4127,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
          <action
              android:id="@+id/action_manageDonationsFragment_to_donationReceiptListFragment"
              app:destination="@id/donationReceiptListFragment"
-@@ -1047,8 +1068,6 @@
+@@ -1070,8 +1091,6 @@
          android:label="subscribe_learn_more_bottom_sheet_dialog"
          tools:layout="@layout/subscribe_learn_more_bottom_sheet_dialog_fragment" />
  
@@ -4137,7 +4136,7 @@ index 5dc9e66523d45b731dfa20e8bca80e77d84e8fe2..db2ea804f9f0ea4477a812d78c708f8c
      <!-- endregion -->
  
      <!-- Notification Profiles -->
-@@ -1074,6 +1093,11 @@
+@@ -1097,6 +1116,11 @@
              app:popExitAnim="@anim/fragment_close_exit" />
      </fragment>
  

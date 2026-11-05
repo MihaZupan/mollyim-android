@@ -15,7 +15,7 @@ Validation: final GNU app JVM/package/lint and exact reference tree/resource/API
 runtime parity and independent review remain separate parent gates.
 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt b/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
-index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c436c4333 100644
+index 778044a92a18b0c9c4aeda41ecd6d2ad1a470867..5b9cf235e38919760ade46380513df5581b0cd50 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt
 @@ -60,13 +60,12 @@ import androidx.compose.ui.Alignment
@@ -33,7 +33,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  import androidx.fragment.compose.AndroidFragment
  import androidx.fragment.compose.rememberFragmentState
  import androidx.lifecycle.Lifecycle
-@@ -81,17 +80,17 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+@@ -82,17 +81,17 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
  import androidx.navigation3.ui.NavDisplay
  import androidx.recyclerview.widget.RecyclerView
  import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -53,7 +53,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  import org.signal.core.ui.navigation.TransitionSpecs
  import org.signal.core.ui.permissions.Permissions
  import org.signal.core.ui.rememberIsSplitPane
-@@ -101,7 +100,6 @@ import org.signal.core.util.concurrent.LifecycleDisposable
+@@ -102,7 +101,6 @@ import org.signal.core.util.concurrent.LifecycleDisposable
  import org.signal.core.util.getParcelableCompat
  import org.signal.core.util.getSerializableCompat
  import org.signal.core.util.logging.Log
@@ -61,7 +61,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  import org.signal.mediasend.MediaSendActivityContract
  import org.thoughtcrime.securesms.backup.v2.ArchiveRestoreProgress
  import org.thoughtcrime.securesms.backup.v2.ArchiveRestoreProgressState
-@@ -112,19 +110,12 @@ import org.thoughtcrime.securesms.calls.callsNavEntries
+@@ -113,19 +111,12 @@ import org.thoughtcrime.securesms.calls.callsNavEntries
  import org.thoughtcrime.securesms.calls.log.CallLogFilter
  import org.thoughtcrime.securesms.calls.log.CallLogFragment
  import org.thoughtcrime.securesms.calls.new.NewCallActivity
@@ -81,7 +81,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  import org.thoughtcrime.securesms.components.snackbars.LocalSnackbarStateConsumerRegistry
  import org.thoughtcrime.securesms.components.snackbars.SnackbarHostKey
  import org.thoughtcrime.securesms.components.snackbars.SnackbarState
-@@ -140,7 +131,7 @@ import org.thoughtcrime.securesms.conversationlist.ConversationListFragment
+@@ -141,7 +132,7 @@ import org.thoughtcrime.securesms.conversationlist.ConversationListFragment
  import org.thoughtcrime.securesms.conversationlist.RelinkDevicesReminderBottomSheetFragment
  import org.thoughtcrime.securesms.conversationlist.RestoreCompleteBottomSheetDialog
  import org.thoughtcrime.securesms.conversationlist.model.ConversationFilter
@@ -90,7 +90,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  import org.thoughtcrime.securesms.devicetransfer.olddevice.OldDeviceExitActivity
  import org.thoughtcrime.securesms.groups.ui.creategroup.CreateGroupActivity
  import org.thoughtcrime.securesms.keyvalue.SignalStore
-@@ -196,7 +187,6 @@ import org.thoughtcrime.securesms.window.NavigationType
+@@ -197,7 +188,6 @@ import org.thoughtcrime.securesms.window.NavigationType
  import org.thoughtcrime.securesms.window.rememberThreePaneScaffoldNavigatorDelegate
  import org.whispersystems.signalservice.api.websocket.WebSocketConnectionState
  import kotlin.time.Duration.Companion.minutes
@@ -98,7 +98,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  
  class MainActivity :
    PassphraseRequiredActivity(),
-@@ -205,8 +195,7 @@ class MainActivity :
+@@ -206,8 +196,7 @@ class MainActivity :
    Material3OnScrollHelperBinder,
    ConversationListFragment.Callback,
    MainNavigationRouter,
@@ -108,7 +108,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
  
    companion object {
      private val TAG = Log.tag(MainActivity::class)
-@@ -269,9 +258,6 @@ class MainActivity :
+@@ -270,9 +259,6 @@ class MainActivity :
    private val megaphoneActionController = MainMegaphoneActionController()
    private val mainNavigationCallback = MainNavigationCallback()
  
@@ -118,7 +118,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
    private lateinit var mediaSendLauncher: ActivityResultLauncher<MediaSendActivityContract.Args>
  
    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
-@@ -299,10 +285,6 @@ class MainActivity :
+@@ -300,10 +286,6 @@ class MainActivity :
        }
      })
  
@@ -129,7 +129,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
      lifecycleScope.launch {
        launch {
          repeatOnLifecycle(Lifecycle.State.RESUMED) {
-@@ -371,22 +353,6 @@ class MainActivity :
+@@ -372,22 +354,6 @@ class MainActivity :
        }
      }
  
@@ -152,7 +152,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
      shareDataTimestampViewModel.setTimestampFromActivityCreation(savedInstanceState, intent)
  
      setContent {
-@@ -579,7 +545,7 @@ class MainActivity :
+@@ -580,7 +546,7 @@ class MainActivity :
                Column(
                  modifier = Modifier
                    .clip(contentLayoutData.navigationBarShape)
@@ -161,7 +161,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
                ) {
                  MainNavigationBar(
                    state = mainNavigationState,
-@@ -792,9 +758,8 @@ class MainActivity :
+@@ -801,9 +767,8 @@ class MainActivity :
            SignalTheme.colors.colorSurface1
          }
  
@@ -172,7 +172,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
          LaunchedEffect(isDarkTheme, navBarColor) {
            if (Build.VERSION.SDK_INT >= 26) {
              enableEdgeToEdge(
-@@ -901,15 +866,11 @@ class MainActivity :
+@@ -910,15 +875,11 @@ class MainActivity :
  
      vitalsViewModel.checkSlowNotificationHeuristics()
      mainNavigationViewModel.refreshNavigationBarState()
@@ -189,7 +189,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
    }
  
    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray, deviceId: Int) {
-@@ -985,7 +946,7 @@ class MainActivity :
+@@ -994,7 +955,7 @@ class MainActivity :
    }
  
    override fun updateProxyStatus(state: WebSocketConnectionState) {
@@ -198,7 +198,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
        val proxyState: MainToolbarState.ProxyState = when (state) {
          WebSocketConnectionState.CONNECTING, WebSocketConnectionState.DISCONNECTING, WebSocketConnectionState.DISCONNECTED -> MainToolbarState.ProxyState.CONNECTING
          WebSocketConnectionState.CONNECTED -> MainToolbarState.ProxyState.CONNECTED
-@@ -1010,10 +971,8 @@ class MainActivity :
+@@ -1019,10 +980,8 @@ class MainActivity :
    private fun handleDeepLinkIntent(intent: Intent) {
      handleConversationIntent(intent)
      handleGroupLinkInIntent(intent)
@@ -209,7 +209,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
      handleQuickRestoreIntent(intent)
    }
  
-@@ -1021,12 +980,9 @@ class MainActivity :
+@@ -1030,12 +989,9 @@ class MainActivity :
    private fun presentVitalsState(state: VitalsViewModel.State) {
      when (state) {
        VitalsViewModel.State.NONE -> Unit
@@ -223,7 +223,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
      }
    }
  
-@@ -1068,12 +1024,6 @@ class MainActivity :
+@@ -1077,12 +1033,6 @@ class MainActivity :
      }
    }
  
@@ -236,7 +236,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
    private fun handleSignalMeIntent(intent: Intent) {
      intent.data?.let { data ->
        CommunicationActions.handlePotentialSignalMeUrl(this, data.toString())
-@@ -1088,14 +1038,6 @@ class MainActivity :
+@@ -1097,14 +1047,6 @@ class MainActivity :
      }
    }
  
@@ -251,7 +251,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
    private fun handleQuickRestoreIntent(intent: Intent) {
      intent.data?.let { data ->
        CommunicationActions.handlePotentialQuickRestoreUrl(this, data.toString()) {
-@@ -1182,10 +1124,6 @@ class MainActivity :
+@@ -1191,10 +1133,6 @@ class MainActivity :
        toolbarViewModel.markAllMessagesRead()
      }
  
@@ -262,7 +262,7 @@ index 7b732160f08717047fc03a2b7e9d0a2a07a057e7..1035c0bc7cdeb55bdfa449778b37e45c
      override fun onFilterUnreadChatsClick() {
        toolbarViewModel.setChatFilter(ConversationFilter.UNREAD)
      }
-@@ -1302,12 +1240,13 @@ class MainActivity :
+@@ -1311,12 +1249,13 @@ class MainActivity :
        mainNavigationViewModel.snackbarRegistry.emit(
          SnackbarState(
            message = string,
@@ -401,7 +401,7 @@ index 84f5be4bb0b92b4612f7aaf18130c8a9af1b795f..5001efd63b6a8f121dabb06f336697b2
    val censorshipCircumventionEnabled: Boolean,
    val showSealedSenderStatusIcon: Boolean,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsViewModel.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsViewModel.kt
-index d89df101b14d453fd08a4c4b818111b375654b46..f3ee7ac27a17863da191a8d6478665f0da331f51 100644
+index 224d2d588bb429f5c06f9ea3296fd9986b5f4b66..15232244f39606fd51d88156c317b565f6664676 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsViewModel.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/advanced/AdvancedPrivacySettingsViewModel.kt
 @@ -65,7 +65,7 @@ class AdvancedPrivacySettingsViewModel(
@@ -413,7 +413,7 @@ index d89df101b14d453fd08a4c4b818111b375654b46..f3ee7ac27a17863da191a8d6478665f0
      refresh()
    }
  
-@@ -96,6 +96,7 @@ class AdvancedPrivacySettingsViewModel(
+@@ -98,6 +98,7 @@ class AdvancedPrivacySettingsViewModel(
      return AdvancedPrivacySettingsState(
        isPushEnabled = SignalStore.account.isRegistered,
        alwaysRelayCalls = TextSecurePreferences.isTurnOnly(AppDependencies.application),
@@ -422,10 +422,10 @@ index d89df101b14d453fd08a4c4b818111b375654b46..f3ee7ac27a17863da191a8d6478665f0
        censorshipCircumventionEnabled = getCensorshipCircumventionEnabled(censorshipCircumventionState),
        showSealedSenderStatusIcon = TextSecurePreferences.isShowUnidentifiedDeliveryIndicatorsEnabled(
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java b/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
-index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1eac3d5f4 100644
+index bedbb4dd944c4194920ff0ca22f6e54903f6340e..030801cec6fbf0d29b5fdcd91349979f24c16c50 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
-@@ -85,12 +85,14 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
+@@ -86,12 +86,14 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
  import org.thoughtcrime.securesms.megaphone.MegaphoneRepository;
  import org.thoughtcrime.securesms.messages.IncomingMessageObserver;
  import org.thoughtcrime.securesms.net.DeviceTransferBlockingInterceptor;
@@ -442,7 +442,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
  import org.thoughtcrime.securesms.push.SecurityEventListener;
  import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess;
  import org.thoughtcrime.securesms.recipients.LiveRecipientCache;
-@@ -104,7 +106,6 @@ import org.thoughtcrime.securesms.service.PinnedMessageManager;
+@@ -105,7 +107,6 @@ import org.thoughtcrime.securesms.service.PinnedMessageManager;
  import org.thoughtcrime.securesms.service.ScheduledMessageManager;
  import org.thoughtcrime.securesms.service.TrimThreadsByDateManager;
  import org.thoughtcrime.securesms.service.webrtc.SignalCallManager;
@@ -450,7 +450,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
  import org.thoughtcrime.securesms.stories.Stories;
  import org.thoughtcrime.securesms.util.AlarmSleepTimer;
  import org.thoughtcrime.securesms.util.EarlyMessageCache;
-@@ -236,6 +237,11 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -238,6 +239,11 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
      return new SignalServiceNetworkAccess(context);
    }
  
@@ -462,7 +462,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
    @Override
    public @NonNull LiveRecipientCache provideRecipientCache() {
      return new LiveRecipientCache(context);
-@@ -332,10 +338,14 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -334,10 +340,14 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
    }
  
    @Override
@@ -478,7 +478,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
      return network;
    }
  
-@@ -354,23 +364,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -356,23 +366,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
      return new DatabaseObserver();
    }
  
@@ -502,7 +502,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
    @Override
    public @NonNull SignalCallManager provideSignalCallManager() {
      return new SignalCallManager(context);
-@@ -388,7 +381,7 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -390,7 +383,7 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
  
    @Override
    public @NonNull SignalWebSocket.AuthenticatedWebSocket provideAuthWebSocket(@NonNull Supplier<SignalServiceConfiguration> signalServiceConfigurationSupplier, @NonNull Supplier<Network> libSignalNetworkSupplier) {
@@ -511,7 +511,7 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
      SignalWebSocketHealthMonitor healthMonitor = new SignalWebSocketHealthMonitor(sleepTimer, true);
  
      WebSocketFactory authFactory = () -> {
-@@ -421,7 +414,7 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -423,7 +416,7 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
  
    @Override
    public @NonNull SignalWebSocket.UnauthenticatedWebSocket provideUnauthWebSocket(@NonNull Supplier<SignalServiceConfiguration> signalServiceConfigurationSupplier, @NonNull Supplier<Network> libSignalNetworkSupplier) {
@@ -520,8 +520,20 @@ index a9ad7ab1926ee3df6e62ee02edd21a8923f18861..d6c131b1fcdb20ff48e0b35a0e5c3ec1
      SignalWebSocketHealthMonitor healthMonitor = new SignalWebSocketHealthMonitor(sleepTimer, false);
  
      WebSocketFactory unauthFactory = () -> {
+@@ -546,8 +539,10 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+   @Override
+   public @NonNull OkHttpClient provideOkHttpClient() {
+     return new OkHttpClient.Builder()
++        .socketFactory(Networking.getSocketFactory())
++        .proxySelector(Networking.getProxySelectorForSocks())
+         .addInterceptor(new StandardUserAgentInterceptor())
+-        .dns(SignalServiceNetworkAccess.DNS)
++        .dns(Networking.getDns())
+         .build();
+   }
+ 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt b/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
-index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c025c95770 100644
+index eb0f9e306b05ce36c5451f3cb620998b8ff3b222..9cfc06e6e0184a6c8c255cbad3693fb29745ad1b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/dependencies/NetworkDependenciesModule.kt
 @@ -12,7 +12,6 @@ import io.reactivex.rxjava3.subjects.Subject
@@ -532,7 +544,7 @@ index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c0
  import org.signal.core.util.resettableLazy
  import org.signal.libsignal.net.Network
  import org.signal.libsignal.zkgroup.receipts.ClientZkReceiptOperations
-@@ -32,13 +31,14 @@ import org.signal.network.api.SvrBApi
+@@ -32,6 +31,7 @@ import org.signal.network.api.SvrBApi
  import org.signal.network.api.UsernameApi
  import org.signal.network.rest.SignalRestClient
  import org.signal.network.service.MessageService
@@ -540,15 +552,7 @@ index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c0
  import org.thoughtcrime.securesms.crypto.storage.SignalServiceDataStoreImpl
  import org.thoughtcrime.securesms.groups.GroupsV2Authorization
  import org.thoughtcrime.securesms.groups.GroupsV2AuthorizationMemoryValueCache
- import org.thoughtcrime.securesms.keyvalue.SignalStore
- import org.thoughtcrime.securesms.messages.IncomingMessageObserver
-+import org.thoughtcrime.securesms.net.Networking
- import org.thoughtcrime.securesms.net.StandardUserAgentInterceptor
--import org.thoughtcrime.securesms.payments.Payments
- import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess
- import org.thoughtcrime.securesms.push.SignalServiceTrustStore
- import org.whispersystems.signalservice.api.SignalServiceAccountManager
-@@ -56,7 +56,6 @@ import org.whispersystems.signalservice.api.services.DonationsService
+@@ -55,7 +55,6 @@ import org.whispersystems.signalservice.api.services.DonationsService
  import org.whispersystems.signalservice.api.services.ProfileService
  import org.whispersystems.signalservice.api.storage.StorageServiceApi
  import org.whispersystems.signalservice.api.util.Tls12SocketFactory
@@ -556,7 +560,7 @@ index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c0
  import org.whispersystems.signalservice.api.websocket.SignalWebSocket
  import org.whispersystems.signalservice.api.websocket.WebSocketConnectionState
  import org.whispersystems.signalservice.api.websocket.WebSocketUnavailableException
-@@ -121,9 +120,11 @@ class NetworkDependenciesModule(
+@@ -120,9 +119,11 @@ class NetworkDependenciesModule(
    }
  
    val libsignalNetwork: Network by lazy {
@@ -569,7 +573,7 @@ index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c0
    val authWebSocket: SignalWebSocket.AuthenticatedWebSocket by lazy {
      provider.provideAuthWebSocket({ signalServiceNetworkAccess.getConfiguration() }, { libsignalNetwork }).also {
        disposables += it.state.subscribe { s -> webSocketStateSubject.onNext(s) }
-@@ -151,10 +152,6 @@ class NetworkDependenciesModule(
+@@ -150,10 +151,6 @@ class NetworkDependenciesModule(
      provider.provideSignalServiceMessageReceiver(pushServiceSocket)
    }
  
@@ -580,19 +584,7 @@ index cc9fb8b43049412dd00e19288208883f896ee71b..cb75a447d618c186c8bb0fa6a28a25c0
    val profileService: ProfileService by lazy {
      provider.provideProfileService(groupsV2Operations.profileOperations, authWebSocket, unauthWebSocket)
    }
-@@ -245,8 +242,10 @@ class NetworkDependenciesModule(
- 
-   val okHttpClient: OkHttpClient by lazy {
-     OkHttpClient.Builder()
-+      .socketFactory(Networking.socketFactory)
-+      .proxySelector(Networking.proxySelectorForSocks)
-+      .dns(Networking.dns)
-       .addInterceptor(StandardUserAgentInterceptor())
--      .dns(SignalServiceNetworkAccess.DNS)
-       .build()
-   }
- 
-@@ -263,11 +262,6 @@ class NetworkDependenciesModule(
+@@ -259,11 +256,6 @@ class NetworkDependenciesModule(
          .sslSocketFactory(Tls12SocketFactory(sslContext.socketFactory), trustManagers[0] as X509TrustManager)
          .connectionSpecs(Util.immutableList(ConnectionSpec.RESTRICTED_TLS))
  
@@ -3446,6 +3438,20 @@ index 28eaf7d7150004e129b9936645713beba0881dc5..09cec68de5305ec1072d67c53c188ae2
 +    }
 +  }
  }
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageController.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageController.kt
+index 7941510feaf415cc71ea567f41c33798b8c140e9..16ae30eb5a9a06c12bf0a63d3994dd021c45e55b 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageController.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationStorageController.kt
+@@ -116,8 +116,7 @@ class AppRegistrationStorageController(private val context: Context) : StorageCo
+    */
+   @VisibleForTesting
+   internal var restartNetwork: () -> Unit = {
+-    AppDependencies.resetNetwork()
+-    AppDependencies.startNetwork()
++    AppDependencies.resetNetwork(restartMessageObserver = true)
+   }
+ 
+   companion object {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/CallLinkPreJoinActionProcessor.kt b/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/CallLinkPreJoinActionProcessor.kt
 index b5d11dc439ab41a22043f68ffdc42c209f97029c..592dd2542b58e508567955f9ccc12fd99e537e0a 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/webrtc/CallLinkPreJoinActionProcessor.kt

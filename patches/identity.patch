@@ -74,19 +74,6 @@ index 0000000000000000000000000000000000000000..abd3adbbf37eb63df47bae8b23fdf773
 +    instance = null
 +  }
 +}
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/backup/BackupFileIOError.java b/app/src/main/java/org/thoughtcrime/securesms/backup/BackupFileIOError.java
-index fd7f7dd5536eb57e0157c6a3f5d0ddbde3740b26..83654e2f7072d9108951aa827b3cd125dcf479ae 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/backup/BackupFileIOError.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/backup/BackupFileIOError.java
-@@ -53,7 +53,7 @@ public enum BackupFileIOError {
- 
-     PendingIntent pendingIntent           = PendingIntent.getActivity(context, -1, AppSettingsActivity.backups(context), PendingIntentFlags.mutable());
-     Notification backupFailedNotification = new NotificationCompat.Builder(context, NotificationChannels.getInstance().FAILURES)
--                                                                  .setSmallIcon(R.drawable.ic_signal_backup)
-+                                                                  .setSmallIcon(R.drawable.ic_notification_backup)
-                                                                   .setContentTitle(context.getString(titleId))
-                                                                   .setContentText(context.getString(messageId))
-                                                                   .setStyle(new NotificationCompat.BigTextStyle().bigText(context.getString(messageId)))
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java b/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java
 index 4dad70e374bf1019a74a8551c81c97bce95ee7cd..782ff85a30f049b97901b7a46d3c5362de1ab336 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/SharedContactView.java
@@ -242,32 +229,6 @@ index 311baeaa5c8bc2e505d0552f0243371c5434a4cd..91245dc7af4ab396c6319ff58e0ace46
          Avatars.ColorPair(ContextCompat.getColor(context, R.color.notification_background_ultramarine), ContextCompat.getColor(context, R.color.core_white), "")
        ),
        onAvatarRendered = { media ->
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalArchiveJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalArchiveJob.kt
-index ed92f1d380d0f5bc5df93310a8bd10080bd05764..b73271df3ca367152dfcc16ec04f2d82b3a03ab0 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalArchiveJob.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalArchiveJob.kt
-@@ -57,7 +57,7 @@ class LocalArchiveJob internal constructor(parameters: Parameters) : Job(paramet
-         context,
-         context.getString(R.string.LocalBackupJob_creating_signal_backup),
-         NotificationChannels.getInstance().BACKUPS,
--        R.drawable.ic_signal_backup
-+        R.drawable.ic_notification_backup
-       )
-     } catch (e: UnableToStartException) {
-       Log.w(TAG, "Unable to start foreground backup service, continuing without service")
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalPlaintextArchiveJob.kt b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalPlaintextArchiveJob.kt
-index f592578f1b94b523ab3cb4a5da3840b6cb94f5f3..61f81c5534bddf25101855166a5adc6cb2ebd143 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalPlaintextArchiveJob.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/jobs/LocalPlaintextArchiveJob.kt
-@@ -73,7 +73,7 @@ class LocalPlaintextArchiveJob internal constructor(
-         context,
-         context.getString(R.string.LocalBackupJob_creating_signal_backup),
-         NotificationChannels.getInstance().BACKUPS,
--        R.drawable.ic_signal_backup,
-+        R.drawable.ic_notification_backup,
-         contentIntent
-       )
-     } catch (e: UnableToStartException) {
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/main/EmptyDetailScreen.kt b/app/src/main/java/org/thoughtcrime/securesms/main/EmptyDetailScreen.kt
 index 3494c7858b04fcc3596aa608892eac729809a3ea..05652b7e80ea8c99996e66a1e798a6302ea93f14 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/main/EmptyDetailScreen.kt
@@ -281,19 +242,6 @@ index 3494c7858b04fcc3596aa608892eac729809a3ea..05652b7e80ea8c99996e66a1e798a630
        contentDescription = null,
        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.32f),
        modifier = Modifier
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
-index ad28193f725de824e13ba85631d63ae0750d6ab5..b5567181dff01109537721a45dbb346944eba4eb 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
-+++ b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
-@@ -773,7 +773,7 @@ class AppRegistrationNetworkController(
-     val notificationData = org.signal.devicetransfer.DeviceToDeviceTransferService.TransferNotificationData(
-       org.thoughtcrime.securesms.notifications.NotificationIds.DEVICE_TRANSFER,
-       org.thoughtcrime.securesms.notifications.NotificationChannels.getInstance().BACKUPS,
--      org.thoughtcrime.securesms.R.drawable.ic_signal_backup
-+      org.thoughtcrime.securesms.R.drawable.ic_notification_backup
-     )
-     org.signal.devicetransfer.DeviceToDeviceTransferService.startServer(
-       context,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt b/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt
 index 92684951b3b53f91047048d65ab51a5a974fb519..a387388dfa4a401f5ad869b5bde6feba62f521f3 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/SaveAttachmentUtil.kt

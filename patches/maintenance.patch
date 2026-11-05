@@ -106,7 +106,7 @@ index 359235d249f37582de171569255a55e1e1bd639e..00000000000000000000000000000000
 -          - "usefulness/*"
 diff --git a/.github/workflows/android.yml b/.github/workflows/android.yml
 deleted file mode 100644
-index c4b74c2a445bd67c0c884c1818a9562fa712b1c5..0000000000000000000000000000000000000000
+index b17156d63d770c9cc87f1d10f8a9cd0ff357140a..0000000000000000000000000000000000000000
 --- a/.github/workflows/android.yml
 +++ /dev/null
 @@ -1,65 +0,0 @@
@@ -135,7 +135,7 @@ index c4b74c2a445bd67c0c884c1818a9562fa712b1c5..00000000000000000000000000000000
 -          lfs: true
 -
 -    - name: set up JDK 21
--      uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5
+-      uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5
 -      # gh api repos/actions/setup-java/commits/v5 --jq '.sha'
 -      with:
 -        distribution: temurin
@@ -177,7 +177,7 @@ index c4b74c2a445bd67c0c884c1818a9562fa712b1c5..00000000000000000000000000000000
 -        if-no-files-found: ignore
 diff --git a/.github/workflows/diffuse.yml b/.github/workflows/diffuse.yml
 deleted file mode 100644
-index 97a3b0794f36a17270f81d9a14ffd386d6fff83e..0000000000000000000000000000000000000000
+index a86b280a75eb50c48508159ded8b5bdbaba9f692..0000000000000000000000000000000000000000
 --- a/.github/workflows/diffuse.yml
 +++ /dev/null
 @@ -1,106 +0,0 @@
@@ -206,7 +206,7 @@ index 97a3b0794f36a17270f81d9a14ffd386d6fff83e..00000000000000000000000000000000
 -        ref: ${{ github.event.pull_request.base.sha }}
 -
 -    - name: set up JDK 21
--      uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5
+-      uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5
 -      # gh api repos/actions/setup-java/commits/v5 --jq '.sha'
 -      with:
 -        distribution: temurin
@@ -289,7 +289,7 @@ index 97a3b0794f36a17270f81d9a14ffd386d6fff83e..00000000000000000000000000000000
 -        path: ${{ steps.diffuse.outputs.diff-file }}
 diff --git a/.github/workflows/stale.yml b/.github/workflows/stale.yml
 deleted file mode 100644
-index aa5344ae4236222a62ff9ce8092d4e366f51ca98..0000000000000000000000000000000000000000
+index 04498e0721074720852fc18265d390a41770b7fe..0000000000000000000000000000000000000000
 --- a/.github/workflows/stale.yml
 +++ /dev/null
 @@ -1,38 +0,0 @@
@@ -309,7 +309,7 @@ index aa5344ae4236222a62ff9ce8092d4e366f51ca98..00000000000000000000000000000000
 -      actions: write
 -
 -    steps:
--      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10
+-      - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10
 -        # gh api repos/actions/stale/commits/v10 --jq '.sha'
 -        with:
 -          days-before-stale: 60
@@ -976,46 +976,33 @@ index e4fba2183587225f216eeada4c78dfab6b2e65f5..00000000000000000000000000000000
 @@ -1 +0,0 @@
 -3.12
 diff --git a/reproducible-builds/apkdiff/apkdiff.py b/reproducible-builds/apkdiff/apkdiff.py
-index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8f7b44b51 100755
+index 36b7d7ae20fc1ba086189bc24ea0bec2cf8c59b1..3c10cb6bfbbe51be0303ba38b6c207e8f7b44b51 100755
 --- a/reproducible-builds/apkdiff/apkdiff.py
 +++ b/reproducible-builds/apkdiff/apkdiff.py
-@@ -1,324 +1,80 @@
+@@ -1,258 +1,80 @@
  #! /usr/bin/env python3
  
 -import difflib
 -import subprocess
  import sys
--import re
 -import logging
--from xml.etree.ElementTree import Element
 +import fnmatch
  from zipfile import ZipFile
--import xml.etree.ElementTree as ET
--from dataclasses import dataclass
--from typing import Optional
  
--from androguard.core import axml
--from loguru import logger
+-from loguru import logger  # ty:ignore[unresolved-import]
+-from lxml import etree  # ty:ignore[unresolved-import]
+-from androguard.core.axml import AXMLPrinter  # ty:ignore[unresolved-import]
  
--logging.getLogger("deepdiff").setLevel(logging.ERROR)
--
+-logging.getLogger("apkdiff").setLevel(logging.ERROR)
 -logger.disable("androguard")
 -
 -
--@dataclass
--class XmlDifference:
--    """Represents a difference between two XML elements."""
--
--    diff_type: str  # "tag", "attribute", "text", "child_count"
--    path: str
--    attribute_name: Optional[str] = None
--    first_value: Optional[str] = None
--    second_value: Optional[str] = None
--    child_tag: Optional[str] = None
+-def android_attr(name: str) -> str:
+-    return f"{{http://schemas.android.com/apk/res/android}}{name}"
 -
 -
+-# Related to app signing. Not expected to be present in unsigned builds. Doesn't affect app code.
 -IGNORE_FILES = [
--    # Related to app signing. Not expected to be present in unsigned builds. Doesn"t affect app code.
 -    "META-INF/MANIFEST.MF",
 -    "META-INF/CERTIFIC.SF",
 -    "META-INF/CERTIFIC.RSA",
@@ -1027,7 +1014,20 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -    "stamp-cert-sha256",
 -]
 -
--ALLOWED_ARSC_DIFF_PATHS = [".res1"]
+-
+-# Play Store may add or modify attributes as part of the bundle process. Doesn't affect app code.
+-MANIFEST_IGNORE_ATTRIBUTES: dict[str, set[str]] = {
+-    "uses-sdk": {
+-        android_attr("minSdkVersion"),
+-    }
+-}
+-
+-# Play Store may add or modify metadata as part of the bundle process. Doesn't affect app code.
+-MANIFEST_IGNORE_METADATA: list[str] = [
+-    "com.android.stamp.source",
+-    "com.android.stamp.type",
+-    "com.android.vending.derived.apk.id",
+-]
 -
 -
 -def compare(apk1, apk2) -> bool:
@@ -1069,7 +1069,9 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -
 -    success = True
 -    if len(name_list_sorted_1) != len(name_list_sorted_2):
--        print(f"Manifest lengths differ! {len(name_list_sorted_1)} vs {len(name_list_sorted_2)}")
+-        print(
+-            f"Manifest lengths differ! {len(name_list_sorted_1)} vs {len(name_list_sorted_2)}"
+-        )
 -        success = False
 -
 -    only_in_first = sorted(list(set(name_list_sorted_1) - set(name_list_sorted_2)))
@@ -1099,12 +1101,18 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -
 -def compare_entry_contents(zip1: ZipFile, zip2: ZipFile) -> bool:
 -    print("Comparing zip entry contents...")
--    info_list_1 = list(filter(lambda info: info.filename not in IGNORE_FILES, zip1.infolist()))
--    info_list_2 = list(filter(lambda info: info.filename not in IGNORE_FILES, zip2.infolist()))
+-    info_list_1 = list(
+-        filter(lambda info: info.filename not in IGNORE_FILES, zip1.infolist())
+-    )
+-    info_list_2 = list(
+-        filter(lambda info: info.filename not in IGNORE_FILES, zip2.infolist())
+-    )
 -
 -    success = True
 -    if len(info_list_1) != len(info_list_2):
--        print(f"APK info lists of different length! {len(info_list_1)} vs {len(info_list_2)}")
+-        print(
+-            f"APK info lists of different length! {len(info_list_1)} vs {len(info_list_2)}"
+-        )
 -        success = False
 -
 -    for entry_info_1 in info_list_1:
@@ -1113,10 +1121,14 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -                entry_bytes_1 = zip1.read(entry_info_1.filename)
 -                entry_bytes_2 = zip2.read(entry_info_2.filename)
 -
--                if entry_bytes_1 != entry_bytes_2 and not handle_special_cases(entry_info_1.filename, entry_bytes_1, entry_bytes_2):
+-                if entry_bytes_1 != entry_bytes_2 and not handle_special_cases(
+-                    entry_info_1.filename, entry_bytes_1, entry_bytes_2
+-                ):
 -                    zip1.extract(entry_info_1, "mismatches/first")
 -                    zip2.extract(entry_info_2, "mismatches/second")
--                    print(f"APKs differ on file {entry_info_1.filename}! Files extracted to the mismatches/ directory.")
+-                    print(
+-                        f"APKs differ on file {entry_info_1.filename}! Files extracted to the mismatches/ directory."
+-                    )
 -                    success = False
 -
 -                info_list_2.remove(entry_info_2)
@@ -1134,7 +1146,7 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -    """
 -    if filename == "AndroidManifest.xml":
 -        print("Comparing AndroidManifest.xml...")
--        return compare_android_xml(bytes1, bytes2)
+-        return axml_diff(filename, bytes1, bytes2)
 -    elif filename == "resources.arsc":
 -        # we will compare resources.arsc separately with aapt2, so we can ignore any differences here
 +class ApkDiff:
@@ -1153,73 +1165,27 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 +            if fnmatch.fnmatchcase(filepath, ignoreFile):
 +                return False
          return True
--    elif re.match("res/xml/splits[0-9]+\\.xml", filename):
--        print(f"Comparing {filename}...")
--        return compare_split_xml(bytes1, bytes2)
--
--    return False
--
--
--def compare_android_xml(bytes1: bytes, bytes2: bytes) -> bool:
--    all_differences = compare_xml(bytes1, bytes2)
--    bad_differences = []
--
--    for diff in all_differences:
--        is_split_attr = diff.diff_type == "attribute" and diff.path in ["manifest", "manifest/application"] and diff.attribute_name is not None and "split" in diff.attribute_name.lower()
--        is_meta_attr = diff.diff_type == "attribute" and diff.path == "manifest/application/meta-data"
--        is_meta_child_count = diff.diff_type == "child_count" and diff.child_tag == "meta-data"
--
--        if not is_split_attr and not is_meta_attr and not is_meta_child_count:
--            bad_differences.append(diff)
--
--    if bad_differences:
--        print(bad_differences)
--        return False
  
--    return True
+-    return False
 +    def compare(self, firstApk, secondApk):
 +        firstZip = ZipFile(firstApk, 'r')
 +        secondZip = ZipFile(secondApk, 'r')
  
 +        return self.compareEntryNames(firstZip, secondZip) and self.compareEntryContents(firstZip, secondZip) == True
  
--def compare_split_xml(bytes1: bytes, bytes2: bytes) -> bool:
--    all_differences = compare_xml(bytes1, bytes2)
--    bad_differences = []
+-def compare_resources_arsc(apk1: str, apk2: str) -> bool:
+-    print("Comparing resources.arsc...")
 +    def compareEntryNames(self, firstZip, secondZip):
 +        firstNameListSorted = sorted(n for n in firstZip.namelist() if self.isIncluded(n))
 +        secondNameListSorted = sorted(n for n in secondZip.namelist() if self.isIncluded(n))
  
--    for diff in all_differences:
--        is_language = diff.diff_type == "attribute" and diff.path == "splits/module/language/entry"
+-    resources1 = dump_resources(apk1)
+-    resources2 = dump_resources(apk2)
 +        if len(firstNameListSorted) != len(secondNameListSorted):
 +            print("Manifest lengths differ!")
  
--        if not is_language:
--            bad_differences.append(diff)
-+        for (firstEntryName, secondEntryName) in zip(firstNameListSorted, secondNameListSorted):
-+            if firstEntryName != secondEntryName:
-+                print("Sorted manifests don't match, %s vs %s" % (firstEntryName, secondEntryName))
-+                return False
- 
--    if bad_differences:
--        print(bad_differences)
--        return False
--
--    return True
--
--
--def compare_resources_arsc(apk1: str, apk2: str) -> bool:
--    """
--    Compares two resources.arsc files.
--    """
--    print("Comparing resources.arsc...")
--
--    resources1 = dump_resources(apk1)
--    resources2 = dump_resources(apk2)
--
 -    if resources1 == resources2:
-         return True
+-        return True
 -    else:
 -        print("resources.arsc files differ!")
 -        diff = difflib.unified_diff(
@@ -1233,13 +1199,14 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -            print(line)
 -        return False
 -
+-
 -def dump_resources(apk):
 -    try:
 -        with subprocess.Popen(
--            ['aapt2', 'dump', 'resources', apk],
+-            ["aapt2", "dump", "resources", apk],
 -            stdout=subprocess.PIPE,
 -            stderr=subprocess.PIPE,
--            text=True
+-            text=True,
 -        ) as process:
 -            stdout, stderr = process.communicate()
 -            if process.returncode != 0:
@@ -1248,77 +1215,35 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 -        raise RuntimeError("aapt2 is not installed or not in the PATH.")
 -
 -    return stdout.strip().splitlines()
--
--def compare_xml(bytes1: bytes, bytes2: bytes) -> list[XmlDifference]:
--    printer = axml.AXMLPrinter(bytes1)
--    entry_text_1 = printer.get_xml().decode("utf-8")
--
--    printer = axml.AXMLPrinter(bytes2)
--    entry_text_2 = printer.get_xml().decode("utf-8")
--
--    if entry_text_1 == entry_text_2:
--        return []
--
--    root1 = ET.fromstring(entry_text_1)
--    root2 = ET.fromstring(entry_text_2)
--
--    return compare_xml_elements(root1, root2)
--
--
--def compare_xml_elements(elem1: Element, elem2: Element, path: str = "") -> list[XmlDifference]:
--    """Recursively compare two XML elements and return list of XmlDifference objects."""
--    differences: list[XmlDifference] = []
--
--    # Build current path
--    current_path = f"{path}/{elem1.tag}" if path else elem1.tag
--
--    # Compare tags
--    if elem1.tag != elem2.tag:
--        differences.append(XmlDifference(diff_type="tag", path=path, first_value=elem1.tag, second_value=elem2.tag))
--        return differences
--
--    # Compare attributes
--    attrs1 = elem1.attrib
--    attrs2 = elem2.attrib
--
--    all_keys = set(attrs1.keys()) | set(attrs2.keys())
--    for key in sorted(all_keys):
--        val1 = attrs1.get(key)
--        val2 = attrs2.get(key)
--
--        if val1 != val2:
--            differences.append(XmlDifference(diff_type="attribute", path=current_path, attribute_name=key, first_value=val1, second_value=val2))
--
--    # Compare text content
--    text1 = (elem1.text or "").strip()
--    text2 = (elem2.text or "").strip()
--    if text1 != text2:
--        differences.append(XmlDifference(diff_type="text", path=current_path, first_value=text1, second_value=text2))
--
--    # Compare children
--    children1 = list(elem1)
--    children2 = list(elem2)
++        for (firstEntryName, secondEntryName) in zip(firstNameListSorted, secondNameListSorted):
++            if firstEntryName != secondEntryName:
++                print("Sorted manifests don't match, %s vs %s" % (firstEntryName, secondEntryName))
++                return False
  
--    # Try to match children by tag name for comparison
--    children1_by_tag: dict[str, list[Element]] = {}
--    for child in children1:
--        children1_by_tag.setdefault(child.tag, []).append(child)
++        return True
+ 
+-def filter_tree(root: etree._Element) -> etree._Element:
+-    for element in root.findall(".//meta-data"):
+-        name = element.get(android_attr("name"), "")
+-        if any(name.startswith(prefix) for prefix in MANIFEST_IGNORE_METADATA):
+-            element.getparent().remove(element)
+-
+-    for element in root.iter():
+-        for attr in MANIFEST_IGNORE_ATTRIBUTES.get(element.tag, ()):
+-            element.attrib.pop(attr, None)
+-
+-    return root
 +    def compareEntryContents(self, firstZip, secondZip):
 +        firstInfoList = list(filter(lambda info: self.isIncluded(info.filename), firstZip.infolist()))
 +        secondInfoList = list(filter(lambda info: self.isIncluded(info.filename), secondZip.infolist()))
  
--    children2_by_tag: dict[str, list[Element]] = {}
--    for child in children2:
--        children2_by_tag.setdefault(child.tag, []).append(child)
 +        if len(firstInfoList) != len(secondInfoList):
 +            print("APK info lists of different length!")
 +            return False
  
--    # Compare children with matching tags
--    all_child_tags = set(children1_by_tag.keys()) | set(children2_by_tag.keys())
--    for tag in sorted(all_child_tags):
--        list1 = children1_by_tag.get(tag, [])
--        list2 = children2_by_tag.get(tag, [])
+-def axml_diff(filename: str, bytes1: bytes, bytes2: bytes) -> bool:
+-    root_a = AXMLPrinter(bytes1).get_xml_obj()
+-    root_b = AXMLPrinter(bytes2).get_xml_obj()
 +        success = True
 +        for firstEntryInfo in firstInfoList:
 +            for secondEntryInfo in list(secondInfoList):
@@ -1326,21 +1251,31 @@ index 077ceefd95a5ec2943ef0d5a064ad02079c3b93a..3c10cb6bfbbe51be0303ba38b6c207e8
 +                    firstEntryBytes = firstZip.read(firstEntryInfo.filename)
 +                    secondEntryBytes = secondZip.read(secondEntryInfo.filename)
  
--        if len(list1) != len(list2):
--            differences.append(XmlDifference(diff_type="child_count", path=current_path, child_tag=tag, first_value=str(len(list1)), second_value=str(len(list2))))
+-    filtered_a = filter_tree(root_a)
+-    filtered_b = filter_tree(root_b)
 +                    if firstEntryBytes != secondEntryBytes:
 +                        firstZip.extract(firstEntryInfo, "mismatches/first")
 +                        secondZip.extract(secondEntryInfo, "mismatches/second")
 +                        print("APKs differ on file %s! Files extracted to the mismatches/ directory." % (firstEntryInfo.filename))
 +                        success = False
  
--        # Compare matching elements recursively
--        for child1, child2 in zip(list1, list2):
--            differences.extend(compare_xml_elements(child1, child2, current_path))
+-    pretty_a = etree.tostring(filtered_a, pretty_print=True, encoding="unicode")
+-    pretty_b = etree.tostring(filtered_b, pretty_print=True, encoding="unicode")
 +                    secondInfoList.remove(secondEntryInfo)
 +                    break
  
--    return differences
+-    if pretty_a == pretty_b:
+-        return True
+-    else:
+-        print(f"{filename} files differ!")
+-        diff = difflib.unified_diff(
+-            a=pretty_a.splitlines(keepends=True),
+-            b=pretty_b.splitlines(keepends=True),
+-            fromfile="a/" + filename,
+-            tofile="b/" + filename,
+-        )
+-        sys.stdout.writelines(diff)
+-        return False
 +        return success
  
  

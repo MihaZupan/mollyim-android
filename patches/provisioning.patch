@@ -171,10 +171,10 @@ index e91967a69ace0e1e2063ddc05da7c41ab3915fb5..00000000000000000000000000000000
 -}
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/NoOpJob.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/NoOpJob.kt
 deleted file mode 100644
-index 707dbe11ffacc829e3a6a020eeb4e1e006dfdd4c..0000000000000000000000000000000000000000
+index 16f200094bce4d50ce4bbe66562d07cad225467a..0000000000000000000000000000000000000000
 --- a/app/src/benchmarkShared/java/org/signal/benchmark/setup/NoOpJob.kt
 +++ /dev/null
-@@ -1,84 +0,0 @@
+@@ -1,83 +0,0 @@
 -package org.signal.benchmark.setup
 -
 -import org.thoughtcrime.securesms.jobmanager.Job
@@ -255,8 +255,7 @@ index 707dbe11ffacc829e3a6a020eeb4e1e006dfdd4c..00000000000000000000000000000000
 -      StoryOnboardingDownloadJob.KEY
 -    )
 -
--    fun replaceFactories(factories: Map<String, Job.Factory<*>>): Map<String, Job.Factory<*>> =
--      factories.mapValues { if (it.key in STARTUP_NETWORK_JOB_KEYS) Factory() else it.value }
+-    fun replaceFactories(factories: Map<String, Job.Factory<*>>): Map<String, Job.Factory<*>> = factories.mapValues { if (it.key in STARTUP_NETWORK_JOB_KEYS) Factory() else it.value }
 -  }
 -}
 diff --git a/app/src/benchmarkShared/java/org/signal/benchmark/setup/OtherClient.kt b/app/src/benchmarkShared/java/org/signal/benchmark/setup/OtherClient.kt
@@ -512,7 +511,7 @@ index f5bdff0176c46eff289fd0a55a4b0a2292da29d3..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
-index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78083a0965 100644
+index 58bca577c423b43d5d03ed5fa64fffc6dd7ca131..439bd206f11a6b6042cf48891cc9fe5fb0ec7403 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt
 @@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.Column
@@ -540,7 +539,7 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
  import androidx.compose.ui.text.style.TextDirection
  import androidx.compose.ui.unit.dp
  import androidx.fragment.app.viewModels
-@@ -106,8 +102,8 @@ class AppSettingsFragment : ComposeFragment(), Callbacks {
+@@ -111,8 +107,8 @@ class AppSettingsFragment : ComposeFragment(), Callbacks {
              is AppSettingsRoute.PrivacyRoute.Privacy -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_privacySettingsFragment)
              is AppSettingsRoute.BackupsRoute.Backups -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_backupsSettingsFragment)
              is AppSettingsRoute.DataAndStorageRoute.DataAndStorage -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_dataAndStorageSettingsFragment)
@@ -550,53 +549,7 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
              is AppSettingsRoute.HelpRoute.Settings -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_helpSettingsFragment)
              is AppSettingsRoute.Invite -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_inviteFragment)
              is AppSettingsRoute.LabsRoute.Labs -> findNavController().safeNavigate(R.id.action_appSettingsFragment_to_labsSettingsFragment)
-@@ -292,27 +288,25 @@ private fun AppSettingsContent(
-           BackupFailureState.NONE -> Unit
-         }
- 
--        if (state.isPrimaryDevice) {
--          item {
--            Rows.TextRow(
--              text = stringResource(R.string.AccountSettingsFragment__account),
--              icon = painterResource(CoreUiR.drawable.symbol_person_circle_24),
--              onClick = {
--                callbacks.navigate(AppSettingsRoute.AccountRoute.Account)
--              }
--            )
--          }
-+        item {
-+          Rows.TextRow(
-+            text = stringResource(R.string.AccountSettingsFragment__account),
-+            icon = painterResource(CoreUiR.drawable.symbol_person_circle_24),
-+            onClick = {
-+              callbacks.navigate(AppSettingsRoute.AccountRoute.Account)
-+            }
-+          )
-+        }
- 
--          item {
--            Rows.TextRow(
--              text = stringResource(R.string.preferences__linked_devices),
--              icon = painterResource(CoreUiR.drawable.symbol_devices_24),
--              onClick = {
--                callbacks.navigate(AppSettingsRoute.LinkDeviceRoute.LinkDevice)
--              },
--              enabled = isRegisteredAndUpToDate
--            )
--          }
-+        item {
-+          Rows.TextRow(
-+            text = stringResource(R.string.preferences__linked_devices),
-+            icon = painterResource(CoreUiR.drawable.symbol_devices_24),
-+            onClick = {
-+              callbacks.navigate(AppSettingsRoute.LinkDeviceRoute.LinkDevice)
-+            },
-+            enabled = isRegisteredAndUpToDate
-+          )
-         }
- 
-         item {
-@@ -320,37 +314,11 @@ private fun AppSettingsContent(
+@@ -325,37 +321,11 @@ private fun AppSettingsContent(
            val donateUrl = stringResource(R.string.donate_url)
  
            Rows.TextRow(
@@ -637,37 +590,10 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
            )
          }
  
-@@ -412,20 +380,27 @@ private fun AppSettingsContent(
+@@ -433,6 +403,16 @@ private fun AppSettingsContent(
            )
          }
  
--        if (state.isPrimaryDevice) {
--          item {
--            Rows.TextRow(
--              icon = SignalIcons.Backup.imageVector,
--              text = stringResource(R.string.preferences_chats__backups),
--              onClick = {
--                callbacks.navigate(AppSettingsRoute.BackupsRoute.Backups())
--              },
--              onLongClick = {
--                callbacks.copyRemoteBackupsSubscriberIdToClipboard()
--              },
--              enabled = isRegisteredAndUpToDate
--            )
--          }
-+        item {
-+          Rows.TextRow(
-+            icon =  SignalIcons.Backup.imageVector,
-+            text = stringResource(R.string.preferences_chats__backups),
-+            onClick = {
-+              callbacks.navigate(AppSettingsRoute.BackupsRoute.Backups())
-+            },
-+            onLongClick = {
-+              callbacks.copyRemoteBackupsSubscriberIdToClipboard()
-+            },
-+          )
-+        }
-+
 +        item {
 +          Rows.TextRow(
 +            text = stringResource(R.string.preferences__network),
@@ -676,10 +602,12 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
 +              callbacks.navigate(AppSettingsRoute.DataAndStorageRoute.Proxy)
 +            }
 +          )
-         }
- 
++        }
++
          item {
-@@ -450,49 +425,6 @@ private fun AppSettingsContent(
+           Rows.TextRow(
+             text = stringResource(R.string.preferences__data_and_storage),
+@@ -455,49 +435,6 @@ private fun AppSettingsContent(
            }
          }
  
@@ -729,7 +657,7 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
          item {
            Dividers.Default()
          }
-@@ -507,16 +439,6 @@ private fun AppSettingsContent(
+@@ -512,16 +449,6 @@ private fun AppSettingsContent(
            )
          }
  
@@ -746,7 +674,7 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
          if (state.showInternalPreferences) {
            item {
              Dividers.Default()
-@@ -703,12 +625,9 @@ private fun AppSettingsContentPreview() {
+@@ -708,12 +635,9 @@ private fun AppSettingsContentPreview() {
        state = AppSettingsState(
          isPrimaryDevice = true,
          unreadPaymentsCount = 5,
@@ -759,7 +687,7 @@ index bd933f3e1e8755ecbfa15d7a8bf8d6d29e0a931d..025a37a55bdba51db8f68cbed83f6b78
          showAppUpdates = true,
          backupFailureState = BackupFailureState.OUT_OF_STORAGE_SPACE
        ),
-@@ -740,12 +659,9 @@ private fun AppSettingsContentUnregisteredPreview() {
+@@ -745,12 +669,9 @@ private fun AppSettingsContentUnregisteredPreview() {
        state = AppSettingsState(
          isPrimaryDevice = true,
          unreadPaymentsCount = 5,
@@ -1228,32 +1156,6 @@ index 37048228d693a4d435f3c8417d763b1a2c855360..5bfc7f77ab464c9bafc4264768bb9231
 +        subhead2extra.visibility = if (it == null) View.GONE else View.VISIBLE
 +      }
      }
-   }
- 
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/newdevice/NewDeviceTransferSetupFragment.java b/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/newdevice/NewDeviceTransferSetupFragment.java
-index 240866969d07c1c1e22de57bc7fc4c44f40ad626..276a513780e762bb0ac80f14198b3a66f79821d1 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/newdevice/NewDeviceTransferSetupFragment.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/newdevice/NewDeviceTransferSetupFragment.java
-@@ -85,7 +85,7 @@ public final class NewDeviceTransferSetupFragment extends DeviceTransferSetupFra
-   protected void startTransfer() {
-     PendingIntent pendingIntent = PendingIntent.getActivity(requireContext(), 0, MainActivity.clearTop(requireContext()), PendingIntentFlags.mutable());
- 
--    TransferNotificationData notificationData = new TransferNotificationData(NotificationIds.DEVICE_TRANSFER, NotificationChannels.getInstance().BACKUPS, R.drawable.ic_signal_backup);
-+    TransferNotificationData notificationData = new TransferNotificationData(NotificationIds.DEVICE_TRANSFER, NotificationChannels.getInstance().BACKUPS, R.drawable.ic_notification_backup);
-     DeviceToDeviceTransferService.startServer(requireContext(), new NewDeviceServerTask(), notificationData, pendingIntent);
-   }
- }
-diff --git a/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/olddevice/OldDeviceTransferSetupFragment.java b/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/olddevice/OldDeviceTransferSetupFragment.java
-index 9b8594e53cae72d030684c9d1f0694a66e126dcc..f925a4379e9ab261923dfe39b0cabe8cb9dd06d3 100644
---- a/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/olddevice/OldDeviceTransferSetupFragment.java
-+++ b/app/src/main/java/org/thoughtcrime/securesms/devicetransfer/olddevice/OldDeviceTransferSetupFragment.java
-@@ -58,7 +58,7 @@ public final class OldDeviceTransferSetupFragment extends DeviceTransferSetupFra
-     intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-     PendingIntent pendingIntent = PendingIntent.getActivity(requireContext(), 0, intent, PendingIntentFlags.mutable());
- 
--    DeviceToDeviceTransferService.TransferNotificationData notificationData = new DeviceToDeviceTransferService.TransferNotificationData(NotificationIds.DEVICE_TRANSFER, NotificationChannels.getInstance().BACKUPS, R.drawable.ic_signal_backup);
-+    DeviceToDeviceTransferService.TransferNotificationData notificationData = new DeviceToDeviceTransferService.TransferNotificationData(NotificationIds.DEVICE_TRANSFER, NotificationChannels.getInstance().BACKUPS, R.drawable.ic_notification_backup);
-     DeviceToDeviceTransferService.startClient(requireContext(), new OldDeviceClientTask(), notificationData, pendingIntent);
    }
  
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt b/app/src/main/java/org/thoughtcrime/securesms/linkdevice/AddLinkDeviceFragment.kt
@@ -1993,7 +1895,7 @@ index c9d79cb20083d9782649d78e8e61fdcfd1bd3210..b51700875250cf94bb35192a9c684418
    val isReRegister: Boolean = false,
    val recoveryPassword: String? = null,
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt b/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
-index 09299a725fc3dbb49a9770fd94d31b908eb4aaf9..31ace05faa215ccedce0ded0ef4c331a154b5aa9 100644
+index e7a0e1a9fa00a007642eecb452bb3721ad5859db..31ace05faa215ccedce0ded0ef4c331a154b5aa9 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
 @@ -1,32 +1,26 @@
@@ -2026,11 +1928,11 @@ index 09299a725fc3dbb49a9770fd94d31b908eb4aaf9..31ace05faa215ccedce0ded0ef4c331a
    }
  
    @JvmField
--  val USE_NEW_REGISTRATION: Boolean = isInternal()
+-  val USE_NEW_REGISTRATION: Boolean = true
 +  val USE_NEW_REGISTRATION: Boolean = false // MOLLY: Test before enable
  
    @JvmField
--  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = BuildConfig.DEBUG
+-  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = true
 +  val IS_LINK_AND_SYNC_AVAILABLE: Boolean = false // MOLLY: Test before enable
  
    object Backups {

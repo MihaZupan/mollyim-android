@@ -580,11 +580,60 @@ index 34036e57e2f0d25349eae4689be4847dd171e88b..00000000000000000000000000000000
 -    assertArrayEquals(random, bytes);
 -  }
 -}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProviderTest.kt b/app/src/test/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProviderTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..2040ef8838669a280240320d53ccf73f7f64cf36
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProviderTest.kt
+@@ -0,0 +1,43 @@
++package org.thoughtcrime.securesms.dependencies
++
++import android.app.Application
++import io.mockk.mockk
++import org.junit.After
++import org.junit.Assert.assertThrows
++import org.junit.Before
++import org.junit.Test
++import org.thoughtcrime.securesms.net.Networking
++import java.io.IOException
++
++class ApplicationDependencyProviderTest {
++  private var networkingWasEnabled = false
++
++  @Before
++  fun disableNetworking() {
++    networkingWasEnabled = Networking.isEnabled
++    Networking.isEnabled = false
++  }
++
++  @After
++  fun restoreNetworking() {
++    Networking.isEnabled = networkingWasEnabled
++  }
++
++  @Test
++  fun `provided HTTP client rejects socket creation while locked`() {
++    val client = ApplicationDependencyProvider(mockk<Application>()).provideOkHttpClient()
++
++    assertThrows(IOException::class.java) {
++      client.socketFactory.createSocket().close()
++    }
++  }
++
++  @Test
++  fun `provided HTTP client rejects DNS lookup while locked`() {
++    val client = ApplicationDependencyProvider(mockk<Application>()).provideOkHttpClient()
++
++    assertThrows(IOException::class.java) {
++      client.dns.lookup("localhost")
++    }
++  }
++}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt b/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
-index 4e8f6f5d8bb05f398c0d784043bc065af805beda..64f1004212710012e495e0d3ed634bb8339fdc7d 100644
+index 8fcc51d0f0e4cf144fa4228a7fe772a2f124d135..0abe0c59743e651ce51db26a95c8a2e43ee7e5d3 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
 +++ b/app/src/test/java/org/thoughtcrime/securesms/dependencies/MockApplicationDependencyProvider.kt
-@@ -31,8 +31,8 @@ import org.thoughtcrime.securesms.database.PendingRetryReceiptCache
+@@ -32,8 +32,8 @@ import org.thoughtcrime.securesms.database.PendingRetryReceiptCache
  import org.thoughtcrime.securesms.jobmanager.JobManager
  import org.thoughtcrime.securesms.megaphone.MegaphoneRepository
  import org.thoughtcrime.securesms.messages.IncomingMessageObserver
@@ -594,7 +643,7 @@ index 4e8f6f5d8bb05f398c0d784043bc065af805beda..64f1004212710012e495e0d3ed634bb8
  import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess
  import org.thoughtcrime.securesms.recipients.LiveRecipientCache
  import org.thoughtcrime.securesms.revealable.ViewOnceMessageManager
-@@ -45,7 +45,6 @@ import org.thoughtcrime.securesms.service.PinnedMessageManager
+@@ -46,7 +46,6 @@ import org.thoughtcrime.securesms.service.PinnedMessageManager
  import org.thoughtcrime.securesms.service.ScheduledMessageManager
  import org.thoughtcrime.securesms.service.TrimThreadsByDateManager
  import org.thoughtcrime.securesms.service.webrtc.SignalCallManager
@@ -602,7 +651,7 @@ index 4e8f6f5d8bb05f398c0d784043bc065af805beda..64f1004212710012e495e0d3ed634bb8
  import org.thoughtcrime.securesms.util.EarlyMessageCache
  import org.thoughtcrime.securesms.util.FrameRateTracker
  import org.thoughtcrime.securesms.video.exo.GiphyMp4Cache
-@@ -179,14 +178,6 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
+@@ -184,14 +183,6 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
      return mockk(relaxed = true)
    }
  
@@ -617,7 +666,7 @@ index 4e8f6f5d8bb05f398c0d784043bc065af805beda..64f1004212710012e495e0d3ed634bb8
    override fun provideSignalCallManager(): SignalCallManager {
      return mockk(relaxed = true)
    }
-@@ -243,11 +234,15 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
+@@ -248,11 +239,15 @@ class MockApplicationDependencyProvider : AppDependencies.Provider {
      return mockk(relaxed = true)
    }
  
@@ -1301,10 +1350,10 @@ index 644e01f48583ec8c6e1bb3333d205275a873834b..00000000000000000000000000000000
 -  }
 -}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/util/UriUtilTest_isValidExternalUri.java b/app/src/test/java/org/thoughtcrime/securesms/util/UriUtilTest_isValidExternalUri.java
-index b437145304ae298f35c2272b3110c11adfda00e5..428f0be6a7c9de90aed9db523f49499f46a4f52f 100644
+index 699060223dfc734cd61ff44483901ebb17a9a9aa..7721627a864178870be5f8beb600b9411abbc9d8 100644
 --- a/app/src/test/java/org/thoughtcrime/securesms/util/UriUtilTest_isValidExternalUri.java
 +++ b/app/src/test/java/org/thoughtcrime/securesms/util/UriUtilTest_isValidExternalUri.java
-@@ -60,7 +60,7 @@ public class UriUtilTest_isValidExternalUri {
+@@ -64,7 +64,7 @@ public class UriUtilTest_isValidExternalUri {
    @Test
    public void parse() {
      Context context = ApplicationProvider.getApplicationContext();

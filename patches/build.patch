@@ -1297,7 +1297,7 @@ index 0000000000000000000000000000000000000000..217329de37b06572475a76ac0c2601fc
 +clean:
 +	$(do_clean)
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b7f2e8a3b 100644
+index 3f7b4430b8eeec06ea948596059e7ea8b0b7e9f9..23ea5eb199eeccf5e65fd09feb9552dad4cebb72 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -1,117 +1,51 @@
@@ -1338,8 +1338,8 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -val staticIps = Properties().apply { file("static-ips.properties").reader().use { load(it) } }
 -staticIps.stringPropertyNames().forEach { rootProject.extra[it] = staticIps.getProperty(it) }
 -
- val canonicalVersionCode = 1719
- val canonicalVersionName = "8.19.2"
+ val canonicalVersionCode = 1724
+ val canonicalVersionName = "8.20.4"
  val currentHotfixVersion = 0
  val maxHotfixVersions = 100
 +val mollyRevision = 4
@@ -1443,12 +1443,23 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
  
  wire {
    kotlin {
-@@ -128,34 +62,27 @@ wire {
+@@ -128,45 +62,27 @@ wire {
    }
  }
  
 -ktlint {
 -  version.set("1.5.0")
+-}
+-
+-// ktlint only scans convention source dirs, so the shared dirs added to the compile tasks are
+-// otherwise skipped. Add them to the base test/androidTest ktlint tasks so ktlintCheck/format cover them.
+-tasks.withType(org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask::class.java).configureEach {
+-  if (name.endsWith("OverTestSourceSet") || name.endsWith("OverAndroidTestSourceSet")) {
+-    source("$projectDir/src/testShared")
+-  }
+-  if (name.endsWith("OverAndroidTestSourceSet")) {
+-    source("$projectDir/src/benchmarkShared/java")
+-  }
 -}
 -
 -screenshotTests {
@@ -1489,7 +1500,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      }
    }
  
-@@ -164,28 +91,21 @@ android {
+@@ -175,28 +91,21 @@ android {
  
      unitTests {
        isIncludeAndroidResources = true
@@ -1523,7 +1534,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      }
    }
  
-@@ -201,6 +121,8 @@ android {
+@@ -212,6 +121,8 @@ android {
          "**/*.dylib",
          "**/*.dll"
        )
@@ -1532,7 +1543,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      }
      resources {
        excludes += setOf(
-@@ -222,31 +144,45 @@ android {
+@@ -233,31 +144,45 @@ android {
  
    buildFeatures {
      buildConfig = true
@@ -1572,17 +1583,17 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 +
 +    resValue("string", "app_name", baseAppTitle)
 +    resValue("string", "package_name", basePackageId)
-+
+ 
+-    manifestPlaceholders["mapsKey"] = "AIzaSyCSx9xea86GwDKGznCAULE9Y5a8b-TfN9U"
 +    buildConfigField("String", "SIGNAL_PACKAGE_NAME", "\"org.thoughtcrime.securesms\"")
 +    buildConfigField("String", "SIGNAL_CANONICAL_VERSION_NAME", "\"$canonicalVersionName\"")
 +    buildConfigField("String", "BACKUP_BASE_NAME", "\"$baseAppFileName\"")
 +    buildConfigField("boolean", "FORCE_INTERNAL_USER_FLAG", forceInternalUserFlag)
 +    buildConfigField("String", "FDROID_UPDATE_URL", "\"https://molly.im/fdroid/repo\"")
  
--    manifestPlaceholders["mapsKey"] = "AIzaSyCSx9xea86GwDKGznCAULE9Y5a8b-TfN9U"
-+    vectorDrawables.useSupportLibrary = true
- 
 -    buildConfigField("long", "BUILD_TIMESTAMP", getLastCommitTimestamp() + "L")
++    vectorDrawables.useSupportLibrary = true
++
 +    // MOLLY: BUILD_TIMESTAMP may be zero in debug builds.
 +    buildConfigField("long", "BUILD_TIMESTAMP_OR_ZERO", getLastCommitTimestamp() + "L")
      buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
@@ -1590,7 +1601,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      buildConfigField("String", "SIGNAL_URL", "\"https://chat.signal.org\"")
      buildConfigField("String", "STORAGE_URL", "\"https://storage.signal.org\"")
      buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn.signal.org\"")
-@@ -261,15 +197,6 @@ android {
+@@ -272,15 +197,6 @@ android {
      buildConfigField("String[]", "SIGNAL_SFU_INTERNAL_URLS", "new String[]{\"https://sfu.test.voip.signal.org\", \"https://sfu.staging.voip.signal.org\", \"https://sfu.staging.test.voip.signal.org\"}")
      buildConfigField("String", "CONTENT_PROXY_HOST", "\"contentproxy.signal.org\"")
      buildConfigField("int", "CONTENT_PROXY_PORT", "443")
@@ -1606,7 +1617,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      buildConfigField("String", "SIGNAL_AGENT", "\"OWA\"")
      buildConfigField("String", "SVR2_MRENCLAVE_LEGACY", "\"1240acbd4aa26974184844c8a46b1022d3957ac8a76c1fd8f5b1a15141ee0708\"")
      buildConfigField("String", "SVR2_MRENCLAVE", "\"ced8217b26228e4b210c985786999d095c4958a94faf37b14acaf25c4cbb02a4\"")
-@@ -278,7 +205,7 @@ android {
+@@ -289,7 +205,7 @@ android {
      buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AByD873dTilmOSG0TjKrvpeaKEsUmIO8Vx9BeMmftwUs9v7ikPwM8P3OHyT0+X3EUMZrSe9VUp26Wai51Q9I8mdk0hX/yo7CeFGJyzoOqn8e/i4Ygbn5HoAyXJx5eXfIbqpc0bIxzju4H/HOQeOpt6h742qii5u/cbwOhFZCsMIbElZTaeU+BWMBQiZHIGHT5IE0qCordQKZ5iPZom0HeFa8Yq0ShuEyAl0WINBiY6xE3H/9WnvzXBbMuuk//eRxXgzO8ieCeK8FwQNxbfXqZm6Ro1cMhCOF3u7xoX83QhpN\"")
      buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AJwNSU55fsFCbgaxGRD11wO1juAs8Yr5GF8FPlGzzvdJJIKH5/4CC7ZJSOe3yL2vturVaRU2Cx0n751Vt8wkj1bozK3CBV1UokxV09GWf+hdVImLGjXGYLLhnI1J2TWEe7iWHyb553EEnRb5oxr9n3lUbNAJuRmFM7hrr0Al0F0wrDD4S8lo2mGaXe0MJCOM166F8oYRQqpFeEHfiLnxA1O8ZLh7vMdv4g9jI5phpRBTsJ5IjiJrWeP0zdIGHEssUeprDZ9OUJ14m0v61eYJMKsf59Bn+mAT2a7YfB+Don9O\"")
      buildConfigField("String[]", "LANGUAGES", "new String[]{ ${languagesForBuildConfigProvider.get()} }")
@@ -1615,7 +1626,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      buildConfigField("String", "DEFAULT_CURRENCIES", "\"EUR,AUD,GBP,CAD,CNY\"")
      buildConfigField("String", "GIPHY_API_KEY", "\"3o6ZsYH6U6Eri53TXy\"")
      buildConfigField("String", "SIGNAL_CAPTCHA_URL", "\"https://signalcaptchas.org/registration/generate.html\"")
-@@ -286,42 +213,23 @@ android {
+@@ -297,42 +213,23 @@ android {
      buildConfigField("org.signal.libsignal.net.Network.Environment", "LIBSIGNAL_NET_ENV", "org.signal.libsignal.net.Network.Environment.PRODUCTION")
      buildConfigField("int", "LIBSIGNAL_LOG_LEVEL", "org.signal.libsignal.protocol.logging.SignalProtocolLogger.INFO")
  
@@ -1662,7 +1673,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
        isDefault = true
        isMinifyEnabled = false
        proguardFiles(
-@@ -338,7 +246,6 @@ android {
+@@ -349,7 +246,6 @@ android {
          "proguard/proguard-shortcutbadger.pro",
          "proguard/proguard-retrofit.pro",
          "proguard/proguard-klinker.pro",
@@ -1670,7 +1681,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
          "proguard/proguard-retrolambda.pro",
          "proguard/proguard-okhttp.pro",
          "proguard/proguard-ez-vcard.pro",
-@@ -350,119 +257,33 @@ android {
+@@ -361,119 +257,33 @@ android {
          "proguard/proguard.cfg"
        )
  
@@ -1798,7 +1809,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      }
  
      create("staging") {
-@@ -470,6 +291,12 @@ android {
+@@ -481,6 +291,12 @@ android {
  
        applicationIdSuffix = ".staging"
  
@@ -1811,7 +1822,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
        buildConfigField("String", "SIGNAL_URL", "\"https://chat.staging.signal.org\"")
        buildConfigField("String", "STORAGE_URL", "\"https://storage-staging.signal.org\"")
        buildConfigField("String", "SIGNAL_CDN_URL", "\"https://cdn-staging.signal.org\"")
-@@ -483,13 +310,10 @@ android {
+@@ -494,13 +310,10 @@ android {
        buildConfigField("String", "ZKGROUP_SERVER_PUBLIC_PARAMS", "\"ABSY21VckQcbSXVNCGRYJcfWHiAMZmpTtTELcDmxgdFbtp/bWsSxZdMKzfCp8rvIs8ocCU3B37fT3r4Mi5qAemeGeR2X+/YmOGR5ofui7tD5mDQfstAI9i+4WpMtIe8KC3wU5w3Inq3uNWVmoGtpKndsNfwJrCg0Hd9zmObhypUnSkfYn2ooMOOnBpfdanRtrvetZUayDMSC5iSRcXKpdlukrpzzsCIvEwjwQlJYVPOQPj4V0F4UXXBdHSLK05uoPBCQG8G9rYIGedYsClJXnbrgGYG3eMTG5hnx4X4ntARBgELuMWWUEEfSK0mjXg+/2lPmWcTZWR9nkqgQQP0tbzuiPm74H2wMO4u1Wafe+UwyIlIT9L7KLS19Aw8r4sPrXZSSsOZ6s7M1+rTJN0bI5CKY2PX29y5Ok3jSWufIKcgKOnWoP67d5b2du2ZVJjpjfibNIHbT/cegy/sBLoFwtHogVYUewANUAXIaMPyCLRArsKhfJ5wBtTminG/PAvuBdJ70Z/bXVPf8TVsR292zQ65xwvWTejROW6AZX6aqucUjlENAErBme1YHmOSpU6tr6doJ66dPzVAWIanmO/5mgjNEDeK7DDqQdB1xd03HT2Qs2TxY3kCK8aAb/0iM0HQiXjxZ9HIgYhbtvGEnDKW5ILSUydqH/KBhW4Pb0jZWnqN/YgbWDKeJxnDbYcUob5ZY5Lt5ZCMKuaGUvCJRrCtuugSMaqjowCGRempsDdJEt+cMaalhZ6gczklJB/IbdwENW9KeVFPoFNFzhxWUIS5ML9riVYhAtE6JE5jX0xiHNVIIPthb458cfA8daR0nYfYAUKogQArm0iBezOO+mPk5vCNWI+wwkyFCqNDXz/qxl1gAntuCJtSfq9OC3NkdhQlgYQ==\"")
        buildConfigField("String", "GENERIC_SERVER_PUBLIC_PARAMS", "\"AHILOIrFPXX9laLbalbA9+L1CXpSbM/bTJXZGZiuyK1JaI6dK5FHHWL6tWxmHKYAZTSYmElmJ5z2A5YcirjO/yfoemE03FItyaf8W1fE4p14hzb5qnrmfXUSiAIVrhaXVwIwSzH6RL/+EO8jFIjJ/YfExfJ8aBl48CKHgu1+A6kWynhttonvWWx6h7924mIzW0Czj2ROuh4LwQyZypex4GuOPW8sgIT21KNZaafgg+KbV7XM1x1tF3XA17B4uGUaDbDw2O+nR1+U5p6qHPzmJ7ggFjSN6Utu+35dS1sS0P9N\"")
        buildConfigField("String", "BACKUP_SERVER_PUBLIC_PARAMS", "\"AHYrGb9IfugAAJiPKp+mdXUx+OL9zBolPYHYQz6GI1gWjpEu5me3zVNSvmYY4zWboZHif+HG1sDHSuvwFd0QszSwuSF4X4kRP3fJREdTZ5MCR0n55zUppTwfHRW2S4sdQ0JGz7YDQIJCufYSKh0pGNEHL6hv79Agrdnr4momr3oXdnkpVBIp3HWAQ6IbXQVSG18X36GaicI1vdT0UFmTwU2KTneluC2eyL9c5ff8PcmiS+YcLzh0OKYQXB5ZfQ06d6DiINvDQLy75zcfUOniLAj0lGJiHxGczin/RXisKSR8\"")
@@ -1825,7 +1836,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
        buildConfigField("String", "STRIPE_PUBLISHABLE_KEY", "\"pk_test_sngOd8FnXNkpce9nPXawKrJD00kIDngZkD\"")
      }
    }
-@@ -497,167 +321,44 @@ android {
+@@ -508,167 +321,44 @@ android {
    lint {
      abortOnError = true
      baseline = file("lint-baseline.xml")
@@ -1891,13 +1902,13 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -      variant.packaging.jniLibs.excludes.add("**/libsignal_jni_testing.so")
 -      variant.androidResources.ignoreAssetsPatterns.add("libsignal-testing.md")
 -    }
--
+ 
 -    // Starting with minSdk 23, Android leaves native libraries uncompressed, which is fine for the Play Store, but not for our self-distributed APKs.
 -    // This reverts it to the legacy behavior, compressing the native libraries, and drastically reducing the APK file size.
 -    if (variant.name.contains("website", ignoreCase = true) || variant.name.contains("github", ignoreCase = true)) {
 -      variant.packaging.jniLibs.useLegacyPackaging.set(true)
 -    }
- 
+-
 -    // Version overrides
 -    if (variant.name.contains("nightly", ignoreCase = true)) {
 -      var tag = getNightlyTagForCurrentCommit()
@@ -1983,13 +1994,9 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -          ?: emptyList()
 -      )
 -    }
-+  // Include the test-only library on non-release builds.
-+  onVariants(selector().withBuildType("release")) { variant ->
-+    variant.packaging.jniLibs.excludes.add("**/libsignal_jni_testing.so")
-+    variant.androidResources.ignoreAssetsPatterns.add("libsignal-testing.md")
-   }
- }
- 
+-  }
+-}
+-
 -baselineProfile {
 -  warnings {
 -    disabledVariants = false
@@ -1999,11 +2006,15 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -
 -  variants.create("mocked") {
 -    from(project(":baseline-profile"))
--  }
++  // Include the test-only library on non-release builds.
++  onVariants(selector().withBuildType("release")) { variant ->
++    variant.packaging.jniLibs.excludes.add("**/libsignal_jni_testing.so")
++    variant.androidResources.ignoreAssetsPatterns.add("libsignal-testing.md")
+   }
 -
 -  dexLayoutOptimization = false
--}
--
+ }
+ 
  kotlin {
    compilerOptions {
 -    jvmTarget = JvmTarget.fromTarget(libs.versions.kotlinJvmTarget.get())
@@ -2011,7 +2022,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
      freeCompilerArgs.addAll("-Xjvm-default=all")
      suppressWarnings = true
    }
-@@ -665,7 +366,6 @@ kotlin {
+@@ -676,7 +366,6 @@ kotlin {
  
  dependencies {
    lintChecks(project(":lintchecks"))
@@ -2019,7 +2030,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
    coreLibraryDesugaring(libs.android.tools.desugar)
  
    implementation(project(":lib:archive"))
-@@ -696,7 +396,6 @@ dependencies {
+@@ -707,7 +396,6 @@ dependencies {
    implementation(libs.androidx.window.window)
    implementation(libs.androidx.window.java)
    implementation(libs.androidx.recyclerview)
@@ -2027,7 +2038,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
    implementation(libs.androidx.legacy.support)
    implementation(libs.androidx.preference)
    implementation(libs.androidx.legacy.preference)
-@@ -734,20 +433,25 @@ dependencies {
+@@ -745,20 +433,25 @@ dependencies {
    implementation(libs.androidx.asynclayoutinflater)
    implementation(libs.androidx.asynclayoutinflater.appcompat)
    implementation(libs.androidx.emoji2)
@@ -2058,7 +2069,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
    implementation(libs.signal.ringrtc)
    implementation(libs.leolin.shortcutbadger)
    implementation(libs.glide.glide)
-@@ -762,11 +466,6 @@ dependencies {
+@@ -773,11 +466,6 @@ dependencies {
    }
    implementation(libs.lottie)
    implementation(libs.lottie.compose)
@@ -2070,7 +2081,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
    implementation(libs.signal.android.database.sqlcipher)
    implementation(libs.androidx.sqlite)
    testImplementation(libs.androidx.sqlite.framework)
-@@ -781,22 +480,31 @@ dependencies {
+@@ -792,22 +480,31 @@ dependencies {
    implementation(libs.accompanist.drawablepainter)
    implementation(libs.kotlin.stdlib.jdk8)
    implementation(libs.kotlin.reflect)
@@ -2108,7 +2119,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
  
    androidTestImplementation(libs.androidx.fragment.testing) {
      exclude(group = "androidx.test", module = "core")
-@@ -827,7 +535,7 @@ dependencies {
+@@ -838,7 +535,7 @@ dependencies {
    testImplementation(testLibs.sqlite.jdbc)
    testImplementation(libs.androidx.compose.ui.test.junit4)
  
@@ -2117,7 +2128,7 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
  
    androidTestImplementation(platform(libs.androidx.compose.bom))
    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-@@ -852,306 +560,51 @@ dependencies {
+@@ -864,306 +561,51 @@ dependencies {
    androidTestUtil(testLibs.androidx.test.orchestrator)
  }
  
@@ -2246,9 +2257,14 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -    return Properties().apply {
 -      f.inputStream().use { load(it) }
 -    }
--  }
--}
--
++  return try {
++    git("log", "-1", "--pretty=format:%ct000")
++  } catch (e: Exception) {
++    logger.warn("Failed to get Git commit timestamp: ${e.message}. Using mtime of current build script.")
++    buildFile.lastModified().toString()
+   }
+ }
+ 
 -fun String.capitalize(): String {
 -  return this.replaceFirstChar { it.uppercase() }
 -}
@@ -2285,14 +2301,9 @@ index 1c0477a24c09124fde17b8e6bcce8fb2ac7074c4..8a60cd3181b09f56654a7bb3c42bce8b
 -    val dest = outputDir.get().asFile.resolve("quickstart")
 -    dest.mkdirs()
 -    chosen.copyTo(dest.resolve(chosen.name), overwrite = true)
-+  return try {
-+    git("log", "-1", "--pretty=format:%ct000")
-+  } catch (e: Exception) {
-+    logger.warn("Failed to get Git commit timestamp: ${e.message}. Using mtime of current build script.")
-+    buildFile.lastModified().toString()
-   }
- }
- 
+-  }
+-}
+-
 -abstract class CopyBenchmarkBackupTask : DefaultTask() {
 -  @get:InputFile
 -  @get:Optional
@@ -2531,7 +2542,7 @@ index c48ea2556501363c3a85ecec8c213c61c325875a..00000000000000000000000000000000
 -
 -</manifest>
 diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
-index aab652a4f2e43765777a2039e5fe9f743dcb3deb..b9fcf4f5de052c42329a2797a16cfb3ef17d5b8b 100644
+index 8cb7dfdd239b8ca09cb9878fb9b5122d5b64a6a0..13f7aba957ac77086fb996ed17c41d28580fcbc9 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
 @@ -1,6 +1,7 @@
@@ -3268,7 +3279,7 @@ index aab652a4f2e43765777a2039e5fe9f743dcb3deb..b9fcf4f5de052c42329a2797a16cfb3e
          </receiver>
  
 @@ -1539,18 +1495,13 @@
-             android:name="org.thoughtcrime.securesms.jobs.ForegroundServiceUtil$Receiver"
+             android:name="org.signal.core.util.ForegroundServiceUtil$Receiver"
              android:exported="false" />
  
 -        <receiver
@@ -8455,10 +8466,10 @@ index 9542d656b9868b932e8fcb177b5393bbcfed7e5e..9287aa89539ae60622e0b96844783fb5
    implementation(libs.kotlin.reflect)
    implementation(libs.kotlinx.coroutines.core)
 diff --git a/core/util/build.gradle.kts b/core/util/build.gradle.kts
-index 177f511f2ce698be24479e443df3dc4b32e7db3f..1dadb35e3b0b27441dc6cdfe32f5ef7951b6c38d 100644
+index cf3a1c7f766dddf43ae5c0f94ce9077533322b6a..b26868769b9795028a148d7bf55227e60fbd6f20 100644
 --- a/core/util/build.gradle.kts
 +++ b/core/util/build.gradle.kts
-@@ -20,7 +20,6 @@ dependencies {
+@@ -21,7 +21,6 @@ dependencies {
    implementation(libs.jackson.core)
    implementation(libs.jackson.module.kotlin)
    implementation(libs.google.libphonenumber)
@@ -8609,7 +8620,7 @@ index 0000000000000000000000000000000000000000..41654285328c759fdb41f25c7f3ab468
 +org.gradle.parallel=false
 +systemProp.com.android.tools.r8.deterministicdebugging=true
 diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
-index 87a423a5ffda7056c286169d37970172c2558d34..4b0ffc963878d193f8690679ca53157ece0b7082 100644
+index e96a24ca82a3c40b85528a927d1d53f510602eee..8812e396d38077020449534e22d65068a17a4fff 100644
 --- a/gradle/libs.versions.toml
 +++ b/gradle/libs.versions.toml
 @@ -3,11 +3,11 @@
@@ -8628,12 +8639,12 @@ index 87a423a5ffda7056c286169d37970172c2558d34..4b0ffc963878d193f8690679ca53157e
  javaVersion = "21"
  kotlinJvmTarget = "21"
  gradle = "9.2.1"
-@@ -27,23 +27,22 @@ androidx-navigation3-core = "1.0.0"
+@@ -27,23 +27,22 @@ androidx-navigation3-core = "1.1.4"
  androidx-core-telecom = "1.1.0-alpha04"
  androidx-window = "1.3.0"
  glide = "4.15.1"
--libsignal-client = "0.96.3"
-+libsignal-client = "0.96.3-1"
+-libsignal-client = "0.97.3"
++libsignal-client = "0.97.3-1"
  mp4parser = "1.9.39"
  accompanist = "0.28.0"
  nanohttpd = "2.3.1"
@@ -8701,8 +8712,8 @@ index 87a423a5ffda7056c286169d37970172c2558d34..4b0ffc963878d193f8690679ca53157e
 +libsignal-android = { module = "im.molly:libsignal-android", version.ref = "libsignal-client" }
  protobuf-gradle-plugin = { module = "com.google.protobuf:protobuf-gradle-plugin", version.ref = "protobuf-gradle-plugin" }
  signal-aesgcmprovider = "org.signal:aesgcmprovider:0.0.4"
--signal-ringrtc = "org.signal:ringrtc-android:2.69.5"
-+signal-ringrtc = "im.molly:ringrtc-android:2.69.5-1"
+-signal-ringrtc = "org.signal:ringrtc-android:2.69.7"
++signal-ringrtc = "im.molly:ringrtc-android:2.69.7-1"
 +
 +# MOLLY
 +gosimple-nbvcxz = "me.gosimple:nbvcxz:1.5.0"
@@ -8750,10 +8761,10 @@ index 3b4da6ce078d3fb3c7fea68aaed23b7368073d47..be97cf9e765cfaec94f76cfcdae32754
  androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test" }
  androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidx-test" }
 diff --git a/gradle/verification-metadata.xml b/gradle/verification-metadata.xml
-index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa9676122ad25c0 100644
+index dbbc46b7b468ee5788dd4f8fb37b052a88e16350..7a30874d72fc9dd29fc5337071c74a72574d7495 100644
 --- a/gradle/verification-metadata.xml
 +++ b/gradle/verification-metadata.xml
-@@ -42,6 +42,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -47,6 +47,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.activity" name="activity" version="1.8.0">
@@ -8763,7 +8774,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="activity-1.8.0.module">
              <sha256 value="d145d8b53cfd11fd26e47e7dd45c007133ef96ea24f6715cb653c737645d1df6" origin="Generated by Gradle"/>
           </artifact>
-@@ -136,6 +139,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -141,6 +144,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="9516c2ae44284ea0bd3d0eade0ee638879b708cbe31e3af92ba96c300604ebc3" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8778,7 +8789,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="androidx.annotation" name="annotation" version="1.7.0">
           <artifact name="annotation-1.7.0.module">
              <sha256 value="530708656d380605077ea8bca9ae1372fbd1af38e375f411d4e43263bd510c3c" origin="Generated by Gradle"/>
-@@ -345,6 +356,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -350,6 +361,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.benchmark" name="benchmark-gradle-plugin" version="1.4.1">
@@ -8788,7 +8799,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="benchmark-gradle-plugin-1.4.1.module">
              <sha256 value="517fa4c292f3a5f8f759d12661dcf36f579bc4463ed5648562fd1fa1dcbe0753" origin="Generated by Gradle"/>
           </artifact>
-@@ -1446,6 +1460,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -1546,6 +1560,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.core" name="core" version="1.13.0">
@@ -8798,7 +8809,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="core-1.13.0.module">
              <sha256 value="2e0e6e5c1205b7462a0c5c3e32b58c2e525435812ed89946c7be6737493b51e3" origin="Generated by Gradle"/>
           </artifact>
-@@ -1479,6 +1496,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -1579,6 +1596,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.core" name="core" version="1.8.0">
@@ -8808,7 +8819,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="core-1.8.0.module">
              <sha256 value="505f1838869611519d65ec7feb650e88856e3682e37e42a2a24b73e655a98d74" origin="Generated by Gradle"/>
           </artifact>
-@@ -1507,6 +1527,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -1607,6 +1627,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="3fa579c11de0f6f378002c0f0bb4bbe71100634f80f8b282951789ea7d0fb849" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8820,7 +8831,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="androidx.core" name="core-ktx" version="1.9.0">
           <artifact name="core-ktx-1.9.0.aar">
              <sha256 value="1542a1df7be908c95fee91b8dbc03fd974f53f11d84a85d881f95a52551c4051" origin="Generated by Gradle"/>
-@@ -1515,6 +1540,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -1615,6 +1640,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="4d46646066c794f2812d5b33a9422d37e4f918c4d809cd1fb2579c7022ef2818" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8835,7 +8846,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="androidx.core" name="core-telecom" version="1.1.0-alpha04">
           <artifact name="core-telecom-1.1.0-alpha04.aar">
              <sha256 value="9906390f94f95d4dc98a61cad619ce25d40122612664a9f999bac909aa9d98e2" origin="Generated by Gradle"/>
-@@ -1916,6 +1949,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2016,6 +2049,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-common" version="2.6.1">
@@ -8845,7 +8856,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-common-2.6.1.module">
              <sha256 value="93747a9145cb36bc71005f598ede32e2b1149ade5a16e62b0e4969345bc62d85" origin="Generated by Gradle"/>
           </artifact>
-@@ -1987,6 +2023,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2087,6 +2123,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-livedata" version="2.6.1">
@@ -8855,7 +8866,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-livedata-2.6.1.module">
              <sha256 value="e2659e87e890b52b66f300471828b387a205e5387a392713190166f399ecf641" origin="Generated by Gradle"/>
           </artifact>
-@@ -2037,6 +2076,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2137,6 +2176,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-livedata-core" version="2.6.1">
@@ -8865,7 +8876,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-livedata-core-2.6.1.module">
              <sha256 value="e9c0dc3f0ac54419c0cfed8ff5cecb82943a7c58f7a54169f0d849b2c60a3552" origin="Generated by Gradle"/>
           </artifact>
-@@ -2169,6 +2211,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2269,6 +2311,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-runtime" version="2.6.1">
@@ -8875,7 +8886,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-runtime-2.6.1.module">
              <sha256 value="a4cbb01a42d07047bd8d870017c96a1b0b7b4673320e86b66317a13be2ec10c7" origin="Generated by Gradle"/>
           </artifact>
-@@ -2370,6 +2415,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2470,6 +2515,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-viewmodel" version="2.6.1">
@@ -8885,7 +8896,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-viewmodel-2.6.1.module">
              <sha256 value="2b406faea5c12f2b8df4b7a60931f846648f2e1f4d78361e198d1184f19a4797" origin="Generated by Gradle"/>
           </artifact>
-@@ -2535,6 +2583,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -2635,6 +2683,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="androidx.lifecycle" name="lifecycle-viewmodel-savedstate" version="2.6.1">
@@ -8895,7 +8906,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="lifecycle-viewmodel-savedstate-2.6.1.module">
              <sha256 value="dafb8649763d29c29cda27bc22fcdab9a9efc53c0fff9ae3de90882eabaa8944" origin="Generated by Gradle"/>
           </artifact>
-@@ -3499,6 +3550,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -3636,6 +3687,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="baba97bfc2834fbd29275ce3e250ac814305bd0d4beb8b3594248424cc6ff385" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8907,7 +8918,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="androidx.transition" name="transition" version="1.0.0">
           <artifact name="transition-1.0.0.aar">
              <sha256 value="a00a0f763f401abcecda9b0eafcb738929c5801b111a9a414b81a193d0f4008d" origin="Generated by Gradle"/>
-@@ -3568,6 +3624,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -3705,6 +3761,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="1dd2ebd9c18d7299ac9c8d331ae39f2a38fa0c9ed32d6606e041ac34d0c38a3d" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8922,7 +8933,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="androidx.window" name="window" version="1.3.0">
           <artifact name="window-1.3.0.aar">
              <sha256 value="4aef04a1390b91869abef45164e915ea3407d2e03b159c44d003cb9443c27e93" origin="Generated by Gradle"/>
-@@ -3650,6 +3714,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -3787,6 +3851,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="4721ffffb15570edbf26c824098255a262d0231594b0ceba99efa096c72b7297" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8937,7 +8948,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="ch.qos.logback" name="logback-classic" version="1.3.14">
           <artifact name="logback-classic-1.3.14.jar">
              <sha256 value="f9b07a6dba4df3899381df7e597df450134e1879b1f3a757456b3cd1c8d94e2f" origin="Generated by Gradle"/>
-@@ -4158,6 +4230,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4295,6 +4367,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="9bfc9705d1fff845ae44669b3942aa729e16a77e0a2c9a4d175aa64a79079c30" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8952,7 +8963,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.fasterxml.jackson.core" name="jackson-core" version="2.12.0">
           <artifact name="jackson-core-2.12.0.jar">
              <sha256 value="8acab5ef6e4f332bbb331b3fcd24d716598770d13a47e7215aa5ee625d1fd9c9" origin="Generated by Gradle"/>
-@@ -4166,6 +4246,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4303,6 +4383,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="cfbcdd3bcd2a6899d5bf154aa14580ec3602a294d8c14be80f279d48c69b9b42" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8967,7 +8978,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.fasterxml.jackson.core" name="jackson-databind" version="2.12.0">
           <artifact name="jackson-databind-2.12.0.jar">
              <sha256 value="75d470eda0dd559e43f2ad08209fa09ecd268833492ba93fa46f6f3607acbab7" origin="Generated by Gradle"/>
-@@ -4174,6 +4262,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4311,6 +4399,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="35ba920affa5b6c330d5845fc8e59c851bf7e7968d55a4ea7cd44de79081d5cd" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8982,7 +8993,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.fasterxml.jackson.module" name="jackson-module-kotlin" version="2.12.0">
           <artifact name="jackson-module-kotlin-2.12.0.jar">
              <sha256 value="ee69650831f72ff2411026b507f3583e90ca88b40e9dae3067f87b34088e0ced" origin="Generated by Gradle"/>
-@@ -4182,6 +4278,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4319,6 +4415,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="7eaf1d8f4e688fd28e58d4249523788af1391a8ecf687db98fc6e3f3f5f94912" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -8997,7 +9008,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.github.ajalt.clikt" name="clikt" version="5.0.2">
           <artifact name="clikt-5.0.2.module">
              <sha256 value="471ce7619c63102f7dfcc0336ca43ed7da5916460b71d0060caddef90b5053ce" origin="Generated by Gradle"/>
-@@ -4433,6 +4537,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4570,6 +4674,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="9ddba12b5c80444c45413f043b34fd3127c2493c506a9db1ecbfe63039d83e34" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9012,7 +9023,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.api.grpc" name="proto-google-common-protos" version="2.17.0">
           <artifact name="proto-google-common-protos-2.17.0.jar">
              <sha256 value="4ef1fe0c327fc1521d1d753b0b1c4a875a54bd14ebded3afff0ca395320b6ea9" origin="Generated by Gradle"/>
-@@ -4508,6 +4620,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4645,6 +4757,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c96d60551331a196dac54b745aa642cd078ef89b6f267146b705f2c2cbef052d" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9024,7 +9035,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.crypto.tink" name="tink" version="1.18.0">
           <artifact name="tink-1.18.0.jar">
              <sha256 value="30df12a1f59045637213477656e01f6fbcc02616c20da1696cbd4643ada668ef" origin="Generated by Gradle"/>
-@@ -4585,6 +4702,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4722,6 +4839,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="9e6814cb71816988a4fd1b07a993a8f21bb7058d522c162b1de849e19bea54ae" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9036,7 +9047,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.errorprone" name="error_prone_annotations" version="2.23.0">
           <artifact name="error_prone_annotations-2.23.0.jar">
              <sha256 value="ec6f39f068b6ff9ac323c68e28b9299f8c0a80ca512dccb1d4a70f40ac3ec054" origin="Generated by Gradle"/>
-@@ -4708,6 +4830,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4845,6 +4967,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="bd7fa227591fb8509677d0d1122cf95158f3b8a9f45653f58281d879f6dc48c5" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9051,7 +9062,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.guava" name="guava" version="33.3.1-android">
           <artifact name="guava-33.3.1-android.jar">
              <sha256 value="2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0" origin="Generated by Gradle"/>
-@@ -4749,6 +4879,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4886,6 +5016,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="dc573e1fca4fd5454f4a5fd3d7da2df03002876a4175bafc14a95980dd7713b3" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9063,7 +9074,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.guava" name="listenablefuture" version="1.0">
           <artifact name="listenablefuture-1.0.jar">
              <sha256 value="e4ad7607e5c0477c6f890ef26a49cb8d1bb4dffb650bab4502afee64644e3069" origin="Generated by Gradle"/>
-@@ -4779,6 +4914,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -4916,6 +5051,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c4828e28d7c0a930af9387510b3bada7daa5c04d7c25a75c7b8b081f1c257ddd" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9075,7 +9086,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.google.protobuf" name="protobuf-gradle-plugin" version="0.10.0">
           <artifact name="protobuf-gradle-plugin-0.10.0.jar">
              <sha256 value="42137dd8f5d9520801e9e54058b6bd65e4a33a233babb3f241cc48cf73870f27" origin="Generated by Gradle"/>
-@@ -5264,6 +5404,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -5401,6 +5541,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="f1a78812ebeef4d45eee0dbeb4f27347210f564d2b8ee411f012ce8573b0a658" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9090,7 +9101,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="com.squareup.okhttp3" name="okhttp-jvm" version="5.3.2">
           <artifact name="okhttp-jvm-5.3.2.jar">
              <sha256 value="c771f48075b763f6c322055e21129a94b7de4c1faf3f8f58ace320b0c9517a30" origin="Generated by Gradle"/>
-@@ -5406,6 +5554,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -5543,6 +5691,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           <artifact name="wire-schema-6.4.0.module">
              <sha256 value="8779a4ad1879010a74bd638eb578a02b94e4cefe7b9004fed01778cb38304ae7" origin="Generated by Gradle"/>
           </artifact>
@@ -9100,7 +9111,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        </component>
        <component group="com.squareup.wire" name="wire-schema-jvm" version="6.4.0">
           <artifact name="wire-schema-jvm-6.4.0.jar">
-@@ -5519,6 +5670,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -5656,6 +5807,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="3b7e5b6fd367f55c2886a6a40709c4eb5b67d71607e89bff98f92c7561284fe7" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9112,7 +9123,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="dev.drewhamilton.poko" name="poko-annotations-jvm" version="0.18.0">
           <artifact name="poko-annotations-jvm-0.18.0.jar">
              <sha256 value="ae01637db8e38af0d1848595aa64c8cda77e980cdab737e45d3838e218c540a6" origin="Generated by Gradle"/>
-@@ -5527,11 +5683,53 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -5664,11 +5820,62 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="87708fa68421b6f4ca38399002cedf3fbbffaf9802628bc17a46f6d9468c4128" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9134,20 +9145,26 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
 +            <sha256 value="43542ba5be6540faee564f5f532564f062a02aacd76801dce8bdb931aad4d065" origin="Generated by Gradle"/>
 +         </artifact>
 +      </component>
-+      <component group="im.molly" name="libsignal-android" version="0.96.3-1">
-+         <artifact name="libsignal-android-0.96.3-1.aar">
-+            <sha256 value="f446110246144f4c28dedf4d39f60a0d086ba19f1abc44c394b54432aa282089" origin="Generated by Gradle"/>
++      <component group="im.molly" name="libsignal-android" version="0.97.3-1">
++         <artifact name="libsignal-android-0.97.3-1.aar">
++            <sha256 value="6c778f473a480fe723c699e7033b4b723e85ddfb846ecd4edebabc9a7ec347a7" origin="Downloaded public Cloudsmith artifact; SHA-256 and size matched Gradle module metadata"/>
 +         </artifact>
-+         <artifact name="libsignal-android-0.96.3-1.module">
-+            <sha256 value="5ca2025fb6f62a701b3ad02d670ed2a544a75686233683c04d311cdaff869975" origin="Generated by Gradle"/>
++         <artifact name="libsignal-android-0.97.3-1.module">
++            <sha256 value="916ce12ee0a32fd1e32652d451bedbf491b9ca912f5d5eb93de4db9b4e28f32a" origin="SHA-256 of downloaded public Cloudsmith metadata bytes"/>
++         </artifact>
++         <artifact name="libsignal-android-0.97.3-1.pom">
++            <sha256 value="27d36229b3b2d4afcf66d6551705c3b94f8f36f05c6ba2547e2ee708b6185b85" origin="SHA-256 of downloaded public Cloudsmith POM bytes"/>
 +         </artifact>
 +      </component>
-+      <component group="im.molly" name="libsignal-client" version="0.96.3-1">
-+         <artifact name="libsignal-client-0.96.3-1.jar">
-+            <sha256 value="62f6af3b1994b06f051f4bf70237e7f631228205bbd12edbd076be5eb7e3352c" origin="Generated by Gradle"/>
++      <component group="im.molly" name="libsignal-client" version="0.97.3-1">
++         <artifact name="libsignal-client-0.97.3-1.jar">
++            <sha256 value="af92d8a7d9f2b957b58bfb171e78dd4ed3aa373f90ab37978974a73a3e382aa8" origin="Downloaded public Cloudsmith artifact; SHA-256 and size matched Gradle module metadata"/>
 +         </artifact>
-+         <artifact name="libsignal-client-0.96.3-1.module">
-+            <sha256 value="9a60978e69e7a39fc207a75785202f44bf77faf3d02f277b46ac2ee454b9da09" origin="Generated by Gradle"/>
++         <artifact name="libsignal-client-0.97.3-1.module">
++            <sha256 value="a18accc5dd3ae0d66d98ca8ba7e5db2999b33b267245a2527ac4dad4bc024ccf" origin="SHA-256 of downloaded public Cloudsmith metadata bytes"/>
++         </artifact>
++         <artifact name="libsignal-client-0.97.3-1.pom">
++            <sha256 value="b6b009091e241aa7dc87b4cd37c8a3d052758002c3d21b6be3c65c71b8d05ab2" origin="SHA-256 of downloaded public Cloudsmith POM bytes"/>
 +         </artifact>
 +      </component>
 +      <component group="im.molly" name="native-utils" version="1.0.0">
@@ -9155,18 +9172,21 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
 +            <sha256 value="f9076f55b0180c12a6aadd57817963e3b3edb14cc4dc9f0591cd47fb516f9187" origin="Generated by Gradle"/>
 +         </artifact>
 +      </component>
-+      <component group="im.molly" name="ringrtc-android" version="2.69.5-1">
-+         <artifact name="ringrtc-android-2.69.5-1.aar">
-+            <sha256 value="7b1a77af726071c9c8ff9f927e4c712f836e714a5c1f90e15fcaf1b14c188bb1" origin="Generated by Gradle"/>
++      <component group="im.molly" name="ringrtc-android" version="2.69.7-1">
++         <artifact name="ringrtc-android-2.69.7-1.aar">
++            <sha256 value="41da98b053e6f5b0f6e8f3eee1e474b25d74fdead7e55b37f832240a0762d714" origin="Downloaded public Cloudsmith artifact; SHA-256 and size matched Gradle module metadata"/>
 +         </artifact>
-+         <artifact name="ringrtc-android-2.69.5-1.module">
-+            <sha256 value="d9edd37bb95928d681014cffa163572a407c704b033b97f123fed7d4a5dfbc87" origin="Generated by Gradle"/>
++         <artifact name="ringrtc-android-2.69.7-1.module">
++            <sha256 value="2ab8fecd675d62f2b8a666f5c9dd57e1b19abf022a933c6b2eeb9e8ab11d9388" origin="SHA-256 of downloaded public Cloudsmith metadata bytes"/>
++         </artifact>
++         <artifact name="ringrtc-android-2.69.7-1.pom">
++            <sha256 value="f9a32db2f1f5a3ee41fbc1d91ff86bb5fd1ea14de6a2221df9c03801d4c3524b" origin="SHA-256 of downloaded public Cloudsmith POM bytes"/>
 +         </artifact>
 +      </component>
        <component group="io.arrow-kt" name="arrow-annotations" version="2.2.2.1">
           <artifact name="arrow-annotations-2.2.2.1.module">
              <sha256 value="d094135cdba22d74dee0c72d1de6850078ebce508298cbdf4a3e9d37a7898d94" origin="Generated by Gradle"/>
-@@ -6138,6 +6336,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6275,6 +6482,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="f47aeef86821e52b2b18758978bd045f03d722292e32e747082122c6228952e0" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9178,7 +9198,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="me.leolin" name="ShortcutBadger" version="1.1.22">
           <artifact name="ShortcutBadger-1.1.22.aar">
              <sha256 value="cd1610dc48c5699229502187fdc3b5c5433870d5aab159332121b1f8c1dad8c3" origin="Generated by Gradle"/>
-@@ -6347,6 +6550,26 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6484,6 +6696,26 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="0b2b1102c18d3c7e05a77214b9b7501a6f6056174ae5604e0e256776eda7553e" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9205,7 +9225,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.bitbucket.b_c" name="jose4j" version="0.9.5">
           <artifact name="jose4j-0.9.5.jar">
              <sha256 value="808fb3166f3e67dad9811c331029ab1681242fd52b735bc3f33f281167fcc72e" origin="Generated by Gradle"/>
-@@ -6420,6 +6643,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6552,6 +6784,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="e8521d75625d41272c767d262a153ac163cc505b66644a2ef705fa8949ffb4e5" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9220,7 +9240,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.checkerframework" name="checker-qual" version="3.43.0">
           <artifact name="checker-qual-3.43.0.jar">
              <sha256 value="3fbc2e98f05854c3df16df9abaa955b91b15b3ecac33623208ed6424640ef0f6" origin="Generated by Gradle"/>
-@@ -6503,6 +6734,16 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6580,6 +6820,16 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c720e6e5bcbe6b2f48ded75a47bccdb763eede79d14330102e0d352e3d89ed92" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9237,7 +9257,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.conscrypt" name="conscrypt-android" version="2.5.3">
           <artifact name="conscrypt-android-2.5.3.aar">
              <sha256 value="551ae4e301c571760d1791e647db6ed1dcb10d34dcae7aa12b67f220f2ce98d1" origin="Generated by Gradle"/>
-@@ -6518,6 +6759,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6595,6 +6845,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="3424a9c2632a8433c00ab0b7cc10489eb732675c97fe333aff5b5272c5e861f6" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9249,7 +9269,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.glassfish.jaxb" name="jaxb-runtime" version="2.3.2">
           <artifact name="jaxb-runtime-2.3.2.jar">
              <sha256 value="e6e0a1e89fb6ff786279e6a0082d5cef52dc2ebe67053d041800737652b4fd1b" origin="Generated by Gradle"/>
-@@ -6586,6 +6832,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6663,6 +6918,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="24bacf795029d2831608d9b31fa8d0d29fe1c3fba7a9b2c7630d1593f2389884" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9261,7 +9281,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="abi-tools-api" version="2.2.20">
           <artifact name="abi-tools-api-2.2.20.jar">
              <sha256 value="f1c866eac5dc088f3fd081100843409bf4f1612bbb998fbaa1f685325cae0d55" origin="Generated by Gradle"/>
-@@ -6651,6 +6902,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6728,6 +6988,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="d3b4daa5c6cc23565f8fb936348f38c421a0461163745d36aedf44d3de94250a" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9273,7 +9293,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-build-statistics" version="2.2.20">
           <artifact name="kotlin-build-statistics-2.2.20.jar">
              <sha256 value="fb654a4f5bc56368759173129df49107ad09dc5b4172b01775afb3fa72579dd5" origin="Generated by Gradle"/>
-@@ -6681,6 +6937,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6758,6 +7023,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c6c09cf2853457249f707c86382112409d5a55f50b6b8568ba4f530dd003fedc" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9285,7 +9305,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-build-tools-impl" version="2.2.20">
           <artifact name="kotlin-build-tools-impl-2.2.20.jar">
              <sha256 value="64789a7f00565927f2f3f2d109f230574d3d9308ed5d6e86bfca843da6487cf7" origin="Generated by Gradle"/>
-@@ -6691,6 +6952,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6768,6 +7038,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="458b63ef8fc50a0a3180fe688ec1b995745992a05c495dac61e58d1088927a80" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9297,7 +9317,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-compiler-embeddable" version="2.1.0">
           <artifact name="kotlin-compiler-embeddable-2.1.0.jar">
              <sha256 value="c1b139a6f251c3b99e92befa326cb75d93a001d74c3ac601155a8cdb0d253783" origin="Generated by Gradle"/>
-@@ -6706,6 +6972,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6783,6 +7058,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="9588fa696ac5507af764fd5660df6894185e12704ec1bc3f5cb772af4987f295" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9309,7 +9329,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-compiler-runner" version="2.2.20">
           <artifact name="kotlin-compiler-runner-2.2.20.jar">
              <sha256 value="faf96834fa2004d78bd8e4420f5828de3d4272427d6474798024ea6e9cf85cdd" origin="Generated by Gradle"/>
-@@ -6756,6 +7027,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6833,6 +7113,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="91c0673c22e44b054ae0314d323860ebe1f3aff3f0ebc74fff82c4733dde09be" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9321,7 +9341,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-gradle-plugin" version="2.2.10">
           <artifact name="kotlin-gradle-plugin-2.2.10.module">
              <sha256 value="d0aa54915c5b57407a3c1740b0c530cf9657bf587d6d1018b79a8fa67f6a8821" origin="Generated by Gradle"/>
-@@ -6910,6 +7186,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -6987,6 +7272,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="ffd6a73734b2a52fb7633f1639544be371e0629c51d97fa1e5fb5ea9343a1709" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9333,7 +9353,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-klib-commonizer-api" version="2.2.20">
           <artifact name="kotlin-klib-commonizer-api-2.2.20.jar">
              <sha256 value="3982be45b12930e21819b589db3707c8e84ce257bf2ace7fc62fc8df368f5b3e" origin="Generated by Gradle"/>
-@@ -6935,6 +7216,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7012,6 +7302,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="fff95b9b5995798116407a7c0ca2da28f7d3304eee65191c7fe79b404f5f7308" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9345,7 +9365,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-metadata-jvm" version="2.2.20">
           <artifact name="kotlin-metadata-jvm-2.2.20.jar">
              <sha256 value="8524eac90f7e8e0f1366883f2c6c820c93bfa61df3d76857c8d3e803cf67315d" origin="Generated by Gradle"/>
-@@ -6945,6 +7231,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7022,6 +7317,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="e181f32a21a3cdf195f974004a42f0067c2bd9deaa2a883636748d83fdefd99d" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9357,7 +9377,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-native-utils" version="2.2.20">
           <artifact name="kotlin-native-utils-2.2.20.jar">
              <sha256 value="5017774a2aea41ff8712137116cd4d8003fe9aba1200c106e65730feb5bb7442" origin="Generated by Gradle"/>
-@@ -6985,6 +7276,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7062,6 +7362,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="d22146070957a44360006837873c51b6602c96a819576b40fdabcd95b7740771" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9369,7 +9389,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-reflect" version="1.8.21">
           <artifact name="kotlin-reflect-1.8.21.jar">
              <sha256 value="8a6cd5a3cf092acee274ce2c444dc36eefdb631579859dd4d857b3309a529c91" origin="Generated by Gradle"/>
-@@ -6995,6 +7291,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7072,6 +7377,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="111bd906921937f76da17760641116d04b57a7a12fcf980efe7c6767f45179f0" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9381,7 +9401,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-reflect" version="2.2.10">
           <artifact name="kotlin-reflect-2.2.10.jar">
              <sha256 value="c48db4f8cd1bfd67f72d59255065fb41bfda43ca2942dac4d9deb897aa126ba4" origin="Generated by Gradle"/>
-@@ -7023,6 +7324,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7100,6 +7410,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="591373b04b43b689b41e0bc862a96c944c7e0c31d23081f46a8a1ee3c6ba11d7" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9393,7 +9413,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-script-runtime" version="2.1.0">
           <artifact name="kotlin-script-runtime-2.1.0.jar">
              <sha256 value="15a2b82119e9f145ea028029bd31166584648a419157c20948c124fa33d40e50" origin="Generated by Gradle"/>
-@@ -7038,6 +7344,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7115,6 +7430,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="2b1519b427b514d1536c1b425674b03fe914af637924028e9959c6625442df51" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9405,7 +9425,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-scripting-common" version="2.2.20">
           <artifact name="kotlin-scripting-common-2.2.20.jar">
              <sha256 value="fb99ff7f0cd952da68d548d3f3d644ae5078b0b96fc9baf065ec1466a293b805" origin="Generated by Gradle"/>
-@@ -7048,6 +7359,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7125,6 +7445,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="414ed91c3f5e4492b23cb9537842b4651038e25dad84107939f434c2203f2a92" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9417,7 +9437,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-scripting-compiler-embeddable" version="2.2.20">
           <artifact name="kotlin-scripting-compiler-embeddable-2.2.20.jar">
              <sha256 value="d862610c003342e5088ca21c440422c7d8a3700e199d603f7a10278c44884761" origin="Generated by Gradle"/>
-@@ -7058,6 +7374,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7135,6 +7460,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="d934b9d0c246bc09624b7068af58ad57cef11dbe2addbc7b19d250cce42de1c9" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9429,7 +9449,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-scripting-compiler-impl-embeddable" version="2.2.20">
           <artifact name="kotlin-scripting-compiler-impl-embeddable-2.2.20.jar">
              <sha256 value="7b79123592fffebf35c616a0ff104332c71cde637a657e09adb5df6c3f9c03ce" origin="Generated by Gradle"/>
-@@ -7068,6 +7389,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7145,6 +7475,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="788a3060c8e7997f8ae16ba5c0280d05005af0a42029f18cb10c5625b979fac3" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9441,7 +9461,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-scripting-jvm" version="2.2.20">
           <artifact name="kotlin-scripting-jvm-2.2.20.jar">
              <sha256 value="a91fb9049634a32ba6d3d2e91a0cb9983e0aa4e71c0c2e1b283838a8e061631f" origin="Generated by Gradle"/>
-@@ -7078,6 +7404,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7155,6 +7490,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="83820c5fcc5d28f045f914ecd5900bbbcf8115b0d7007334de069fe6c70669e6" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9453,7 +9473,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-serialization" version="2.2.20">
           <artifact name="kotlin-serialization-2.2.20-gradle813.jar">
              <sha256 value="74113e86718e26a3a5a5af35efbb9769ada505c55aac42e9d78c686040b7bd46" origin="Generated by Gradle"/>
-@@ -7151,6 +7482,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7228,6 +7568,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           <artifact name="kotlin-stdlib-2.1.20-all.jar">
              <sha256 value="81e07de34e84b29e14f3fdef902f4bc4cf1d5da959b867df683fbe1cc54ce1e1" origin="Generated by Gradle"/>
           </artifact>
@@ -9463,7 +9483,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="kotlin-stdlib-2.1.20.module">
              <sha256 value="55d296e45445f6c88699b0896706ea9550af87ad94873dc13b65bebbd5660a6f" origin="Generated by Gradle"/>
           </artifact>
-@@ -7167,6 +7501,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7244,6 +7587,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           </artifact>
        </component>
        <component group="org.jetbrains.kotlin" name="kotlin-stdlib" version="2.2.20">
@@ -9473,7 +9493,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
           <artifact name="kotlin-stdlib-2.2.20.jar">
              <sha256 value="8836ccffd3585fadda9901244b20d42901d2f3cd581058d8434e2ffabcf3a3e7" origin="Generated by Gradle"/>
           </artifact>
-@@ -7280,6 +7617,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7357,6 +7703,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="7d5e33de714cddd75078642098cbcbee97c18398d034b77d32b4b074b9503939" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9485,7 +9505,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk7" version="1.7.0">
           <artifact name="kotlin-stdlib-jdk7-1.7.0.jar">
              <sha256 value="07e91be9b2ca20672d2bdb7e181b766e73453a2da13492b5ddaee8fa47aea239" origin="Generated by Gradle"/>
-@@ -7305,6 +7647,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7382,6 +7733,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="3bd26ecb6d12978c5c4e0b41f76c9ff551fac2a5e6268427a9d2a0cdf8a5ad91" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9497,7 +9517,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk8" version="1.7.0">
           <artifact name="kotlin-stdlib-jdk8-1.7.0.jar">
              <sha256 value="cf058e11db1dfc9944680c8c61b95ac689aaaa8a3eb30bced028100f038f030b" origin="Generated by Gradle"/>
-@@ -7400,6 +7747,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7477,6 +7833,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c7a17644e99fa8ab07393e896bb49aa3013b968b139e8107ac950cb04b2eb701" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9512,7 +9532,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlinx" name="atomicfu" version="0.21.0">
           <artifact name="atomicfu-0.21.0.module">
              <sha256 value="c4aba64788420b0b54c877900f27ba385c3d170e878ca2faf378ec315cfcb076" origin="Generated by Gradle"/>
-@@ -7509,6 +7864,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7589,6 +7953,9 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
           <artifact name="kotlinx-coroutines-core-1.6.4.module">
              <sha256 value="a6eed4a1835588e7c84fcd7b0475fce9a7b3444c870ebc797b88ba64ccf4576b" origin="Generated by Gradle"/>
           </artifact>
@@ -9522,7 +9542,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        </component>
        <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-core" version="1.7.3">
           <artifact name="kotlinx-coroutines-core-1.7.3.module">
-@@ -7724,11 +8082,21 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7791,11 +8158,21 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="70c87e316192ab7729aa6399220290f7c8d9fdd4d9342dc9f9c0e42856ab346d" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9544,7 +9564,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlinx" name="kotlinx-serialization-json" version="1.9.0">
           <artifact name="kotlinx-serialization-json-1.9.0.module">
              <sha256 value="4fc13ec412b7b9a213a17dfdaa336457801be16fc165ad86b0b7314fd096e70c" origin="Generated by Gradle"/>
-@@ -7737,6 +8105,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7804,6 +8181,14 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="f0d4643605362ab158c11b20f6c8be1726023bb931b9ead5ffa5a14e2338dfde" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9559,7 +9579,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlinx" name="kotlinx-serialization-json-jvm" version="1.4.1">
           <artifact name="kotlinx-serialization-json-jvm-1.4.1.jar">
              <sha256 value="af604c46737121d4225fdb60ef0e17766a3c94b7c1c9ef76b4e3a5c7733d557e" origin="Generated by Gradle"/>
-@@ -7745,6 +8121,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7812,6 +8197,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="c8fbfde4b5ee1e41a69175165e839991d1501665a7590e23162326501ac6122c" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9571,7 +9591,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.jetbrains.kotlinx" name="kotlinx-serialization-json-jvm" version="1.9.0">
           <artifact name="kotlinx-serialization-json-jvm-1.9.0.jar">
              <sha256 value="d94cc34cae39246a1af74fda63f9c4812ce12216ef641d5fa3bbbb539a6922d8" origin="Generated by Gradle"/>
-@@ -7784,6 +8165,16 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7851,6 +8241,16 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="86477abcf490d6ca059aa9973cb108d22a506f49d1a5569bb32cc6cbf43c2cce" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9588,7 +9608,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.junit" name="junit-bom" version="5.12.0">
           <artifact name="junit-bom-5.12.0.module">
              <sha256 value="bff102d308d18141ebbfe81d863b0599a30f7bbacadbdd5698a9d43692fda62f" origin="Generated by Gradle"/>
-@@ -7794,6 +8185,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -7861,6 +8261,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="de70ac5d91a52656d8890a6d23b9e04d99b99b1a0402530decad71bf31b2735e" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9600,7 +9620,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.junit" name="junit-bom" version="5.14.0">
           <artifact name="junit-bom-5.14.0.module">
              <sha256 value="7ad3ddb2d74e6a77d65ae89aca45d468c97bf9915b6bc52f449d675e4e6f9b35" origin="Generated by Gradle"/>
-@@ -7952,6 +8348,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -8019,6 +8424,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="48bf1d6c8b5dc94f74652bd17900f654deb714350248cf5e8fca27b9090c8e0d" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9612,7 +9632,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.ow2.asm" name="asm" version="9.8">
           <artifact name="asm-9.8.jar">
              <sha256 value="876eab6a83daecad5ca67eb9fcabb063c97b5aeb8cf1fca7a989ecde17522051" origin="Generated by Gradle"/>
-@@ -8131,6 +8532,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -8198,6 +8608,11 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="baf3c7fe15fefeaf9e5b000d94547379dc48370f22a8797e239c127e7d7756ec" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9624,7 +9644,7 @@ index f3e0fcf4402940dce8ed4e1f068903a001648277..75e6dfde8b48d1520e1fb1268fa96761
        <component group="org.slf4j" name="slf4j-api" version="1.7.36">
           <artifact name="slf4j-api-1.7.36.jar">
              <sha256 value="d3ef575e3e4979678dc01bf1dcce51021493b4d11fb7f1be8ad982877c16a1c0" origin="Generated by Gradle"/>
-@@ -8146,6 +8552,22 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
+@@ -8213,6 +8628,22 @@ https://docs.gradle.org/current/userguide/dependency_verification.html
              <sha256 value="e9f18b8a41f017e9033cb0ed85c8a2ba2307292cdfe25eae365923e7a31d2a70" origin="Generated by Gradle"/>
           </artifact>
        </component>
@@ -9986,10 +10006,10 @@ index 7277dc362ab3ecf567018237f72978ac2d92d2fb..00000000000000000000000000000000
 -</manifest>
 \ No newline at end of file
 diff --git a/lib/video/build.gradle.kts b/lib/video/build.gradle.kts
-index b579a77834999a40e8860ae0874930add77045b3..f66695cc0126bcad3455d427a97547e7ed77060b 100644
+index 5c87aa557ce33f626a9561a7d8f9d87de9f5d610..09c44504a082ce9441b3d48e0687b352e2d9326d 100644
 --- a/lib/video/build.gradle.kts
 +++ b/lib/video/build.gradle.kts
-@@ -12,6 +12,7 @@ dependencies {
+@@ -15,6 +15,7 @@ dependencies {
    implementation(libs.google.guava.android)
    implementation(libs.androidx.media3.ui)
    implementation(libs.androidx.media3.exoplayer)
