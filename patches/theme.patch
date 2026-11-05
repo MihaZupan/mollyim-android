@@ -64571,10 +64571,31 @@ literal 0
 HcmV?d00001
 
 diff --git a/app/src/main/res/navigation/edit_profile.xml b/app/src/main/res/navigation/edit_profile.xml
-index ed78d28435458706d505c39088911b15f2dde5c4..f2c983624afad4f1ca3bdce1fab22b1671ceb027 100644
+index ed78d28435458706d505c39088911b15f2dde5c4..8c6327d2b9da2bf08ff984fa38249cc3eec217ba 100644
 --- a/app/src/main/res/navigation/edit_profile.xml
 +++ b/app/src/main/res/navigation/edit_profile.xml
-@@ -93,4 +93,4 @@
+@@ -54,14 +54,6 @@
+ 
+         </action>
+ 
+-        <action
+-            android:id="@+id/action_manageProfileFragment_to_badgeManageFragment"
+-            app:destination="@id/manage_badges"
+-            app:enterAnim="@anim/fragment_open_enter"
+-            app:exitAnim="@anim/fragment_open_exit"
+-            app:popEnterAnim="@anim/fragment_close_enter"
+-            app:popExitAnim="@anim/fragment_close_exit" />
+-
+         <action
+             android:id="@+id/action_manageProfileFragment_to_usernameLinkFragment"
+             app:destination="@id/username_link_settings"
+@@ -87,10 +79,8 @@
+         android:name="org.thoughtcrime.securesms.profiles.manage.about.EditAboutFragment"
+         android:label="fragment_manage_about" />
+ 
+-    <include app:graph="@navigation/manage_badges" />
+-
+     <include app:graph="@navigation/avatar_picker" />
  
      <include app:graph="@navigation/username_link_settings" />
  

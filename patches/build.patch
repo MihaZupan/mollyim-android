@@ -2594,7 +2594,7 @@ index c48ea2556501363c3a85ecec8c213c61c325875a..00000000000000000000000000000000
 -
 -</manifest>
 diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
-index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..055af15bc673a6224da2e8ba1588c1f872dd71ef 100644
+index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..da332af8a38f0c12597cf3e60e548927cd54fe17 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
 @@ -1,6 +1,7 @@
@@ -2802,7 +2802,7 @@ index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..055af15bc673a6224da2e8ba1588c1f8
  
          <activity
              android:name=".PushContactSelectionActivity"
-@@ -492,27 +473,21 @@
+@@ -492,41 +473,35 @@
              android:name=".conversation.mutiselect.forward.MultiselectForwardActivity"
              android:configChanges="touchscreen|keyboard|keyboardHidden|orientation|screenLayout|screenSize"
              android:exported="false"
@@ -2833,7 +2833,14 @@ index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..055af15bc673a6224da2e8ba1588c1f8
  
          <activity
              android:name=".components.settings.app.AppSettingsNavigationActivity"
-@@ -526,7 +501,7 @@
+             android:configChanges="touchscreen|keyboard|keyboardHidden"
+             android:enableOnBackInvokedCallback="true"
+             android:exported="false"
+-            android:theme="@style/Signal.DayNight.NoActionBar"
++            android:theme="@style/Theme.Signal.DayNight.NoActionBar"
+             android:windowSoftInputMode="adjustResize" />
+ 
+         <activity
              android:name=".components.settings.app.AppSettingsActivity"
              android:configChanges="touchscreen|keyboard|keyboardHidden|orientation|screenLayout|screenSize"
              android:exported="true"
@@ -2964,7 +2971,7 @@ index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..055af15bc673a6224da2e8ba1588c1f8
  
          <activity
              android:name=".groups.ui.creategroup.details.AddGroupDetailsActivity"
-@@ -939,7 +902,7 @@
+@@ -939,30 +902,41 @@
          <activity
              android:name=".backup.v2.ui.verify.VerifyBackupKeyActivity"
              android:exported="false"
@@ -2973,7 +2980,19 @@ index 0b4a5ad8fb71b67a5bbc12b1c03e5551f53bc9ff..055af15bc673a6224da2e8ba1588c1f8
              android:windowSoftInputMode="adjustResize" />
  
          <activity
-@@ -957,12 +920,23 @@
+             android:name=".components.settings.app.account.twofactor.verify.TwoFactorVerifyActivity"
+             android:exported="false"
+-            android:theme="@style/Signal.DayNight.NoActionBar"
++            android:theme="@style/Theme.Signal.DayNight.NoActionBar"
+             android:windowSoftInputMode="adjustResize" />
+ 
+         <activity
+             android:name=".components.settings.app.account.signallogin.verify.SignalLoginVerifyActivity"
+             android:exported="false"
+-            android:theme="@style/Signal.DayNight.NoActionBar"
++            android:theme="@style/Theme.Signal.DayNight.NoActionBar"
+             android:windowSoftInputMode="adjustResize" />
+ 
          <activity
              android:name=".groups.ui.incommon.GroupsInCommonActivity"
              android:exported="false"
