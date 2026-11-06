@@ -3628,6 +3628,31 @@ index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..72a6a2ca4ef80ee94dc1e6ac2765bb92
      val ephemeralBackupKey = storageController.readInProgressRegistrationData().accountData?.linkedDeviceData?.ephemeralBackupKey
      if (ephemeralBackupKey == null) {
        Log.i(TAG, "[awaitLinkAndSyncArchive] No ephemeral backup key in registration data; no archive expected.")
+diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
+index 05b2e29f5c110ed0c732f7bde00b2fe7e7366152..76cb30bdd38f74dcedf0af17aa43235738f7533f 100644
+--- a/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
++++ b/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
+@@ -91,8 +91,18 @@ class RegistrationViewModel(
+   }
+ 
+   override suspend fun processEvent(event: RegistrationFlowEvent) {
+-    _state.value = applyEvent(_state.value, event)
+-    persistFlowState(event)
++    val nextState = applyEvent(_state.value, event)
++    val completesRegistration = event is RegistrationFlowEvent.RegistrationComplete ||
++      event is RegistrationFlowEvent.NavigateToScreen && event.route is RegistrationRoute.FullyComplete
++
++    // Main must not see completion while scratch data still selects the registration-resume route.
++    if (completesRegistration) {
++      persistFlowState(event)
++    }
++    _state.value = nextState
++    if (!completesRegistration) {
++      persistFlowState(event)
++    }
+   }
+ 
+   suspend fun applyEvent(state: RegistrationFlowState, event: RegistrationFlowEvent): RegistrationFlowState {
 diff --git a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
 index be45d8a648a212270907912c5dc2f9fd3e209ad1..63915034d85715d8778b4939a2e64b740c7889fe 100644
 --- a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
@@ -3749,7 +3774,7 @@ index 1e6bef5ea6c4072d4b09228d3df34fe3d68a19d7..052199cb83e278cbc4693364a8560b89
    /**
     * Whether to offer the restore-or-transfer option. Hidden during a re-registration, and kept hidden until the parent
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
-index 6c004404d43ae2160fc800221afeaa5f37372786..283badccb9f30df1bd43123affd21d40a8a7b395 100644
+index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e28758820572e2e 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
 @@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.getOrNull
@@ -3845,7 +3870,7 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..283badccb9f30df1bd43123affd21d40
 +    assertEquals(1, linkedCallbacks)
 +    assertEquals(1, storageRestores)
 +    assertEquals(RestoreDecision.NEW_ACCOUNT, storageController.restoreDecision)
-+    assertEquals(1, storageController.registrationFlowFinishedCount)
++    assertEquals(0, storageController.registrationFlowFinishedCount)
 +  }
 +
    @Test
@@ -4005,6 +4030,57 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
        readReceipts = null,
        authCredentialSalt = null
      )
+diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
+index 9a9eb2bc6e54c8c6ee3cf4b5b0b1770a8ddde482..f385dac01b0e22e7d361a09b52dfe3c66580aaaf 100644
+--- a/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
+@@ -19,11 +19,13 @@ import io.mockk.coEvery
+ import io.mockk.coVerify
+ import io.mockk.mockk
+ import io.mockk.verify
++import kotlinx.coroutines.CompletableDeferred
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.test.StandardTestDispatcher
+ import kotlinx.coroutines.test.advanceUntilIdle
+ import kotlinx.coroutines.test.resetMain
++import kotlinx.coroutines.test.runCurrent
+ import kotlinx.coroutines.test.runTest
+ import kotlinx.coroutines.test.setMain
+ import org.junit.After
+@@ -241,6 +243,32 @@ class RegistrationViewModelTest {
+ 
+   // ==================== Persistence Side-Effect Tests ====================
+ 
++  @Test
++  fun `linked and primary completion wait for scratch cleanup before exposing the terminal route`() = runTest(testDispatcher) {
++    val completionEvents = listOf(
++      RegistrationFlowEvent.NavigateToScreen(RegistrationRoute.FullyComplete),
++      RegistrationFlowEvent.RegistrationComplete
++    )
++    for (event in completionEvents) {
++      val cleanup = CompletableDeferred<Unit>()
++      coEvery { mockRepository.clearInProgressRegistrationData() } coAnswers { cleanup.await() }
++      val initialRoute = RegistrationRoute.LinkAccount()
++      val viewModel = RegistrationViewModel(mockRepository, SavedStateHandle(), startDestination = initialRoute)
++
++      try {
++        viewModel.onEvent(event)
++        runCurrent()
++
++        assertThat(viewModel.state.value.backStack.last()).isEqualTo(initialRoute)
++      } finally {
++        cleanup.complete(Unit)
++      }
++      advanceUntilIdle()
++
++      assertThat(viewModel.state.value.backStack.last()).isEqualTo(RegistrationRoute.FullyComplete)
++    }
++  }
++
+   @Test
+   fun `onEvent ResetState clears flow state`() = runTest(testDispatcher) {
+     coEvery { mockRepository.restoreFlowState() } returns null
 diff --git a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt b/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
 index aeed7dc3a650649c2d7d70d36b57c534ec95c996..db32039e85ce9c026c063848a7530e90f96f8dbf 100644
 --- a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
