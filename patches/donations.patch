@@ -4685,7 +4685,7 @@ index ef36b4fd31c96aafd99b73562df4e86e00bd65b4..69292a0d18c7f44eba6c55c130b3d1c0
          }
  
 diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
-index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..1190216c5a23aaad992f08bddfabafb04a4bb973 100644
+index 72a6a2ca4ef80ee94dc1e6ac2765bb926b583441..f803fb34b4ae55121b5d3292762d5c5ac25b0bff 100644
 --- a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
 @@ -32,7 +32,6 @@ import kotlinx.serialization.json.Json
@@ -4732,18 +4732,18 @@ index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..1190216c5a23aaad992f08bddfabafb0
        BillingResponseCode.OK -> PaymentAvailability.Available
        BillingResponseCode.BILLING_UNAVAILABLE -> {
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
-index 8882ff7d389900659a227baa691fdc83e5364800..55f33ad3894256af3c909f041c041d4f00c2a57f 100644
+index e962dbaf9de3631e7e59be922968c0e3ad43bc30..02ce5525d0f8e056bbca9a2d2ed7e1bf2bfb2136 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
-@@ -38,6 +38,7 @@ import org.signal.registration.fakes.FakeNetworkController
- import org.signal.registration.fakes.FakeStorageController
- import org.signal.registration.fakes.SystemOutLogger
+@@ -43,6 +43,7 @@ import org.signal.registration.fakes.SystemOutLogger
  import org.signal.registration.proto.AccountData
+ import org.signal.registration.proto.LinkedDeviceData
+ import org.signal.registration.screens.messagesync.LinkAndSyncProgress
 +import org.signal.registration.screens.signalloginpayment.PaymentAvailability
  import java.io.IOException
  import java.util.UUID
  import kotlin.time.Duration.Companion.seconds
-@@ -80,6 +81,35 @@ class RegistrationRepositoryTest {
+@@ -85,6 +86,35 @@ class RegistrationRepositoryTest {
      )
    }
  

@@ -3570,6 +3570,640 @@ index 5a9f53990e0a68398dade6b1fb91ce3ddf28387e..fc90e6916d29183a9ee82a6dfe649a8b
    @Test
    fun `clicking the profile emits ProfileClicked`() {
      setContent(createState())
+diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
+index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..72a6a2ca4ef80ee94dc1e6ac2765bb926b583441 100644
+--- a/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
++++ b/feature/registration/src/main/java/org/signal/registration/RegistrationRepository.kt
+@@ -852,7 +852,7 @@ class RegistrationRepository(
+    * See [NetworkController.startLinkDeviceProvisioning].
+    */
+   fun startLinkDeviceProvisioning(): Flow<NetworkController.LinkDeviceProvisioningEvent> = flow {
+-    emitAll(networkController.startLinkDeviceProvisioning(allowLinkAndSync = isCleanStart()))
++    emitAll(networkController.startLinkDeviceProvisioning(allowLinkAndSync = isLinkAndSyncAvailable && isCleanStart()))
+   }
+ 
+   /**
+@@ -890,6 +890,7 @@ class RegistrationRepository(
+       }
+     }
+ 
++    val allowLinkAndSync = isLinkAndSyncAvailable && isCleanStart()
+     val e164 = phoneNumberData?.e164
+     val accountEntropyPool = AccountEntropyPool(message.accountEntropyPool)
+     val aci = ACI.parseOrThrow(message.aci)
+@@ -985,7 +986,7 @@ class RegistrationRepository(
+         this.linkedDeviceData = LinkedDeviceData(
+           deviceId = result.result.deviceId.toInt(),
+           deviceName = deviceName,
+-          ephemeralBackupKey = message.ephemeralBackupKey,
++          ephemeralBackupKey = message.ephemeralBackupKey.takeIf { allowLinkAndSync },
+           mediaRootBackupKey = message.mediaRootBackupKey,
+           readReceipts = message.readReceipts
+         )
+@@ -999,7 +1000,7 @@ class RegistrationRepository(
+       networkController.onLinkedDeviceRegistered()
+     }
+ 
+-    result.map { LinkedDeviceResult(hasLinkAndSyncBackup = message.ephemeralBackupKey != null) }
++    result.map { LinkedDeviceResult(hasLinkAndSyncBackup = allowLinkAndSync && message.ephemeralBackupKey != null) }
+   }
+ 
+   /**
+@@ -1008,7 +1009,7 @@ class RegistrationRepository(
+    */
+   fun restoreLinkAndSyncBackup(): Flow<LinkAndSyncProgress> = flow {
+     emit(LinkAndSyncProgress.Waiting)
+-    when (val result = networkController.awaitLinkAndSyncArchive()) {
++    when (val result = awaitLinkAndSyncArchive()) {
+       is LinkAndSyncWaitResult.ArchiveAvailable -> emitAll(storageController.restoreLinkAndSyncBackup(result.cdn, result.key))
+       LinkAndSyncWaitResult.ContinueWithoutBackup -> {
+         Log.w(TAG, "[restoreLinkAndSyncBackup] Primary declined to provide a backup; continuing without one.")
+@@ -1025,6 +1026,9 @@ class RegistrationRepository(
+    * Waits for the primary to make a link-and-sync archive available.
+    */
+   suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = withContext(Dispatchers.IO) {
++    if (!isLinkAndSyncAvailable) {
++      return@withContext LinkAndSyncWaitResult.ContinueWithoutBackup
++    }
+     val ephemeralBackupKey = storageController.readInProgressRegistrationData().accountData?.linkedDeviceData?.ephemeralBackupKey
+     if (ephemeralBackupKey == null) {
+       Log.i(TAG, "[awaitLinkAndSyncArchive] No ephemeral backup key in registration data; no archive expected.")
+diff --git a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
+index be45d8a648a212270907912c5dc2f9fd3e209ad1..63915034d85715d8778b4939a2e64b740c7889fe 100644
+--- a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
++++ b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryScreen.kt
+@@ -249,7 +249,7 @@ private fun OnePaneLayout(
+ 
+   OnePaneRegistrationScaffold(
+     params = params,
+-    topBar = { TopAppBar(scrollBehavior = topBarScrollBehavior, isLinkAndSyncAvailable = state.isLinkAndSyncAvailable, onEvent = onEvent) },
++    topBar = { TopAppBar(scrollBehavior = topBarScrollBehavior, showLinkDevice = state.initialized && state.preExistingRegistrationData == null, onEvent = onEvent) },
+     content = { paddingValues ->
+       Column(
+         modifier = Modifier
+@@ -292,7 +292,7 @@ private fun TwoPaneLayout(
+ 
+   TwoPaneRegistrationScaffold(
+     params = params,
+-    topBar = { TopAppBar(scrollBehavior = topBarScrollBehavior, isLinkAndSyncAvailable = state.isLinkAndSyncAvailable, onEvent = onEvent) },
++    topBar = { TopAppBar(scrollBehavior = topBarScrollBehavior, showLinkDevice = state.initialized && state.preExistingRegistrationData == null, onEvent = onEvent) },
+     firstPane = { paddingValues ->
+       Column(
+         modifier = Modifier
+@@ -333,7 +333,7 @@ private fun TwoPaneLayout(
+ @Composable
+ fun TopAppBar(
+   scrollBehavior: TopAppBarScrollBehavior,
+-  isLinkAndSyncAvailable: Boolean,
++  showLinkDevice: Boolean,
+   onEvent: (PhoneNumberEntryScreenEvents) -> Unit
+ ) {
+   val context = LocalContext.current
+@@ -369,7 +369,7 @@ fun TopAppBar(
+             menuController.hide()
+           }
+         )
+-        if (isLinkAndSyncAvailable) {
++        if (showLinkDevice) {
+           DropdownMenus.Item(
+             text = { Text(text = stringResource(R.string.RegistrationActivity_link_device)) },
+             onClick = {
+diff --git a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryState.kt b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryState.kt
+index d40c951ddb5dda1558c88a32249f4d374f984658..7081e2d67ea4598c0ac12deccd32d10297350836 100644
+--- a/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryState.kt
++++ b/feature/registration/src/main/java/org/signal/registration/screens/phonenumber/PhoneNumberEntryState.kt
+@@ -41,7 +41,7 @@ data class PhoneNumberEntryState(
+   val isNumberPossible: Boolean = false,
+   /** Whether the entered number is definitively invalid. A still-too-short number is not considered invalid, since the user may simply be mid-entry. */
+   val isNumberInvalid: Boolean = false,
+-  /** Gates whether the link device option is shown in the overflow menu. */
++  /** History-transfer capability, separate from fresh-setup secondary linking. */
+   val isLinkAndSyncAvailable: Boolean = false,
+   val isPhoneNumberlessRegistrationAvailable: Boolean = false
+ ) {
+diff --git a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
+index ffe2695f5a5621c75f2688b6245d185399836960..89fef61ae0a4a884a8bbcf8f0357b16c0c12e127 100644
+--- a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
++++ b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
+@@ -90,7 +90,7 @@ fun WelcomeScreen(
+   var showBottomSheet by remember { mutableStateOf(false) }
+   val windowBreakpoint = rememberWindowBreakpoint()
+   val onRestoreOrTransferClick = { showBottomSheet = true }
+-  val displayLinkAsPrimaryOption by rememberDisplayLinkAndSyncAsPrimaryPath(state.isLinkAndSyncAvailable)
++  val displayLinkAsPrimaryOption by rememberDisplayLinkAsPrimaryPath()
+ 
+   when (windowBreakpoint) {
+     is WindowBreakpoint.Small -> {
+@@ -115,7 +115,7 @@ fun WelcomeScreen(
+       LargeLayout(
+         state = state,
+         onEvent = onEvent,
+-        displayLinkAsPrimaryOption = displayLinkAsPrimaryOption,
++        displayLinkAsPrimaryOption = displayLinkAsPrimaryOption && state.showRestoreOrTransfer,
+         onRestoreOrTransferClick = onRestoreOrTransferClick,
+         modifier = modifier
+       )
+@@ -390,6 +390,13 @@ private fun PrimaryDeviceCallToActionButtons(
+     ) {
+       Text(stringResource(R.string.registration_activity__restore_or_transfer))
+     }
++
++    TextButton(
++      onClick = { onEvent(WelcomeScreenEvents.LinkDevice) },
++      modifier = Modifier.testTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
++    ) {
++      Text(stringResource(R.string.WelcomeScreen__link_your_account))
++    }
+   }
+ }
+ 
+@@ -539,7 +546,7 @@ private fun RestoreActionRow(
+ private const val TABLET_MIN_DIAGONAL_INCHES = 7f
+ 
+ @Composable
+-private fun rememberDisplayLinkAndSyncAsPrimaryPath(isLinkAndSyncAvailable: Boolean): State<Boolean> {
++private fun rememberDisplayLinkAsPrimaryPath(): State<Boolean> {
+   val context = LocalContext.current
+   val hasHinge = currentWindowAdaptiveInfo().windowPosture.hingeList.isNotEmpty()
+ 
+@@ -556,7 +563,7 @@ private fun rememberDisplayLinkAndSyncAsPrimaryPath(isLinkAndSyncAvailable: Bool
+   }
+ 
+   // A hinge means a foldable, which counts as a phone rather than a tablet.
+-  return rememberUpdatedState(isLinkAndSyncAvailable && (!supportsTelephony || (isLargeDevice && !hasHinge)))
++  return rememberUpdatedState(!supportsTelephony || (isLargeDevice && !hasHinge))
+ }
+ 
+ @AllDevicePreviews
+diff --git a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreenState.kt b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreenState.kt
+index 1e6bef5ea6c4072d4b09228d3df34fe3d68a19d7..052199cb83e278cbc4693364a8560b89191341dd 100644
+--- a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreenState.kt
++++ b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreenState.kt
+@@ -6,7 +6,7 @@
+ package org.signal.registration.screens.welcome
+ 
+ data class WelcomeScreenState(
+-  /** Gates whether the link device option is shown as the primary path on large devices. */
++  /** History-transfer capability, separate from fresh-setup secondary linking. */
+   val isLinkAndSyncAvailable: Boolean = false,
+   /**
+    * Whether to offer the restore-or-transfer option. Hidden during a re-registration, and kept hidden until the parent
+diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
+index 6c004404d43ae2160fc800221afeaa5f37372786..283badccb9f30df1bd43123affd21d40a8a7b395 100644
+--- a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
+@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.getOrNull
+ import androidx.compose.ui.test.junit4.createComposeRule
+ import androidx.compose.ui.test.onAllNodesWithTag
+ import androidx.compose.ui.test.onAllNodesWithText
++import androidx.compose.ui.test.onNodeWithContentDescription
+ import androidx.compose.ui.test.onNodeWithTag
+ import androidx.compose.ui.test.onNodeWithText
+ import androidx.compose.ui.test.performClick
+@@ -46,6 +47,11 @@ import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.runBlocking
+ import okio.ByteString.Companion.toByteString
+ import org.junit.After
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertNotNull
++import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
+ import org.junit.Before
+ import org.junit.Rule
+ import org.junit.Test
+@@ -69,6 +75,7 @@ import org.signal.libsignal.protocol.IdentityKeyPair
+ import org.signal.network.api.RegistrationApiV2.CheckSvrCredentialsResponse
+ import org.signal.network.api.RegistrationApiV2.CreateLoginReceiptCredentialResult
+ import org.signal.network.api.RegistrationApiV2.MfaFailureResponse
++import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
+ import org.signal.network.api.RegistrationApiV2.RegisterAccountError
+ import org.signal.network.api.RegistrationApiV2.RegistrationLockResponse
+ import org.signal.network.api.RegistrationApiV2.RestoreMethod
+@@ -170,6 +177,70 @@ class RegistrationEndToEndTest {
+     unmockkAll()
+   }
+ 
++  @Test
++  fun `fresh welcome linking completes without history transfer`() {
++    linkFreshInstallation(fromPhoneNumberEntry = false)
++  }
++
++  @Test
++  fun `fresh phone number menu linking completes without history transfer`() {
++    linkFreshInstallation(fromPhoneNumberEntry = true)
++  }
++
++  private fun linkFreshInstallation(fromPhoneNumberEntry: Boolean) {
++    val message = NetworkController.LinkDeviceProvisioningMessage(
++      provisioningCode = "synthetic-code",
++      aci = ACI.from(UUID.randomUUID()).toString(),
++      aciIdentityKeyPair = IdentityKeyPair.generate(),
++      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
++        e164 = E164,
++        pni = PNI.from(UUID.randomUUID()).toString(),
++        pniIdentityKeyPair = IdentityKeyPair.generate()
++      ),
++      profileKey = ByteArray(32),
++      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
++      accountEntropyPool = AccountEntropyPool.generate().value,
++      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString(),
++      readReceipts = true,
++      authCredentialSalt = null
++    )
++    var linkedCallbacks = 0
++    var storageRestores = 0
++    var registrationComplete = false
++    networkController.onStartLinkDeviceProvisioning = { allowHistory ->
++      assertFalse(allowHistory)
++      flowOf(NetworkController.LinkDeviceProvisioningEvent.MessageReceived(message))
++    }
++    networkController.onRegisterAsLinkedDevice = { RequestResult.Success(LinkDeviceResponse(deviceId = 2)) }
++    networkController.onLinkedDeviceRegisteredHandler = { linkedCallbacks++ }
++    networkController.onRestoreLinkedDeviceFromStorageService = { storageRestores++ }
++
++    launchRegistrationFlow(onRegistrationComplete = { registrationComplete = true })
++    if (fromPhoneNumberEntry) {
++      goToPhoneNumberEntry()
++      val context = ApplicationProvider.getApplicationContext<Application>()
++      composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
++      composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device)).performClick()
++    } else {
++      waitForTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
++      composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
++    }
++
++    waitFor("basic linked registration to complete") { registrationComplete }
++
++    val committed = storageController.committedData
++    assertNotNull(committed)
++    assertTrue(committed!!.accountDataCommitted)
++    assertEquals(message.aci, committed.accountData?.aci)
++    assertEquals(2, committed.accountData?.linkedDeviceData?.deviceId)
++    assertNull(committed.accountData?.linkedDeviceData?.ephemeralBackupKey)
++    assertEquals(message.mediaRootBackupKey, committed.accountData?.linkedDeviceData?.mediaRootBackupKey)
++    assertEquals(1, linkedCallbacks)
++    assertEquals(1, storageRestores)
++    assertEquals(RestoreDecision.NEW_ACCOUNT, storageController.restoreDecision)
++    assertEquals(1, storageController.registrationFlowFinishedCount)
++  }
++
+   @Test
+   fun `happy path - new registration by entering phone number, verification code, and creating a pin`() {
+     var registrationComplete = false
+diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
+index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3ad43bc30 100644
+--- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
+@@ -16,6 +16,8 @@ import assertk.assertions.isNull
+ import assertk.assertions.isTrue
+ import io.mockk.mockk
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
++import kotlinx.coroutines.flow.emptyFlow
++import kotlinx.coroutines.flow.toList
+ import kotlinx.coroutines.test.runTest
+ import okio.ByteString.Companion.toByteString
+ import org.junit.Before
+@@ -28,6 +30,7 @@ import org.signal.core.util.logging.Log
+ import org.signal.libsignal.net.RequestResult
+ import org.signal.libsignal.protocol.IdentityKeyPair
+ import org.signal.network.api.RegistrationApiV2.RegisterAsLinkedDeviceError
++import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
+ import org.signal.network.api.RegistrationApiV2.SvrCredentials
+ import org.signal.registration.NetworkController.GetBackupInfoError
+ import org.signal.registration.NetworkController.GetBackupInfoResponse
+@@ -38,6 +41,8 @@ import org.signal.registration.fakes.FakeNetworkController
+ import org.signal.registration.fakes.FakeStorageController
+ import org.signal.registration.fakes.SystemOutLogger
+ import org.signal.registration.proto.AccountData
++import org.signal.registration.proto.LinkedDeviceData
++import org.signal.registration.screens.messagesync.LinkAndSyncProgress
+ import java.io.IOException
+ import java.util.UUID
+ import kotlin.time.Duration.Companion.seconds
+@@ -303,6 +308,99 @@ class RegistrationRepositoryTest {
+ 
+   // ==================== registerAsLinkedDevice ====================
+ 
++  @Test
++  fun `provisioning advertises history transfer only when enabled and clean`() = runTest {
++    for (enabled in listOf(false, true)) {
++      for (clean in listOf(false, true)) {
++        storageController.preExistingRegistrationData = if (clean) null else preExistingRegistrationData("+15551234567")
++        var advertised: Boolean? = null
++        networkController.onStartLinkDeviceProvisioning = {
++          advertised = it
++          emptyFlow()
++        }
++
++        linkingRepository(enabled).startLinkDeviceProvisioning().toList()
++
++        assertThat(advertised).isEqualTo(enabled && clean)
++      }
++    }
++  }
++
++  @Test
++  fun `disabled history transfer still commits a basic secondary account and ignores an unsolicited backup key`() = runTest {
++    assertLinkedRegistrationHistory(enabled = false, clean = true)
++  }
++
++  @Test
++  fun `enabled history transfer retains a backup key on a clean start`() = runTest {
++    assertLinkedRegistrationHistory(enabled = true, clean = true)
++  }
++
++  @Test
++  fun `enabled history transfer does not import over existing registration`() = runTest {
++    assertLinkedRegistrationHistory(enabled = true, clean = false)
++  }
++
++  private suspend fun assertLinkedRegistrationHistory(enabled: Boolean, clean: Boolean) {
++    storageController.preExistingRegistrationData = if (clean) null else preExistingRegistrationData("+15551234567")
++    val message = linkProvisioningMessage(
++      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
++        e164 = "+15551234567",
++        pni = PNI.from(UUID.randomUUID()).toString(),
++        pniIdentityKeyPair = IdentityKeyPair.generate()
++      ),
++      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
++      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString()
++    )
++    var linkedCallbackCount = 0
++    networkController.onRegisterAsLinkedDevice = { RequestResult.Success(LinkDeviceResponse(deviceId = 2)) }
++    networkController.onLinkedDeviceRegisteredHandler = { linkedCallbackCount++ }
++
++    val result = linkingRepository(enabled).registerAsLinkedDevice(message, "Secondary")
++
++    assertThat(result).isInstanceOf(RequestResult.Success::class)
++    assertThat((result as RequestResult.Success).result.hasLinkAndSyncBackup).isEqualTo(enabled && clean)
++    assertThat(storageController.committedData?.accountDataCommitted).isEqualTo(true)
++    val account = storageController.committedData!!.accountData!!
++    assertThat(account.aci).isEqualTo(message.aci)
++    assertThat(account.aciIdentityKeyPair).isEqualTo(message.aciIdentityKeyPair.serialize().toByteString())
++    assertThat(account.linkedDeviceData?.deviceId).isEqualTo(2)
++    assertThat(account.linkedDeviceData?.ephemeralBackupKey).isEqualTo(message.ephemeralBackupKey.takeIf { enabled && clean })
++    assertThat(account.linkedDeviceData?.mediaRootBackupKey).isEqualTo(message.mediaRootBackupKey)
++    assertThat(linkedCallbackCount).isEqualTo(1)
++  }
++
++  @Test
++  fun `disabled history transfer cannot resume an archive wait or restore from persisted metadata`() = runTest {
++    storePendingHistoryKey()
++
++    assertThat(repository.awaitLinkAndSyncArchive()).isEqualTo(LinkAndSyncWaitResult.ContinueWithoutBackup)
++    assertThat(repository.restoreLinkAndSyncBackup().toList()).isEqualTo(listOf(LinkAndSyncProgress.Waiting, LinkAndSyncProgress.Complete))
++  }
++
++  @Test
++  fun `enabled history transfer can still await a persisted archive`() = runTest {
++    storePendingHistoryKey()
++    val archive = LinkAndSyncWaitResult.ArchiveAvailable(cdn = 3, key = "archive-key")
++    networkController.onAwaitLinkAndSyncArchive = { archive }
++
++    assertThat(linkingRepository(enabled = true).awaitLinkAndSyncArchive()).isEqualTo(archive)
++  }
++
++  private suspend fun storePendingHistoryKey() {
++    storageController.updateInProgressRegistrationData {
++      accountData = AccountData(linkedDeviceData = LinkedDeviceData(ephemeralBackupKey = ByteArray(32) { 1 }.toByteString()))
++    }
++  }
++
++  private fun linkingRepository(enabled: Boolean) = RegistrationRepository(
++    context = mockk<Context>(relaxed = true),
++    networkController = networkController,
++    storageController = storageController,
++    isLinkAndSyncAvailable = enabled,
++    signalLoginPurchaseApi = OneTimePurchaseApi.Empty
++  )
++
+   @Test
+   fun `registerAsLinkedDevice advertises the optional phone number capability when the primary has no phone number`() = runTest {
+     networkController.onRegisterAsLinkedDevice = { RequestResult.NonSuccess(RegisterAsLinkedDeviceError.MissingCapability) }
+@@ -364,16 +462,20 @@ class RegistrationRepositoryTest {
+     assertThat(committed.accountEntropyPool).isNotEqualTo(aep.value)
+   }
+ 
+-  private fun linkProvisioningMessage(phoneNumberData: NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData?): NetworkController.LinkDeviceProvisioningMessage {
++  private fun linkProvisioningMessage(
++    phoneNumberData: NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData?,
++    ephemeralBackupKey: okio.ByteString? = null,
++    mediaRootBackupKey: okio.ByteString? = null
++  ): NetworkController.LinkDeviceProvisioningMessage {
+     return NetworkController.LinkDeviceProvisioningMessage(
+       provisioningCode = "code",
+       aci = ACI.from(UUID.randomUUID()).toString(),
+       aciIdentityKeyPair = IdentityKeyPair.generate(),
+       phoneNumberData = phoneNumberData,
+       profileKey = ByteArray(32),
+-      ephemeralBackupKey = null,
++      ephemeralBackupKey = ephemeralBackupKey,
+       accountEntropyPool = aep.value,
+-      mediaRootBackupKey = null,
++      mediaRootBackupKey = mediaRootBackupKey,
+       readReceipts = null,
+       authCredentialSalt = null
+     )
+diff --git a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt b/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
+index aeed7dc3a650649c2d7d70d36b57c534ec95c996..db32039e85ce9c026c063848a7530e90f96f8dbf 100644
+--- a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
++++ b/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
+@@ -500,7 +500,10 @@ class FakeNetworkController(
+     return onStartProvisioning()
+   }
+ 
+-  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = notExpected()
++  var onStartLinkDeviceProvisioning: (Boolean) -> Flow<LinkDeviceProvisioningEvent> = { notExpected() }
++
++  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> =
++    onStartLinkDeviceProvisioning(allowLinkAndSync)
+ 
+   override suspend fun registerAsLinkedDevice(
+     aci: ACI,
+@@ -515,11 +518,17 @@ class FakeNetworkController(
+     return onRegisterAsLinkedDevice(deviceAttributes)
+   }
+ 
+-  override suspend fun onLinkedDeviceRegistered() = notExpected()
++  var onLinkedDeviceRegisteredHandler: suspend () -> Unit = { notExpected() }
++
++  override suspend fun onLinkedDeviceRegistered() = onLinkedDeviceRegisteredHandler()
++
++  var onAwaitLinkAndSyncArchive: suspend () -> LinkAndSyncWaitResult = { notExpected() }
++
++  override suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = onAwaitLinkAndSyncArchive()
+ 
+-  override suspend fun awaitLinkAndSyncArchive(): LinkAndSyncWaitResult = notExpected()
++  var onRestoreLinkedDeviceFromStorageService: suspend () -> Unit = { notExpected() }
+ 
+-  override suspend fun restoreLinkedDeviceFromStorageService() = notExpected()
++  override suspend fun restoreLinkedDeviceFromStorageService() = onRestoreLinkedDeviceFromStorageService()
+ 
+   override fun startNewDeviceTransferServer(context: android.content.Context, aep: AccountEntropyPool) = notExpected()
+ 
+diff --git a/feature/registration/src/test/java/org/signal/registration/screens/linkaccount/LinkAccountViewModelTest.kt b/feature/registration/src/test/java/org/signal/registration/screens/linkaccount/LinkAccountViewModelTest.kt
+index cdd45477876cd3f029c411b143d7e06c43bd6acd..a8974bb91abe348039f493d3b623b315b728be48 100644
+--- a/feature/registration/src/test/java/org/signal/registration/screens/linkaccount/LinkAccountViewModelTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/screens/linkaccount/LinkAccountViewModelTest.kt
+@@ -124,6 +124,10 @@ class LinkAccountViewModelTest {
+     val viewModel = createViewModel()
+     flow.emit(NetworkController.LinkDeviceProvisioningEvent.MessageReceived(message))
+ 
++    coVerify(exactly = 1) { mockRepository.restoreLinkedDeviceFromStorageService() }
++    coVerify(exactly = 0) { mockRepository.awaitLinkAndSyncArchive() }
++    coVerify(exactly = 0) { mockRepository.clearLocalDataAndRestart() }
++    assertThat(viewModel.state.value.isRegistering).isFalse()
+     assertThat(emittedParentEvents).contains(RegistrationFlowEvent.NavigateToScreen(RegistrationRoute.FullyComplete))
+   }
+ 
+diff --git a/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt b/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
+index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..d7eaf34b3d2515a854846c334298ddb9306c5397 100644
+--- a/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
+@@ -10,9 +10,11 @@ import android.content.Context
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.setValue
++import androidx.compose.ui.test.assertIsDisplayed
+ import androidx.compose.ui.test.assertIsEnabled
+ import androidx.compose.ui.test.assertIsNotEnabled
+ import androidx.compose.ui.test.junit4.createComposeRule
++import androidx.compose.ui.test.onNodeWithContentDescription
+ import androidx.compose.ui.test.onNodeWithTag
+ import androidx.compose.ui.test.onNodeWithText
+ import androidx.compose.ui.test.performClick
+@@ -21,6 +23,8 @@ import androidx.compose.ui.test.performTextInput
+ import androidx.test.core.app.ApplicationProvider
+ import assertk.assertThat
+ import assertk.assertions.hasLength
++import assertk.assertions.isEqualTo
++import io.mockk.mockk
+ import org.junit.Rule
+ import org.junit.Test
+ import org.junit.runner.RunWith
+@@ -28,6 +32,7 @@ import org.robolectric.RobolectricTestRunner
+ import org.robolectric.annotation.Config
+ import org.signal.core.ui.CoreUiDependenciesRule
+ import org.signal.core.ui.compose.theme.SignalTheme
++import org.signal.registration.PreExistingRegistrationData
+ import org.signal.registration.R
+ import org.signal.registration.screens.shared.AccountIdFormat
+ import org.signal.registration.test.TestTags
+@@ -47,6 +52,51 @@ class PhoneNumberScreenTest {
+ 
+   private val context: Context = ApplicationProvider.getApplicationContext()
+ 
++  @Test
++  fun `fresh phone menu offers basic linking when history transfer is disabled`() {
++    assertFreshLinkMenu()
++  }
++
++  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
++  @Test
++  fun `fresh two pane menu offers basic linking when history transfer is disabled`() {
++    assertFreshLinkMenu()
++  }
++
++  private fun assertFreshLinkMenu() {
++    var emittedEvent: PhoneNumberEntryScreenEvents? = null
++    composeTestRule.setContent {
++      SignalTheme {
++        PhoneNumberScreen(
++          state = PhoneNumberEntryState(initialized = true, isLinkAndSyncAvailable = false),
++          onEvent = { emittedEvent = it }
++        )
++      }
++    }
++
++    composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
++    composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device))
++      .assertIsDisplayed()
++      .performClick()
++
++    assertThat(emittedEvent).isEqualTo(PhoneNumberEntryScreenEvents.LinkDevice)
++  }
++
++  @Test
++  fun `existing registration does not gain a basic linking menu entry`() {
++    composeTestRule.setContent {
++      SignalTheme {
++        PhoneNumberScreen(
++          state = PhoneNumberEntryState(initialized = true, preExistingRegistrationData = mockk<PreExistingRegistrationData>()),
++          onEvent = {}
++        )
++      }
++    }
++
++    composeTestRule.onNodeWithContentDescription(context.getString(R.string.RegistrationActivity_open_menu)).performClick()
++    composeTestRule.onNodeWithText(context.getString(R.string.RegistrationActivity_link_device)).assertDoesNotExist()
++  }
++
+   @Test
+   fun `Next button is disabled when fields are empty`() {
+     // Given
+diff --git a/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt b/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
+index 0b531cb1d20c8d642e15a4c8d2a380f9281bda39..3a07a0ed2b8ecc779080a9286f9741170466fae5 100644
+--- a/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
+@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
+ import androidx.compose.ui.test.onNodeWithTag
+ import androidx.compose.ui.test.performClick
+ import androidx.test.core.app.ApplicationProvider
++import org.junit.Assert.assertEquals
+ import org.junit.Rule
+ import org.junit.Test
+ import org.junit.runner.RunWith
+@@ -35,6 +36,41 @@ class WelcomeScreenTest {
+   @get:Rule
+   val coreUiDependenciesRule = CoreUiDependenciesRule(ApplicationProvider.getApplicationContext())
+ 
++  @Test
++  fun `fresh phone setup can link without history transfer`() {
++    assertBasicLinkWithoutHistoryTransfer()
++  }
++
++  @Config(qualifiers = "w800dp-h1280dp-xhdpi")
++  @Test
++  fun `fresh portrait tablet setup can link without history transfer`() {
++    assertBasicLinkWithoutHistoryTransfer()
++  }
++
++  @Config(qualifiers = "w1280dp-h800dp-xhdpi")
++  @Test
++  fun `fresh landscape tablet setup can link without history transfer`() {
++    assertBasicLinkWithoutHistoryTransfer()
++  }
++
++  private fun assertBasicLinkWithoutHistoryTransfer() {
++    var emittedEvent: WelcomeScreenEvents? = null
++    composeTestRule.setContent {
++      SignalTheme {
++        WelcomeScreen(
++          state = WelcomeScreenState(isLinkAndSyncAvailable = false),
++          onEvent = { emittedEvent = it }
++        )
++      }
++    }
++
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
++      .assertIsDisplayed()
++      .performClick()
++
++    assertEquals(WelcomeScreenEvents.LinkDevice, emittedEvent)
++  }
++
+   @Test
+   fun `when Get Started is clicked, Continue event is emitted`() {
+     // Given
+@@ -164,6 +200,7 @@ class WelcomeScreenTest {
+     assert(composeTestRule.onAllNodesWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).fetchSemanticsNodes().isEmpty()) {
+       "Expected no restore/transfer option during re-registration"
+     }
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
+   }
+ 
+   @Test
 diff --git a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java b/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java
 index 27cbd7261469f9f7fe46bbc9bb57617aea376733..22d6559ecc495a849df7d35614fc048c5662c0bc 100644
 --- a/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceAccountManager.java
