@@ -4387,6 +4387,34 @@ index 72b7c85faf75a6b646a7043578caa6665a2f809b..855e7b09b644851ccfa01324ab347b78
      if (!REPLY_ACTION.equals(intent.getAction())) return;
  
      Bundle remoteInput = RemoteInput.getResultsFromIntent(intent);
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiver.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiver.kt
+index 4159714e0be68a4a1ec241cfb7711d0389d4c951..111fddbd6f08037b32aa1c11af4f8020e2aa611c 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiver.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiver.kt
+@@ -1,19 +1,19 @@
+ package org.thoughtcrime.securesms.notifications
+ 
+-import android.content.BroadcastReceiver
+ import android.content.Context
+ import android.content.Intent
+ import org.signal.core.util.logging.Log
+ import org.thoughtcrime.securesms.jobs.RestoreNotificationsJob
++import org.thoughtcrime.securesms.service.ExportedBroadcastReceiver
+ 
+-/** The system drops our posted notifications on app update and reboot, and nothing else puts them back. */
+-class RestoreNotificationsReceiver : BroadcastReceiver() {
++/** Restores notifications dropped by app update and reboot when the app is unlocked. */
++class RestoreNotificationsReceiver : ExportedBroadcastReceiver() {
+ 
+   companion object {
+     private val TAG = Log.tag(RestoreNotificationsReceiver::class)
+   }
+ 
+-  override fun onReceive(context: Context, intent: Intent) {
++  override fun onReceiveUnlock(context: Context, intent: Intent) {
+     Log.i(TAG, "Enqueuing notification restore after ${intent.action}")
+     RestoreNotificationsJob.enqueue()
+   }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/notifications/v2/DefaultMessageNotifier.kt b/app/src/main/java/org/thoughtcrime/securesms/notifications/v2/DefaultMessageNotifier.kt
 index 8ff407ff1664c5d9b3309c1e8393c88da060f338..44cd5f10e9e5ee2cebfc13abfc42fd26a7dd522e 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/notifications/v2/DefaultMessageNotifier.kt
@@ -5125,7 +5153,7 @@ index 0000000000000000000000000000000000000000..e796c1ba1c062153ad21731b87d0d532
 +  protected abstract void onReceiveUnlock(Context context, Intent intent);
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java b/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
-index 641003bb243595cf1f54439750058a11531b3ad4..d1b3dda1fcc72cd280cd46bd16d6bbe56939a7cf 100644
+index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b73a46390 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
 @@ -16,43 +16,39 @@
@@ -5153,9 +5181,9 @@ index 641003bb243595cf1f54439750058a11531b3ad4..d1b3dda1fcc72cd280cd46bd16d6bbe5
 -import androidx.core.content.ContextCompat;
  
 -import org.signal.core.ui.compose.SignalIcons;
-+import org.greenrobot.eventbus.EventBus;
 +import org.signal.core.util.ServiceUtil;
  import org.signal.core.util.concurrent.SignalExecutors;
++import org.signal.core.util.eventbus.EventBus;
  import org.signal.core.util.logging.Log;
 +import org.signal.devicetransfer.TransferStatus;
  import org.thoughtcrime.securesms.BuildConfig;
@@ -39865,6 +39893,174 @@ index 0000000000000000000000000000000000000000..3717fec68c6b350e14685811a268526b
 +  @Test
 +  fun `locked unread reminder alarms do not reach private dependencies`() {
 +    UnreadReminderManager.UnreadReminderAlarm().onReceive(mockk<Context>(), mockk<Intent>())
++  }
++}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiverTest.kt b/app/src/test/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiverTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a0d3a96900c54e38bfb574df2748fb43fc661dd
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/notifications/RestoreNotificationsReceiverTest.kt
+@@ -0,0 +1,72 @@
++package org.thoughtcrime.securesms.notifications
++
++import android.app.Application
++import android.content.Intent
++import androidx.test.core.app.ApplicationProvider
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkStatic
++import io.mockk.unmockkStatic
++import io.mockk.verify
++import org.junit.After
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++import org.thoughtcrime.securesms.crypto.MasterSecret
++import org.thoughtcrime.securesms.dependencies.AppDependencies
++import org.thoughtcrime.securesms.jobmanager.JobManager
++import org.thoughtcrime.securesms.jobs.RestoreNotificationsJob
++import org.thoughtcrime.securesms.service.KeyCachingService
++
++@RunWith(RobolectricTestRunner::class)
++@Config(manifest = Config.NONE, application = Application::class, sdk = [27])
++class RestoreNotificationsReceiverTest {
++
++  private lateinit var jobManager: JobManager
++
++  @Before
++  fun setUp() {
++    KeyCachingService.clearMasterSecret()
++    mockkStatic(AppDependencies::class)
++    jobManager = mockk(relaxed = true)
++    every { AppDependencies.jobManager } returns jobManager
++  }
++
++  @After
++  fun tearDown() {
++    KeyCachingService.clearMasterSecret()
++    unmockkStatic(AppDependencies::class)
++  }
++
++  @Test
++  fun `locked boot and update do not access private job dependencies`() {
++    assertTrue(KeyCachingService.isLocked())
++
++    receiveBootAndUpdate()
++
++    verify(exactly = 0) { AppDependencies.jobManager }
++    verify(exactly = 0) { jobManager.add(any()) }
++  }
++
++  @Test
++  fun `unlocked boot and update still enqueue notification restoration`() {
++    // Only represent cached state; do not generate or load any key material.
++    KeyCachingService.setMasterSecret(mockk<MasterSecret>(relaxed = true))
++    assertFalse(KeyCachingService.isLocked())
++
++    receiveBootAndUpdate()
++
++    verify(exactly = 2) { jobManager.add(ofType<RestoreNotificationsJob>()) }
++  }
++
++  private fun receiveBootAndUpdate() {
++    val context = ApplicationProvider.getApplicationContext<Application>()
++    val receiver = RestoreNotificationsReceiver()
++    receiver.onReceive(context, Intent(Intent.ACTION_BOOT_COMPLETED))
++    receiver.onReceive(context, Intent(Intent.ACTION_MY_PACKAGE_REPLACED))
++  }
++}
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt b/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..8d4dcb2830c5b7888fa622dff1d10a088d72c76c
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt
+@@ -0,0 +1,84 @@
++package org.thoughtcrime.securesms.service
++
++import android.app.Application
++import android.content.Intent
++import androidx.test.core.app.ApplicationProvider
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkStatic
++import io.mockk.unmockkStatic
++import org.junit.After
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.Robolectric
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.Shadows.shadowOf
++import org.robolectric.annotation.Config
++import org.signal.core.util.eventbus.EventBus
++import org.signal.devicetransfer.TransferStatus
++import org.thoughtcrime.securesms.crypto.MasterSecret
++import org.thoughtcrime.securesms.migrations.ApplicationMigrations
++
++@RunWith(RobolectricTestRunner::class)
++@Config(manifest = Config.NONE, application = Application::class, sdk = [27])
++class KeyCachingServiceTest {
++
++  private lateinit var service: KeyCachingService
++
++  @Before
++  fun setUp() {
++    KeyCachingService.clearMasterSecret()
++    EventBus.default.removeStickyEvent(TransferStatus::class.java)
++    mockkStatic(ApplicationMigrations::class)
++    every { ApplicationMigrations.isUpdate(any()) } returns false
++
++    // Only represent cached state; do not generate or load any key material.
++    KeyCachingService.setMasterSecret(mockk<MasterSecret>(relaxed = true))
++    service = Robolectric.buildService(KeyCachingService::class.java).get()
++  }
++
++  @After
++  fun tearDown() {
++    EventBus.default.removeStickyEvent(TransferStatus::class.java)
++    KeyCachingService.clearMasterSecret()
++    unmockkStatic(ApplicationMigrations::class)
++  }
++
++  @Test
++  fun `explicit lock is excluded during device transfer`() {
++    assertTransferPreventsLock(KeyCachingService.CLEAR_KEY_ACTION)
++  }
++
++  @Test
++  fun `passphrase expiration is excluded during device transfer`() {
++    val action = KeyCachingService::class.java.getDeclaredField("PASSPHRASE_EXPIRED_EVENT").apply {
++      isAccessible = true
++    }.get(null) as String
++
++    assertTransferPreventsLock(action)
++  }
++
++  private fun assertTransferPreventsLock(action: String) {
++    val application = ApplicationProvider.getApplicationContext<Application>()
++    val clearEventsBefore = shadowOf(application).broadcastIntents.count { it.action == KeyCachingService.CLEAR_KEY_EVENT }
++    assertFalse(KeyCachingService.isLocked())
++    EventBus.default.postSticky(TransferStatus.ready())
++
++    service.onStartCommand(Intent(action), 0, 1)
++
++    assertFalse(KeyCachingService.isLocked())
++    assertEquals(clearEventsBefore, shadowOf(application).broadcastIntents.count { it.action == KeyCachingService.CLEAR_KEY_EVENT })
++
++    EventBus.default.removeStickyEvent(TransferStatus::class.java)
++    service.onStartCommand(Intent(KeyCachingService.CLEAR_KEY_ACTION), 0, 2)
++
++    assertTrue(KeyCachingService.isLocked())
++    val clearEvents = shadowOf(application).broadcastIntents.filter { it.action == KeyCachingService.CLEAR_KEY_EVENT }
++    assertEquals(clearEventsBefore + 1, clearEvents.size)
++    assertFalse(clearEvents.last().getBooleanExtra(KeyCachingService.EXTRA_KEY_EXPIRED, true))
 +  }
 +}
 diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsAction.kt b/feature/app-settings/src/main/java/org/signal/appsettings/privacy/PrivacySettingsAction.kt

@@ -2161,6 +2161,61 @@ index c9d79cb20083d9782649d78e8e61fdcfd1bd3210..b51700875250cf94bb35192a9c684418
    val inProgress: Boolean = false,
    val isReRegister: Boolean = false,
    val recoveryPassword: String? = null,
+diff --git a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
+index 688e4f5defe36833270dad9a4cb83cc7ed94da94..a1bf8c46f89c3337465e922ce305a8f492133108 100644
+--- a/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
++++ b/app/src/main/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkController.kt
+@@ -110,6 +110,7 @@ import org.thoughtcrime.securesms.registration.util.RegistrationUtil
+ import org.thoughtcrime.securesms.registration.viewmodel.SvrAuthCredentialSet
+ import org.thoughtcrime.securesms.util.Environment
+ import org.thoughtcrime.securesms.util.RemoteConfig
++import org.thoughtcrime.securesms.util.TextSecurePreferences
+ import org.whispersystems.signalservice.api.SvrNoDataException
+ import org.whispersystems.signalservice.api.link.TransferArchiveResponse
+ import org.whispersystems.signalservice.api.provisioning.ProvisioningSocket
+@@ -136,15 +137,25 @@ import org.whispersystems.signalservice.api.account.AccountAttributes as Service
+  */
+ class AppRegistrationNetworkController(
+   private val context: Context,
+-  private val registrationApi: RegistrationApiV2
++  private val api: RegistrationApiV2
+ ) : NetworkController {
+ 
++  private val registrationApi: RegistrationApiV2 by lazy {
++    enableNetwork()
++    api
++  }
++
+   companion object {
+     private val TAG = Log.tag(AppRegistrationNetworkController::class)
+     private val PUSH_REQUEST_TIMEOUT = 5.seconds.inWholeMilliseconds
+     private val RETRY_BACKOFF = 5.seconds
+   }
+ 
++  private fun enableNetwork() {
++    TextSecurePreferences.setHasSeenNetworkConfig(context, true)
++    AppDependencies.networkManager.setNetworkEnabled(true)
++  }
++
+   override suspend fun createSession(
+     e164: String,
+     fcmToken: String?,
+@@ -592,6 +603,7 @@ class AppRegistrationNetworkController(
+   }
+ 
+   override fun startProvisioning(): Flow<ProvisioningEvent> = callbackFlow {
++    enableNetwork()
+     val socketHandles = mutableListOf<Closeable>()
+     val configuration = AppDependencies.signalServiceNetworkAccess.getConfiguration()
+ 
+@@ -684,6 +696,7 @@ class AppRegistrationNetworkController(
+   }
+ 
+   override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = callbackFlow {
++    enableNetwork()
+     val socketHandles = mutableListOf<Closeable>()
+     val configuration = AppDependencies.signalServiceNetworkAccess.getConfiguration()
+ 
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt b/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
 index 47389ae467291373921be9d31d1210719ab04bab..384fbf5e266aa64c84b2a3ed93a0fe877ae67184 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/Environment.kt
@@ -3056,6 +3111,144 @@ index e80cbf5a9aab12077c76f215c69a488c86de8888..f9d6dc8ea68178726e95b0f5a9ad1ae0
    }
  
    @Test
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkControllerTest.kt b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkControllerTest.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..f2cfc53496a810992c70b4f1fb503add75c46e8d
+--- /dev/null
++++ b/app/src/test/java/org/thoughtcrime/securesms/registration/v2/AppRegistrationNetworkControllerTest.kt
+@@ -0,0 +1,132 @@
++package org.thoughtcrime.securesms.registration.v2
++
++import android.app.Application
++import androidx.test.core.app.ApplicationProvider
++import io.mockk.coEvery
++import io.mockk.every
++import io.mockk.mockk
++import io.mockk.mockkStatic
++import io.mockk.unmockkAll
++import io.mockk.verify
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.collect
++import kotlinx.coroutines.runBlocking
++import org.junit.After
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertSame
++import org.junit.Assert.assertThrows
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.annotation.Config
++import org.signal.libsignal.net.RequestResult
++import org.signal.network.api.RegistrationApiV2
++import org.signal.network.api.RegistrationApiV2.SessionMetadata
++import org.thoughtcrime.securesms.dependencies.AppDependencies
++import org.thoughtcrime.securesms.net.NetworkManager
++import org.thoughtcrime.securesms.net.Networking
++import org.thoughtcrime.securesms.net.SocksProxy
++import org.thoughtcrime.securesms.util.TextSecurePreferences
++import java.io.IOException
++
++@RunWith(RobolectricTestRunner::class)
++@Config(application = Application::class, manifest = Config.NONE, sdk = [27])
++class AppRegistrationNetworkControllerTest {
++
++  private val context: Application = ApplicationProvider.getApplicationContext()
++  private val api = mockk<RegistrationApiV2>()
++  private val networkManager = mockk<NetworkManager>()
++  private val proxy = SocksProxy("localhost", 9050)
++  private var previousEnabled = false
++  private var previousProxy: SocksProxy? = null
++  private var seenNetworkConfig = false
++  private lateinit var controller: AppRegistrationNetworkController
++
++  @Before
++  fun setUp() {
++    previousEnabled = Networking.isEnabled
++    previousProxy = Networking.socksProxy
++    Networking.isEnabled = false
++    Networking.socksProxy = proxy
++    mockkStatic(AppDependencies::class, TextSecurePreferences::class)
++    every { AppDependencies.networkManager } returns networkManager
++    every { TextSecurePreferences.setHasSeenNetworkConfig(context, true) } answers {
++      seenNetworkConfig = true
++    }
++    every { networkManager.setNetworkEnabled(true) } answers {
++      assertTrue(seenNetworkConfig)
++      Networking.isEnabled = true
++    }
++    controller = AppRegistrationNetworkController(context, api)
++  }
++
++  @After
++  fun tearDown() {
++    unmockkAll()
++    Networking.isEnabled = previousEnabled
++    Networking.socksProxy = previousProxy
++  }
++
++  @Test
++  fun `constructing registration dependencies does not enable networking`() {
++    assertFalse(Networking.isEnabled)
++    assertFalse(seenNetworkConfig)
++    verify(exactly = 0) { networkManager.setNetworkEnabled(any()) }
++  }
++
++  @Test
++  fun `creating the first session enables networking before the request`() = runBlocking {
++    val response = RequestResult.Success(mockk<SessionMetadata>())
++    coEvery { api.createVerificationSession("+15555550101", null, null, null) } answers {
++      assertNetworkEnabled()
++      response
++    }
++
++    assertSame(response, controller.createSession("+15555550101", null, null, null))
++  }
++
++  @Test
++  fun `resuming a session enables networking before the request`() = runBlocking {
++    val response = RequestResult.Success(mockk<SessionMetadata>())
++    coEvery { api.getSessionStatus("session") } answers {
++      assertNetworkEnabled()
++      response
++    }
++
++    assertSame(response, controller.getSession("session"))
++  }
++
++  @Test
++  fun `quick restore provisioning enables networking only when collected`() {
++    assertProvisioningEnablesNetwork(controller.startProvisioning())
++  }
++
++  @Test
++  fun `linked device provisioning enables networking only when collected`() {
++    assertProvisioningEnablesNetwork(controller.startLinkDeviceProvisioning(false))
++  }
++
++  private fun assertProvisioningEnablesNetwork(flow: Flow<*>) {
++    assertFalse(Networking.isEnabled)
++    val stopBeforeSocketCreation = IOException("Stop before opening a provisioning socket")
++    every { AppDependencies.signalServiceNetworkAccess } answers {
++      assertNetworkEnabled()
++      throw stopBeforeSocketCreation
++    }
++
++    val failure = assertThrows(IOException::class.java) {
++      runBlocking { flow.collect() }
++    }
++
++    assertSame(stopBeforeSocketCreation, failure)
++    assertNetworkEnabled()
++  }
++
++  private fun assertNetworkEnabled() {
++    assertTrue(seenNetworkConfig)
++    assertTrue(Networking.isEnabled)
++    assertSame(proxy, Networking.socksProxy)
++  }
++}
 diff --git a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt b/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt
 index 4e6e3dd7f3f55686a06a721244cefacbfed184c4..0cc11ff79a3e727b6cae802df089d9d85673fe2e 100644
 --- a/feature/app-settings/src/main/java/org/signal/appsettings/account/AccountSettingsAction.kt
