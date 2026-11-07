@@ -14,9 +14,11 @@ A synchronized series establishes tree agreement, not runtime acceptance.
 The 8.19.2 and 8.20.4 refs and original reference/source histories remain unchanged.
 The legacy-search deletion is upstreamed and no longer needs a patch. The selected
 native forks are Molly libsignal 0.105.4-1 and RingRTC 2.73.0-1.
-The known timeout backup/restore defect is **deferred, not fixed**. Its excluded
-commit37 remains on `migration/archive/signal-8.19.2-timeout-repair-037-20261104`;
-none of its four production changes or added test is in this series.
+The explicitly reauthorized lockout-time backup/export overflow repair is adapted
+in the current series, including encrypted Long/legacy Int compatibility, checked
+32-bit backup encoding and nonfatal job rejection before any backup frames.
+The original archived repair remains unchanged at
+`migration/archive/signal-8.19.2-timeout-repair-037-20261104`.
 
 ## Files and acceptance
 

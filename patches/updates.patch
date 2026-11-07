@@ -1100,10 +1100,10 @@ index 998cecd42f96daf307177c4b35c526f6fc76deba..596f533d0a592f60d3f6301bd8707003
 -  }
  }
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
-index 77d81c6228786fe249be91d4d7b67497d40e0c0e..24182158b97b484fab5ab862fbd982fcf19f36f1 100644
+index 6de20bbde3b6ed30e5a74bcea5ec6b356d98eafd..3fa373762e52cefc87514cce7271fe8b17914c94 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
-@@ -686,11 +686,11 @@ public class TextSecurePreferences {
+@@ -703,11 +703,11 @@ public class TextSecurePreferences {
    }
  
    public static long getUpdateApkRefreshTime(Context context) {

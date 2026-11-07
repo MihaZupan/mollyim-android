@@ -5891,7 +5891,7 @@ index 3a8f6550c4c5f5e50aa7ed06c49f04f1d9b179d8..c9c51f51e5c0203e11613ad9a47756ad
  
      MultiShareArgs args = getIntent().getParcelableExtra(ARGS);
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
-index 1c2e07c3a600cb85f8881eb2c6bb9c963de7fd41..77d81c6228786fe249be91d4d7b67497d40e0c0e 100644
+index 1c2e07c3a600cb85f8881eb2c6bb9c963de7fd41..6de20bbde3b6ed30e5a74bcea5ec6b356d98eafd 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/util/TextSecurePreferences.java
 @@ -36,7 +36,7 @@ import org.thoughtcrime.securesms.notifications.NotificationIds;
@@ -5903,7 +5903,49 @@ index 1c2e07c3a600cb85f8881eb2c6bb9c963de7fd41..77d81c6228786fe249be91d4d7b67497
  
  import java.util.ArrayList;
  import java.util.Arrays;
-@@ -1056,8 +1056,8 @@ public class TextSecurePreferences {
+@@ -323,7 +323,7 @@ public class TextSecurePreferences {
+         backupProtos.add(new SharedPreference.Builder()
+                                              .file_(SecurePreferenceManager.getSecurePreferencesName())
+                                              .key(integerPreference)
+-                                             .integerValue(preferences.getInt(integerPreference, 0))
++                                             .integerValue(getPassphraseLockTimeoutForBackup(context))
+                                              .build());
+       }
+     }
+@@ -331,6 +331,21 @@ public class TextSecurePreferences {
+     return backupProtos;
+   }
+ 
++  private static int getPassphraseLockTimeoutForBackup(@NonNull Context context) {
++    try {
++      return Math.toIntExact(getPassphraseLockTimeout(context));
++    } catch (ArithmeticException e) {
++      throw new InvalidPassphraseLockTimeoutException(e);
++    }
++  }
++
++  public static final class InvalidPassphraseLockTimeoutException extends ArithmeticException {
++    private InvalidPassphraseLockTimeoutException(ArithmeticException cause) {
++      super("Passphrase lock timeout cannot be represented in a backup");
++      initCause(cause);
++    }
++  }
++
+   public static void onPostBackupRestore(@NonNull Context context) {
+     if (NotificationChannels.supported()) {
+       NotificationChannels.getInstance().updateMessageVibrate(SignalStore.settings().isMessageVibrateEnabled());
+@@ -361,7 +376,9 @@ public class TextSecurePreferences {
+   }
+ 
+   public static long getPassphraseLockTimeout(@NonNull Context context) {
+-    return getLongPreference(context, PASSPHRASE_LOCK_TIMEOUT, 0);
++    SharedPreferences preferences = getSharedPreferences(context);
++    // Backup imports store an Int; the UI stores a Long. Keep other preference types strict.
++    return preferences.getLong(PASSPHRASE_LOCK_TIMEOUT, preferences.getInt(PASSPHRASE_LOCK_TIMEOUT, 0));
+   }
+ 
+   public static boolean isPassphraseLockNotificationsEnabled(@NonNull Context context) {
+@@ -1056,8 +1073,8 @@ public class TextSecurePreferences {
        return;
      }
  
