@@ -1512,6 +1512,48 @@ index 97a7aacfff747836c4fbbce1e44fe9dff2e2485f..fb955670896e3d0c8136d8fbd106dff8
    }
  
    @Test
+diff --git a/feature/media-viewer/src/test/java/org/signal/mediaviewer/MediaViewerScreenTest.kt b/feature/media-viewer/src/test/java/org/signal/mediaviewer/MediaViewerScreenTest.kt
+index 7755345bb1355d4f678b8c10c0f63602af8760ce..35c638f0bd19f86e0d05ea9f6d84ef61ebb53cb8 100644
+--- a/feature/media-viewer/src/test/java/org/signal/mediaviewer/MediaViewerScreenTest.kt
++++ b/feature/media-viewer/src/test/java/org/signal/mediaviewer/MediaViewerScreenTest.kt
+@@ -8,12 +8,13 @@ package org.signal.mediaviewer
+ import android.app.Application
+ import android.net.Uri
+ import android.os.Looper
++import androidx.activity.ComponentActivity
+ import androidx.compose.ui.geometry.Offset
+ import androidx.compose.ui.test.assertIsDisplayed
+ import androidx.compose.ui.test.assertIsNotDisplayed
+ import androidx.compose.ui.test.assertTextEquals
+ import androidx.compose.ui.test.click
+-import androidx.compose.ui.test.junit4.createComposeRule
++import androidx.compose.ui.test.junit4.createAndroidComposeRule
+ import androidx.compose.ui.test.onNodeWithContentDescription
+ import androidx.compose.ui.test.onNodeWithTag
+ import androidx.compose.ui.test.onNodeWithText
+@@ -48,18 +49,21 @@ import org.signal.video.VideoPlayer
+ import org.signal.video.exo.ExoPlayerPool
+ import java.io.ByteArrayInputStream
+ import java.io.InputStream
++import com.google.android.material.R as MaterialR
+ 
+ @RunWith(RobolectricTestRunner::class)
+ @Config(application = Application::class)
+ class MediaViewerScreenTest {
+ 
+   @get:Rule
+-  val composeTestRule = createComposeRule()
++  val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+ 
+   private val events = mutableListOf<MediaViewerEvent>()
+ 
+   @Before
+   fun setUp() {
++    composeTestRule.activity.setTheme(MaterialR.style.Theme_Material3_DayNight_NoActionBar)
++
+     // Signal's emoji path blocks on EmojiSource.refresh(), which never runs under Robolectric.
+     EmojiDependencies.init(
+       ApplicationProvider.getApplicationContext(),
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
 index 6fb6d2553afec28bbbf325d08e7fb7436e629953..35a00944e686e27680d24a8c069703c8224b9583 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
