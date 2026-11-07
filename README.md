@@ -53,6 +53,7 @@ worktrees are never reset, overwritten or automatically cleaned.
 python .\scripts\patch_stack.py inspect
 python -m unittest discover -s scripts -p 'test_*.py'
 python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8342-import-review
+python .\scripts\patch_stack.py check --destination D:\molly\migration-worktrees\molly-8342-check-review
 python .\scripts\patch_stack.py export --source-ref v8.34.2/molly --destination D:\molly\migration-worktrees\molly-8342-export-review
 ```
 
@@ -104,16 +105,18 @@ patch. The tools do not push, merge, rewrite canonical refs or install anything.
 `.github/workflows/patch-stack.yml` validates patch-branch pushes/PRs and offers
 manual source-to-patches or patches-to-source **proposal artifacts**. It does not
 silently publish either counterpart or start application/device tests.
-The `check` operation validates an already synchronized pair, including the exact
-source-branch head recorded in the manifest. An intentional pending edit can fail
+The source branch also checks its push commit using the counterpart patch branch.
+The `check` operation verifies the exact remote baseline and source branch heads,
+linear commit count, and reconstruction of the complete ordered patches into the
+recorded source tree. An intentional pending edit can fail
 that steady-state gate until its counterpart proposal is reviewed and promoted.
 
 Nothing is active until branches are published. GitHub manual dispatch also
 requires the workflow to be registered on the repository's default branch;
 selecting a patch-management default branch or adding a reviewed launcher is a
-separate publication decision. The unchanged source branch does not contain this
-workflow, so source-only pushes are not automatically observed by it. Use the
-local exporter or an enabled manual dispatch.
+separate publication decision. Source and patch branches each run reconstruction
+checks on push; source updates without a synchronized patch snapshot fail the
+source check. Neither workflow changes main/default or publishes releases.
 
 ## Next Signal version
 

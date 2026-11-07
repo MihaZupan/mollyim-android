@@ -214,6 +214,26 @@ def resolve_source(repo, source_ref):
                 source_ref + "^{commit}")
 
 
+def check_stack(repo, destination, source_ref=None, baseline_ref=None):
+    manifest = inspect(repo)
+    source_ref = source_ref or "refs/remotes/origin/" + manifest["branches"]["source"]
+    baseline_ref = baseline_ref or "refs/remotes/origin/" + manifest["branches"]["baseline"]
+    source = resolve_source(repo, source_ref)
+    baseline = resolve_source(repo, baseline_ref)
+    if source != manifest["source"]:
+        raise StackError("Source branch head differs from the recorded snapshot")
+    if baseline != manifest["baseline"]:
+        raise StackError("Baseline branch head differs from the recorded baseline")
+    commits = linear_commits(repo, baseline, source)
+    if len(commits) != len(manifest["patches"]):
+        raise StackError("Source commit count differs from patch count")
+    if text(repo, "rev-parse", source + "^{tree}") != manifest["tree"]:
+        raise StackError("Source branch tree differs from the patch snapshot")
+    result = import_stack(repo, destination)
+    return dict(result, source=source, source_ref=source_ref,
+                baseline_ref=baseline_ref, branch_heads_verified=True)
+
+
 def export_stack(repo, source_ref, destination):
     manifest = inspect(repo, align_source=False)
     destination = new_destination(destination)
@@ -275,6 +295,10 @@ def main(argv=None):
     importer.add_argument("--destination", required=True)
     importer.add_argument("--propose", action="store_true",
                           help="Report an edited stack's actual tree, without strict tree approval")
+    checker = subparsers.add_parser("check", help="Validate branch pins and reconstruct the patch stack")
+    checker.add_argument("--destination", required=True)
+    checker.add_argument("--source-ref")
+    checker.add_argument("--baseline-ref")
     exporter = subparsers.add_parser("export", help="Export a committed linear source stack")
     exporter.add_argument("--source-ref", required=True)
     exporter.add_argument("--destination", required=True)
@@ -288,6 +312,8 @@ def main(argv=None):
                       "application_verified": False}
         elif args.command == "import":
             result = import_stack(repo, args.destination, propose=args.propose)
+        elif args.command == "check":
+            result = check_stack(repo, args.destination, args.source_ref, args.baseline_ref)
         else:
             result = export_stack(repo, args.source_ref, args.destination)
         print(json.dumps(result, sort_keys=True))

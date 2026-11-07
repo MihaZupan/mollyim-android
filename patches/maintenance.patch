@@ -144,6 +144,50 @@ index 99fdb5089c0cd27c4c65068b709c92f48e3fa936..00000000000000000000000000000000
 -          **/build/reports
 -          **/build/test-results
 -        if-no-files-found: ignore
+diff --git a/.github/workflows/patch-stack.yml b/.github/workflows/patch-stack.yml
+new file mode 100644
+index 0000000000000000000000000000000000000000..4366d9b88dc975711a057ddf38f63ec56f9ccf98
+--- /dev/null
++++ b/.github/workflows/patch-stack.yml
+@@ -0,0 +1,38 @@
++name: Molly source patch stack
++
++on:
++  push:
++    branches: ['v*/molly']
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++jobs:
++  patch-stack:
++    runs-on: ubuntu-latest
++    timeout-minutes: 30
++    steps:
++      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
++        with:
++          ref: ${{ github.ref_name }}-patches
++          fetch-depth: 0
++          persist-credentials: false
++      - name: Test patch-management tooling
++        run: python3 -m unittest discover -s scripts -p 'test_*.py'
++      - name: Validate source, baseline and reconstructed patches
++        env:
++          SOURCE_REF: ${{ github.sha }}
++          GIT_COMMITTER_EMAIL: miha@mihubot.xyz
++        run: |
++          python3 scripts/patch_stack.py check \
++            --source-ref "$SOURCE_REF" \
++            --destination "$RUNNER_TEMP/molly-import" > "$RUNNER_TEMP/patch-result.json"
++      - name: Upload validation result
++        if: always()
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
++        with:
++          name: molly-source-patch-stack-${{ github.run_id }}
++          path: ${{ runner.temp }}/patch-result.json
++          if-no-files-found: warn
++          retention-days: 14
 diff --git a/.github/workflows/stale.yml b/.github/workflows/stale.yml
 deleted file mode 100644
 index 04498e0721074720852fc18265d390a41770b7fe..0000000000000000000000000000000000000000

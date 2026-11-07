@@ -85,6 +85,50 @@ class PatchStackTests(unittest.TestCase):
         return (self.run_git("show-ref"), self.run_git("status", "--porcelain"),
                 self.run_git("rev-parse", "HEAD"), self.run_git("worktree", "list", "--porcelain"))
 
+    def set_branch_refs(self):
+        source = "refs/remotes/origin/" + self.manifest["branches"]["source"]
+        baseline = "refs/remotes/origin/" + self.manifest["branches"]["baseline"]
+        self.run_git("update-ref", source, self.source)
+        self.run_git("update-ref", baseline, self.baseline)
+        return source, baseline
+
+    def test_check_reconstructs_and_verifies_both_branch_heads(self):
+        source, baseline = self.set_branch_refs()
+        before = self.snapshot()
+        result = patch_stack.check_stack(self.repo, self.owned / "checked-import")
+        self.assertTrue(result["branch_heads_verified"])
+        self.assertEqual(result["source"], self.source)
+        self.assertEqual(result["source_ref"], source)
+        self.assertEqual(result["baseline_ref"], baseline)
+        self.assertEqual(result["tree"], self.tree)
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(before, self.snapshot())
+
+    def test_check_rejects_stale_source_or_baseline_before_creating_destination(self):
+        source, baseline = self.set_branch_refs()
+        for ref, message in ((source, "Source branch head"), (baseline, "Baseline branch head")):
+            with self.subTest(ref=ref):
+                expected = self.source if ref == source else self.baseline
+                changed = self.baseline if ref == source else self.source
+                self.run_git("update-ref", ref, changed)
+                before = self.snapshot()
+                destination = self.owned / ("bad-source" if ref == source else "bad-baseline")
+                with self.assertRaisesRegex(patch_stack.StackError, message):
+                    patch_stack.check_stack(self.repo, destination)
+                self.assertFalse(destination.exists())
+                self.assertEqual(before, self.snapshot())
+                self.run_git("update-ref", ref, expected)
+
+    def test_check_rejects_tampered_patches_even_when_branch_pins_match(self):
+        self.set_branch_refs()
+        (self.repo / "patches" / "cleanup.patch").write_bytes(b"not an email patch\n")
+        destination = self.owned / "tampered-check"
+        before = self.snapshot()
+        with self.assertRaisesRegex(patch_stack.StackError, "preserved"):
+            patch_stack.check_stack(self.repo, destination)
+        self.assertTrue(destination.is_dir())
+        self.assertEqual(before, self.snapshot())
+
     def test_roundtrip_binary_deletion_mode_and_unchanged_original(self):
         before = self.snapshot()
         exported = self.owned / "export"

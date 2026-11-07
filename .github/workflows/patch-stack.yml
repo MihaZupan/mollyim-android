@@ -36,6 +36,7 @@ jobs:
         env:
           DIRECTION: ${{ inputs.direction || 'check' }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          GIT_COMMITTER_EMAIL: miha@mihubot.xyz
         run: |
           set -euo pipefail
           output="$RUNNER_TEMP/molly-sync"
@@ -47,22 +48,7 @@ jobs:
           fi
           case "$DIRECTION" in
             check)
-              python3 scripts/patch_stack.py import --destination "$destination" > "$output/result.json"
-              python3 - "$SOURCE_REF" <<'PY'
-          import json, subprocess, sys
-          manifest = json.load(open("patch-stack.json"))
-          ref = sys.argv[1]
-          def git(*args):
-              return subprocess.check_output(["git", *args], text=True).strip()
-          actual = git("rev-parse", "--verify", "--end-of-options", ref + "^{commit}")
-          if actual != manifest["source"]:
-              raise SystemExit("Source branch head differs from the recorded snapshot; prepare a synchronization proposal")
-          if git("rev-parse", actual + "^{tree}") != manifest["tree"]:
-              raise SystemExit("Source branch and patch snapshot differ; prepare a synchronization proposal")
-          subprocess.run(["git", "merge-base", "--is-ancestor", manifest["baseline"], actual], check=True)
-          if int(git("rev-list", "--count", manifest["baseline"] + ".." + actual)) != len(manifest["patches"]):
-              raise SystemExit("Source branch must contain one commit per patch")
-          PY
+              python3 scripts/patch_stack.py check --source-ref "$SOURCE_REF" --destination "$destination" > "$output/result.json"
               ;;
             source-to-patches)
               python3 scripts/patch_stack.py export --source-ref "$SOURCE_REF" --destination "$output/patch-snapshot" > "$output/result.json"
