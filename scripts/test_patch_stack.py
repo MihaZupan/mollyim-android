@@ -40,6 +40,8 @@ class PatchStackTests(unittest.TestCase):
         (self.repo / "delete.txt").unlink()
         (self.repo / "crlf.txt").write_bytes(b"first\r\nchanged\r\n")
         self.run_git("add", "--", "crlf.txt")
+        if os.name != "nt":
+            (self.repo / "program").chmod(0o755)
         self.run_git("update-index", "--chmod=+x", "program")
         self.run_git("add", "-u", "--", "delete.txt")
         self.run_git("commit", "--quiet", "-m", "Remove obsolete file")

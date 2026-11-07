@@ -102,7 +102,7 @@ patch. The tools do not push, merge, rewrite canonical refs or install anything.
 
 ## GitHub workflow
 
-`.github/workflows/patch-stack.yml` validates patch-branch pushes/PRs and offers
+`.github/workflows/molly-patch-stack.yml` validates patch-branch pushes/PRs and offers
 manual source-to-patches or patches-to-source **proposal artifacts**. It does not
 silently publish either counterpart or start application/device tests.
 The source branch also checks its push commit using the counterpart patch branch.

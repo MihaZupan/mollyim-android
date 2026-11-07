@@ -10290,10 +10290,10 @@ index c20c2ab73173da3e3b1163b01503cb8f8fa897fe..00000000000000000000000000000000
 -__pycache__
 -
 diff --git a/settings.gradle.kts b/settings.gradle.kts
-index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a049db26e 100644
+index d977652d4b2c81955c849dba8c2dea21ff68edec..8f1115f374840fe6ab395915ac86fca5a61c2333 100644
 --- a/settings.gradle.kts
 +++ b/settings.gradle.kts
-@@ -1,62 +1,52 @@
+@@ -1,62 +1,58 @@
 -val localProps = java.util.Properties().also { props ->
 -  val localPropsFile = file("local.properties")
 -  if (localPropsFile.exists()) {
@@ -10335,6 +10335,12 @@ index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a
 +    }
      mavenCentral()
 -    gradlePluginPortal()
++    gradlePluginPortal {
++      content {
++        includeGroup("org.jlleitschuh.gradle.ktlint")
++        includeGroup("org.jlleitschuh.gradle")
++      }
++    }
    }
    includeBuild("build-logic")
  }
@@ -10387,7 +10393,7 @@ index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a
      }
      maven {
        name = "SignalBuildArtifacts"
-@@ -65,12 +55,10 @@ dependencyResolutionManagement {
+@@ -65,12 +61,10 @@ dependencyResolutionManagement {
          includeGroupByRegex("org\\.signal.*")
        }
      }
@@ -10401,7 +10407,7 @@ index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a
      create("testLibs") {
        from(files("gradle/test-libs.versions.toml"))
      }
-@@ -86,8 +74,8 @@ if (libsignalClientPath is String) {
+@@ -86,8 +80,8 @@ if (libsignalClientPath is String) {
    includeBuild(rootDir.resolve(libsignalClientPath + "/java")) {
      name = "libsignal-client"
      dependencySubstitution {
@@ -10412,7 +10418,7 @@ index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a
      }
    }
  }
-@@ -105,19 +93,25 @@ include(":core:ui")
+@@ -105,19 +99,25 @@ include(":core:ui")
  include(":core:serialization")
  include(":core:database")
  
@@ -10440,7 +10446,7 @@ index d977652d4b2c81955c849dba8c2dea21ff68edec..5f6f9cf6a6363ffa02b4ad0cbd81608a
  include(":lib:video")
  include(":lib:image-editor")
  include(":lib:debuglogs-viewer")
-@@ -138,30 +132,9 @@ include(":feature:chat-settings")
+@@ -138,30 +138,9 @@ include(":feature:chat-settings")
  include(":feature:media-keyboard")
  include(":feature:media-viewer")
  
