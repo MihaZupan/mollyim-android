@@ -1694,10 +1694,10 @@ index 208942414c2194387e90d2f27738dd8729ac8eaa..029698ab78eaaa7cb86df9ec7f6c2ac1
      val order = FullBackupImporter.computeTableDropOrder(mapOf())
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt b/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe56b04e2ff
+index 0000000000000000000000000000000000000000..9986bc625f099c270f5ee2a91bec880df88f32d0
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt
-@@ -0,0 +1,456 @@
+@@ -0,0 +1,472 @@
 +package org.thoughtcrime.securesms.backup
 +
 +import android.Manifest
@@ -1749,6 +1749,8 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +import org.thoughtcrime.securesms.jobs.LocalBackupJobApi29
 +import org.thoughtcrime.securesms.keyvalue.BackupValues
 +import org.thoughtcrime.securesms.keyvalue.KeyValueDataSet
++import org.thoughtcrime.securesms.keyvalue.KeyValueStore
++import org.thoughtcrime.securesms.keyvalue.MockKeyValuePersistentStorage
 +import org.thoughtcrime.securesms.keyvalue.SettingsValues
 +import org.thoughtcrime.securesms.keyvalue.SignalStore
 +import org.thoughtcrime.securesms.notifications.NotificationChannels
@@ -1756,7 +1758,9 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +import org.thoughtcrime.securesms.service.GenericForegroundService
 +import org.thoughtcrime.securesms.service.KeyCachingService
 +import org.thoughtcrime.securesms.service.NotificationController
++import org.thoughtcrime.securesms.testutil.DirectExecutor
 +import org.thoughtcrime.securesms.util.BackupUtil
++import org.thoughtcrime.securesms.util.Environment
 +import org.thoughtcrime.securesms.util.SecurePreferenceManager
 +import org.thoughtcrime.securesms.util.TextSecurePreferences
 +import java.io.ByteArrayInputStream
@@ -1771,6 +1775,7 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +class PassphraseLockTimeoutBackupTest {
 +  private lateinit var context: Context
 +  private lateinit var preferences: SharedPreferences
++  private lateinit var settings: SettingsValues
 +  private var previousPreferences: Any? = null
 +  private val preferencesField = SecurePreferenceManager::class.java.getDeclaredField("securePreferences").apply { isAccessible = true }
 +  private val attachmentSecret = AttachmentSecret(null, null, ByteArray(32))
@@ -1789,7 +1794,17 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +    encryptionKey.fill(0)
 +    macKey.fill(0)
 +    preferences = TextSecurePreferences.getSharedPreferences(context)
-+    assertTrue(preferences.edit().putString(CONTROL, "synthetic control").commit())
++    assertTrue(preferences.edit().remove(TIMEOUT).putString(CONTROL, "synthetic control").commit())
++    val wasInstrumentation = Environment.IS_INSTRUMENTATION
++    try {
++      // Keep the real settings facade, without unrelated startup migrations.
++      Environment.IS_INSTRUMENTATION = true
++      settings = SettingsValues(KeyValueStore(MockKeyValuePersistentStorage.withDataSet(KeyValueDataSet()), DirectExecutor()), context)
++    } finally {
++      Environment.IS_INSTRUMENTATION = wasInstrumentation
++    }
++    mockkStatic(SignalStore::class)
++    every { staticGetter<SettingsValues>(SignalStore::class.java, "settings") } returns settings
 +  }
 +
 +  @After
@@ -1943,7 +1958,7 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +  fun `unrelated exporter runtime failure remains fatal`() = runScopedOverflow(openFailure = IllegalStateException("synthetic provider bug"))
 +
 +  private fun exportSnapshot(): Pair<List<BackupFrame>, BackupEvent> {
-+    mockkStatic(SqlUtil::class, AvatarHelper::class, KeyValueDatabase::class, AppDependencies::class, SignalStore::class)
++    mockkStatic(SqlUtil::class, AvatarHelper::class, KeyValueDatabase::class, AppDependencies::class)
 +    val db = mockk<SQLiteDatabase>()
 +    val empty = mockk<Cursor>(relaxed = true)
 +    every { db.version } returns 1
@@ -1975,7 +1990,7 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +  }
 +
 +  private fun prepareJob(scoped: Boolean): NotificationController {
-+    mockkStatic(BackupUtil::class, BackupFileIOError::class, NotificationChannels::class, AttachmentSecretProvider::class, GenericForegroundService::class, SignalDatabase::class, SignalStore::class)
++    mockkStatic(BackupUtil::class, BackupFileIOError::class, NotificationChannels::class, AttachmentSecretProvider::class, SignalDatabase::class)
 +    val backup = mockk<BackupValues>()
 +    every { staticGetter<BackupValues>(SignalStore::class.java, "backup") } returns backup
 +    every { backup.v1BackupPassphrase } returns PASSPHRASE
@@ -1987,6 +2002,9 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +    every { NotificationChannels.supported() } returns false
 +    val constructor = NotificationChannels::class.java.getDeclaredConstructor(Application::class.java).apply { isAccessible = true }
 +    every { NotificationChannels.getInstance() } returns constructor.newInstance(RuntimeEnvironment.getApplication())
++    // Its default channel must initialize outside MockK's recording context.
++    Class.forName(GenericForegroundService::class.java.name, true, GenericForegroundService::class.java.classLoader)
++    mockkStatic(GenericForegroundService::class)
 +    val notification = mockk<NotificationController>(relaxUnitFun = true)
 +    val startForeground = GenericForegroundService::class.java.getDeclaredMethod("startForegroundTask", Context::class.java, String::class.java, String::class.java, Int::class.javaPrimitiveType)
 +    every { startForeground.invoke(null, context, any<String>(), any<String>(), any<Int>()) as NotificationController } returns notification
@@ -2013,9 +2031,7 @@ index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe5
 +    val outputUri = Uri.parse("content://synthetic-backup/document/owned")
 +    val directory = mockk<DocumentFile>()
 +    val temporary = mockk<DocumentFile>()
-+    val settings = mockk<SettingsValues>()
-+    every { staticGetter<SettingsValues>(SignalStore::class.java, "settings") } returns settings
-+    every { settings.signalBackupDirectory } returns directoryUri
++    settings.signalBackupDirectory = directoryUri
 +    mockkStatic(DocumentFile::class, BackupVerifier::class)
 +    every { DocumentFile.fromTreeUri(context, directoryUri) } returns directory
 +    every { directory.canWrite() } returns true
