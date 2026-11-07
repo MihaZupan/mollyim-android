@@ -792,10 +792,10 @@ index 0000000000000000000000000000000000000000..47a0bc2d05f4d1d4cccaf93564aafcd6
 +    secrets: inherit
 diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
 new file mode 100644
-index 0000000000000000000000000000000000000000..7289311ce3b5cb265e929b3b325c297bb1814563
+index 0000000000000000000000000000000000000000..c0c1eca60727bb9efbc8d82a66488c4c31d3cc68
 --- /dev/null
 +++ b/.github/workflows/test.yml
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,55 @@
 +name: Test
 +
 +on:
@@ -836,7 +836,11 @@ index 0000000000000000000000000000000000000000..7289311ce3b5cb265e929b3b325c297b
 +        run: cp gradle.properties.docker "$GRADLE_USER_HOME/gradle.properties"
 +
 +      - name: Build and run tests
-+        run: ./gradlew build
++        run: |
++          free -h
++          ./gradlew --max-workers=2 \
++            '-Dorg.gradle.jvmargs=-Xmx6g -Xms256m -XX:MaxMetaspaceSize=1g -Dcom.android.tools.r8.deterministicdebugging=true -XX:+UnlockExperimentalVMOptions -XX:hashCode=3' \
++            build
 +
 +      - name: Archive reports for failed build
 +        if: "failure()"
