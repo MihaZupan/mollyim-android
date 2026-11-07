@@ -1694,7 +1694,7 @@ index 208942414c2194387e90d2f27738dd8729ac8eaa..029698ab78eaaa7cb86df9ec7f6c2ac1
      val order = FullBackupImporter.computeTableDropOrder(mapOf())
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt b/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..94202bcb08f167c1f63c7880ddf8ec510923c43c
+index 0000000000000000000000000000000000000000..707d185c92d54dddfddbe4abc9b5bbe56b04e2ff
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/backup/PassphraseLockTimeoutBackupTest.kt
 @@ -0,0 +1,456 @@
@@ -1947,12 +1947,12 @@ index 0000000000000000000000000000000000000000..94202bcb08f167c1f63c7880ddf8ec51
 +    val db = mockk<SQLiteDatabase>()
 +    val empty = mockk<Cursor>(relaxed = true)
 +    every { db.version } returns 1
-+    every { db.rawQuery(any(), any<Array<String>?>()) } returns empty
++    every { db.rawQuery(any(), null) } returns empty
 +    every { SqlUtil.getAllTables(db) } returns emptyList()
 +    every { AvatarHelper.getAvatarCount(context) } returns 0
 +    every { AvatarHelper.getAvatars(context) } returns emptyList()
 +    val keyValues = mockk<KeyValueDatabase>()
-+    val application = RuntimeEnvironment.getApplication<Application>()
++    val application = RuntimeEnvironment.getApplication()
 +    every { staticGetter<Application>(AppDependencies::class.java, "getApplication") } returns application
 +    every { KeyValueDatabase.getInstance(application) } returns keyValues
 +    every { keyValues.dataSet } returns KeyValueDataSet().apply { putString("synthetic-modern-key", "modern value") }
