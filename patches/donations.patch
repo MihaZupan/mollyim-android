@@ -4732,7 +4732,7 @@ index 72a6a2ca4ef80ee94dc1e6ac2765bb926b583441..f803fb34b4ae55121b5d3292762d5c5a
        BillingResponseCode.OK -> PaymentAvailability.Available
        BillingResponseCode.BILLING_UNAVAILABLE -> {
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
-index e962dbaf9de3631e7e59be922968c0e3ad43bc30..02ce5525d0f8e056bbca9a2d2ed7e1bf2bfb2136 100644
+index dc66a0e4cf2348e0a4b8933d8ab494feefe2c59f..1b858d9dee15a112d5286055dd0b545232d35f62 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 @@ -43,6 +43,7 @@ import org.signal.registration.fakes.SystemOutLogger

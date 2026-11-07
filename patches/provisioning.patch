@@ -3629,10 +3629,10 @@ index d0cf2887a8c14c0c4c6f84a6a13c0a3db88f1c22..72a6a2ca4ef80ee94dc1e6ac2765bb92
      if (ephemeralBackupKey == null) {
        Log.i(TAG, "[awaitLinkAndSyncArchive] No ephemeral backup key in registration data; no archive expected.")
 diff --git a/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt b/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
-index 05b2e29f5c110ed0c732f7bde00b2fe7e7366152..76cb30bdd38f74dcedf0af17aa43235738f7533f 100644
+index 05b2e29f5c110ed0c732f7bde00b2fe7e7366152..245c400e9a4e92ee35725c5f63fe02da70de6c3b 100644
 --- a/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/RegistrationViewModel.kt
-@@ -91,8 +91,18 @@ class RegistrationViewModel(
+@@ -91,8 +91,19 @@ class RegistrationViewModel(
    }
  
    override suspend fun processEvent(event: RegistrationFlowEvent) {
@@ -3640,7 +3640,8 @@ index 05b2e29f5c110ed0c732f7bde00b2fe7e7366152..76cb30bdd38f74dcedf0af17aa432357
 -    persistFlowState(event)
 +    val nextState = applyEvent(_state.value, event)
 +    val completesRegistration = event is RegistrationFlowEvent.RegistrationComplete ||
-+      event is RegistrationFlowEvent.NavigateToScreen && event.route is RegistrationRoute.FullyComplete
++      event is RegistrationFlowEvent.NavigateToScreen &&
++      event.route is RegistrationRoute.FullyComplete
 +
 +    // Main must not see completion while scratch data still selects the registration-resume route.
 +    if (completesRegistration) {
@@ -3707,7 +3708,7 @@ index d40c951ddb5dda1558c88a32249f4d374f984658..7081e2d67ea4598c0ac12deccd32d102
    val isPhoneNumberlessRegistrationAvailable: Boolean = false
  ) {
 diff --git a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
-index ffe2695f5a5621c75f2688b6245d185399836960..89fef61ae0a4a884a8bbcf8f0357b16c0c12e127 100644
+index ffe2695f5a5621c75f2688b6245d185399836960..935b27583625478c9c4598216253307661961851 100644
 --- a/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
 +++ b/feature/registration/src/main/java/org/signal/registration/screens/welcome/WelcomeScreen.kt
 @@ -90,7 +90,7 @@ fun WelcomeScreen(
@@ -3735,7 +3736,7 @@ index ffe2695f5a5621c75f2688b6245d185399836960..89fef61ae0a4a884a8bbcf8f0357b16c
 +
 +    TextButton(
 +      onClick = { onEvent(WelcomeScreenEvents.LinkDevice) },
-+      modifier = Modifier.testTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
++      modifier = Modifier.testTag(TestTags.WELCOME_LINK_DEVICE_BUTTON),
 +    ) {
 +      Text(stringResource(R.string.WelcomeScreen__link_your_account))
 +    }
@@ -3774,7 +3775,7 @@ index 1e6bef5ea6c4072d4b09228d3df34fe3d68a19d7..052199cb83e278cbc4693364a8560b89
    /**
     * Whether to offer the restore-or-transfer option. Hidden during a re-registration, and kept hidden until the parent
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
-index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e28758820572e2e 100644
+index 6c004404d43ae2160fc800221afeaa5f37372786..54a43c434a193c26da0972be1e19f41ed0b3b839 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationEndToEndTest.kt
 @@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.getOrNull
@@ -3797,15 +3798,15 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e287588
  import org.junit.Before
  import org.junit.Rule
  import org.junit.Test
-@@ -69,6 +75,7 @@ import org.signal.libsignal.protocol.IdentityKeyPair
+@@ -68,6 +74,7 @@ import org.signal.libsignal.net.RequestResult
+ import org.signal.libsignal.protocol.IdentityKeyPair
  import org.signal.network.api.RegistrationApiV2.CheckSvrCredentialsResponse
  import org.signal.network.api.RegistrationApiV2.CreateLoginReceiptCredentialResult
- import org.signal.network.api.RegistrationApiV2.MfaFailureResponse
 +import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
+ import org.signal.network.api.RegistrationApiV2.MfaFailureResponse
  import org.signal.network.api.RegistrationApiV2.RegisterAccountError
  import org.signal.network.api.RegistrationApiV2.RegistrationLockResponse
- import org.signal.network.api.RegistrationApiV2.RestoreMethod
-@@ -170,6 +177,70 @@ class RegistrationEndToEndTest {
+@@ -170,6 +177,72 @@ class RegistrationEndToEndTest {
      unmockkAll()
    }
  
@@ -3827,14 +3828,14 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e287588
 +      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
 +        e164 = E164,
 +        pni = PNI.from(UUID.randomUUID()).toString(),
-+        pniIdentityKeyPair = IdentityKeyPair.generate()
++        pniIdentityKeyPair = IdentityKeyPair.generate(),
 +      ),
 +      profileKey = ByteArray(32),
 +      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
 +      accountEntropyPool = AccountEntropyPool.generate().value,
 +      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString(),
 +      readReceipts = true,
-+      authCredentialSalt = null
++      authCredentialSalt = null,
 +    )
 +    var linkedCallbacks = 0
 +    var storageRestores = 0
@@ -3856,6 +3857,8 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e287588
 +    } else {
 +      waitForTag(TestTags.WELCOME_LINK_DEVICE_BUTTON)
 +      composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
++      waitForTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN)
++      composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
 +    }
 +
 +    waitFor("basic linked registration to complete") { registrationComplete }
@@ -3877,7 +3880,7 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..59d0f76f5230c2bfc6a682395e287588
    fun `happy path - new registration by entering phone number, verification code, and creating a pin`() {
      var registrationComplete = false
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
-index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3ad43bc30 100644
+index 8882ff7d389900659a227baa691fdc83e5364800..dc66a0e4cf2348e0a4b8933d8ab494feefe2c59f 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 @@ -16,6 +16,8 @@ import assertk.assertions.isNull
@@ -3889,14 +3892,14 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
  import kotlinx.coroutines.test.runTest
  import okio.ByteString.Companion.toByteString
  import org.junit.Before
-@@ -28,6 +30,7 @@ import org.signal.core.util.logging.Log
+@@ -27,6 +29,7 @@ import org.signal.core.util.billing.OneTimePurchaseApi
+ import org.signal.core.util.logging.Log
  import org.signal.libsignal.net.RequestResult
  import org.signal.libsignal.protocol.IdentityKeyPair
- import org.signal.network.api.RegistrationApiV2.RegisterAsLinkedDeviceError
 +import org.signal.network.api.RegistrationApiV2.LinkDeviceResponse
+ import org.signal.network.api.RegistrationApiV2.RegisterAsLinkedDeviceError
  import org.signal.network.api.RegistrationApiV2.SvrCredentials
  import org.signal.registration.NetworkController.GetBackupInfoError
- import org.signal.registration.NetworkController.GetBackupInfoResponse
 @@ -38,6 +41,8 @@ import org.signal.registration.fakes.FakeNetworkController
  import org.signal.registration.fakes.FakeStorageController
  import org.signal.registration.fakes.SystemOutLogger
@@ -3949,10 +3952,10 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
 +      phoneNumberData = NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData(
 +        e164 = "+15551234567",
 +        pni = PNI.from(UUID.randomUUID()).toString(),
-+        pniIdentityKeyPair = IdentityKeyPair.generate()
++        pniIdentityKeyPair = IdentityKeyPair.generate(),
 +      ),
 +      ephemeralBackupKey = ByteArray(32) { 1 }.toByteString(),
-+      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString()
++      mediaRootBackupKey = ByteArray(32) { 2 }.toByteString(),
 +    )
 +    var linkedCallbackCount = 0
 +    networkController.onRegisterAsLinkedDevice = { RequestResult.Success(LinkDeviceResponse(deviceId = 2)) }
@@ -4000,7 +4003,7 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
 +    networkController = networkController,
 +    storageController = storageController,
 +    isLinkAndSyncAvailable = enabled,
-+    signalLoginPurchaseApi = OneTimePurchaseApi.Empty
++    signalLoginPurchaseApi = OneTimePurchaseApi.Empty,
 +  )
 +
    @Test
@@ -4014,7 +4017,7 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
 +  private fun linkProvisioningMessage(
 +    phoneNumberData: NetworkController.LinkDeviceProvisioningMessage.PhoneNumberData?,
 +    ephemeralBackupKey: okio.ByteString? = null,
-+    mediaRootBackupKey: okio.ByteString? = null
++    mediaRootBackupKey: okio.ByteString? = null,
 +  ): NetworkController.LinkDeviceProvisioningMessage {
      return NetworkController.LinkDeviceProvisioningMessage(
        provisioningCode = "code",
@@ -4031,7 +4034,7 @@ index 8882ff7d389900659a227baa691fdc83e5364800..e962dbaf9de3631e7e59be922968c0e3
        authCredentialSalt = null
      )
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
-index 9a9eb2bc6e54c8c6ee3cf4b5b0b1770a8ddde482..f385dac01b0e22e7d361a09b52dfe3c66580aaaf 100644
+index 9a9eb2bc6e54c8c6ee3cf4b5b0b1770a8ddde482..1af3a4b7b50611beec1d64c63880a7ae0468c211 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/RegistrationViewModelTest.kt
 @@ -19,11 +19,13 @@ import io.mockk.coEvery
@@ -4056,7 +4059,7 @@ index 9a9eb2bc6e54c8c6ee3cf4b5b0b1770a8ddde482..f385dac01b0e22e7d361a09b52dfe3c6
 +  fun `linked and primary completion wait for scratch cleanup before exposing the terminal route`() = runTest(testDispatcher) {
 +    val completionEvents = listOf(
 +      RegistrationFlowEvent.NavigateToScreen(RegistrationRoute.FullyComplete),
-+      RegistrationFlowEvent.RegistrationComplete
++      RegistrationFlowEvent.RegistrationComplete,
 +    )
 +    for (event in completionEvents) {
 +      val cleanup = CompletableDeferred<Unit>()
@@ -4082,22 +4085,21 @@ index 9a9eb2bc6e54c8c6ee3cf4b5b0b1770a8ddde482..f385dac01b0e22e7d361a09b52dfe3c6
    fun `onEvent ResetState clears flow state`() = runTest(testDispatcher) {
      coEvery { mockRepository.restoreFlowState() } returns null
 diff --git a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt b/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
-index aeed7dc3a650649c2d7d70d36b57c534ec95c996..db32039e85ce9c026c063848a7530e90f96f8dbf 100644
+index aeed7dc3a650649c2d7d70d36b57c534ec95c996..b68f57eac006df1b0966e492c1ff773c49bca9e4 100644
 --- a/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/fakes/FakeNetworkController.kt
-@@ -500,7 +500,10 @@ class FakeNetworkController(
+@@ -500,7 +500,9 @@ class FakeNetworkController(
      return onStartProvisioning()
    }
  
 -  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = notExpected()
 +  var onStartLinkDeviceProvisioning: (Boolean) -> Flow<LinkDeviceProvisioningEvent> = { notExpected() }
 +
-+  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> =
-+    onStartLinkDeviceProvisioning(allowLinkAndSync)
++  override fun startLinkDeviceProvisioning(allowLinkAndSync: Boolean): Flow<LinkDeviceProvisioningEvent> = onStartLinkDeviceProvisioning(allowLinkAndSync)
  
    override suspend fun registerAsLinkedDevice(
      aci: ACI,
-@@ -515,11 +518,17 @@ class FakeNetworkController(
+@@ -515,11 +517,17 @@ class FakeNetworkController(
      return onRegisterAsLinkedDevice(deviceAttributes)
    }
  
@@ -4134,7 +4136,7 @@ index cdd45477876cd3f029c411b143d7e06c43bd6acd..a8974bb91abe348039f493d3b623b315
    }
  
 diff --git a/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt b/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
-index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..d7eaf34b3d2515a854846c334298ddb9306c5397 100644
+index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..41fca4d40c89fe35429d7e5c585da264a73a400d 100644
 --- a/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/screens/phonenumber/PhoneNumberScreenTest.kt
 @@ -10,9 +10,11 @@ import android.content.Context
@@ -4187,7 +4189,7 @@ index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..d7eaf34b3d2515a854846c334298ddb9
 +      SignalTheme {
 +        PhoneNumberScreen(
 +          state = PhoneNumberEntryState(initialized = true, isLinkAndSyncAvailable = false),
-+          onEvent = { emittedEvent = it }
++          onEvent = { emittedEvent = it },
 +        )
 +      }
 +    }
@@ -4206,7 +4208,7 @@ index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..d7eaf34b3d2515a854846c334298ddb9
 +      SignalTheme {
 +        PhoneNumberScreen(
 +          state = PhoneNumberEntryState(initialized = true, preExistingRegistrationData = mockk<PreExistingRegistrationData>()),
-+          onEvent = {}
++          onEvent = {},
 +        )
 +      }
 +    }
@@ -4219,7 +4221,7 @@ index 2faeadc594b5fabafb6165c9ca58d3faf9d2d105..d7eaf34b3d2515a854846c334298ddb9
    fun `Next button is disabled when fields are empty`() {
      // Given
 diff --git a/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt b/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
-index 0b531cb1d20c8d642e15a4c8d2a380f9281bda39..3a07a0ed2b8ecc779080a9286f9741170466fae5 100644
+index 0b531cb1d20c8d642e15a4c8d2a380f9281bda39..6f1a30f883d32fa90848aa6446b7168f8cd8d365 100644
 --- a/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
 +++ b/feature/registration/src/test/java/org/signal/registration/screens/welcome/WelcomeScreenTest.kt
 @@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
@@ -4257,7 +4259,7 @@ index 0b531cb1d20c8d642e15a4c8d2a380f9281bda39..3a07a0ed2b8ecc779080a9286f974117
 +      SignalTheme {
 +        WelcomeScreen(
 +          state = WelcomeScreenState(isLinkAndSyncAvailable = false),
-+          onEvent = { emittedEvent = it }
++          onEvent = { emittedEvent = it },
 +        )
 +      }
 +    }
