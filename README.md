@@ -53,7 +53,7 @@ worktrees are never reset, overwritten or automatically cleaned.
 python .\scripts\patch_stack.py inspect
 python -m unittest discover -s scripts -p 'test_*.py'
 python .\scripts\patch_stack.py import --destination D:\molly\migration-worktrees\molly-8342-import-review
-python .\scripts\patch_stack.py check --destination D:\molly\migration-worktrees\molly-8342-check-review
+python .\scripts\patch_stack.py check --source-ref refs/heads/v8.34.2/molly --baseline-ref refs/heads/v8.34.2/signal-baseline --destination D:\molly\migration-worktrees\molly-8342-check-review
 python .\scripts\patch_stack.py export --source-ref v8.34.2/molly --destination D:\molly\migration-worktrees\molly-8342-export-review
 ```
 
@@ -110,6 +110,8 @@ The `check` operation verifies the exact remote baseline and source branch heads
 linear commit count, and reconstruction of the complete ordered patches into the
 recorded source tree. An intentional pending edit can fail
 that steady-state gate until its counterpart proposal is reviewed and promoted.
+Without explicit ref arguments, `check` uses the fetched `origin` source and
+baseline heads, as in GitHub Actions. The local example above checks local heads.
 
 Nothing is active until branches are published. GitHub manual dispatch also
 requires the workflow to be registered on the repository's default branch;
