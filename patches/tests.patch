@@ -1466,6 +1466,52 @@ index 6eb8c32b347ce4d60a629c765af1566beaa090cc..846ad96aac8e84a43c496b9f5983ac52
      override fun provideIsIncognitoKeyboardEnabled(): Boolean = isIncognitoKeyboardEnabled
      override fun provideIsScreenSecurityEnabled(): Boolean = false
    }
+diff --git a/feature/media-send/src/test/java/org/signal/mediasend/screens/capture/MediaCaptureViewModelTest.kt b/feature/media-send/src/test/java/org/signal/mediasend/screens/capture/MediaCaptureViewModelTest.kt
+index 97a7aacfff747836c4fbbce1e44fe9dff2e2485f..fb955670896e3d0c8136d8fbd106dff854db9a9e 100644
+--- a/feature/media-send/src/test/java/org/signal/mediasend/screens/capture/MediaCaptureViewModelTest.kt
++++ b/feature/media-send/src/test/java/org/signal/mediasend/screens/capture/MediaCaptureViewModelTest.kt
+@@ -20,7 +20,10 @@ import assertk.assertions.isNull
+ import assertk.assertions.isTrue
+ import io.mockk.coEvery
+ import io.mockk.coVerify
++import io.mockk.every
+ import io.mockk.mockk
++import io.mockk.mockkStatic
++import io.mockk.unmockkStatic
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.delay
+@@ -40,6 +43,7 @@ import org.robolectric.RobolectricTestRunner
+ import org.robolectric.annotation.Config
+ import org.signal.core.models.media.Media
+ import org.signal.core.util.SeekableFileDescriptor
++import org.signal.mediasend.MediaConstraints
+ import org.signal.mediasend.MediaRecipientId
+ import org.signal.mediasend.MediaSendDependenciesRule
+ import org.signal.mediasend.MediaSendFlowActivityContract
+@@ -163,12 +167,17 @@ class MediaCaptureViewModelTest {
+   }
+ 
+   @Test
+-  @Config(sdk = [25])
+   fun `Given a device that cannot record, when created, then video is withheld`() = runTest {
+-    val viewModel = createViewModel(cameraFirstStoryCapableState())
+-
+-    assertThat(viewModel.state.value.availableCaptureModes)
+-      .containsExactly(MediaCaptureMode.PHOTO, MediaCaptureMode.TEXT_STORY)
++    mockkStatic(MediaConstraints::class)
++    try {
++      every { MediaConstraints.isVideoTranscodeAvailable() } returns false
++      val viewModel = createViewModel(cameraFirstStoryCapableState())
++
++      assertThat(viewModel.state.value.availableCaptureModes)
++        .containsExactly(MediaCaptureMode.PHOTO, MediaCaptureMode.TEXT_STORY)
++    } finally {
++      unmockkStatic(MediaConstraints::class)
++    }
+   }
+ 
+   @Test
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
 index 6fb6d2553afec28bbbf325d08e7fb7436e629953..35a00944e686e27680d24a8c069703c8224b9583 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationPermissionsTest.kt
