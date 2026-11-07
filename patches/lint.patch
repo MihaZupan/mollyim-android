@@ -11,6 +11,21 @@ Upstream-baseline: 515db93fb48206d63406cbfb48c5816f6af1d9e2
 Prior-version-input: 56b69d72ed9e5a6860570aef0273d4e6b8ce25ab
 Semantic-boundary: 35/36
 
+diff --git a/.editorconfig b/.editorconfig
+index e42b304244290c6f261a9f0f1183c9c9f2693d3a..cdf74d1c5fb57403e8ef1a73d6e1f797033fdf83 100644
+--- a/.editorconfig
++++ b/.editorconfig
+@@ -2,8 +2,8 @@ root = true
+ 
+ [*.{kt,kts}]
+ indent_size = 2
+-ktlint_standard_trailing-comma-on-call-site = disable
+-ktlint_standard_trailing-comma-on-declaration-site = disable
++ktlint_standard_trailing-comma-on-call-site = disabled
++ktlint_standard_trailing-comma-on-declaration-site = disabled
+ ktlint_standard_spacing-between-declarations-with-annotations = disable
+ ktlint_code_style = intellij_idea
+ ktlint_standard_class-naming = disabled
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java b/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java
 index 046875b7b10820acdd8bf73dcdf3e32bc493fe82..cb8c36bd237995ab7e2136c74b92c4f1d59db02b 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/profiles/edit/CreateProfileActivity.java
