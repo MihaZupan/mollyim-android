@@ -4371,6 +4371,19 @@ index c8a66e861349ae33633adc1eb42381cac15bdfae..8850a563a5af664ee31e55044a719674
 -</resources>
 \ No newline at end of file
 +</resources>
+diff --git a/app/src/test/java/org/thoughtcrime/securesms/badges/view/ViewBadgeSheetContentTest.kt b/app/src/test/java/org/thoughtcrime/securesms/badges/view/ViewBadgeSheetContentTest.kt
+index d61a03bbc76825119487538bfb73a70653cc8dd3..60e42b58b0ff6bf5726326f568ae62a0244535c6 100644
+--- a/app/src/test/java/org/thoughtcrime/securesms/badges/view/ViewBadgeSheetContentTest.kt
++++ b/app/src/test/java/org/thoughtcrime/securesms/badges/view/ViewBadgeSheetContentTest.kt
+@@ -100,7 +100,7 @@ class ViewBadgeSheetContentTest {
+     setContent(state.copy(canDonateInApp = false))
+ 
+     composeTestRule.onNodeWithTag(ViewBadgeSheetTestTags.NO_IN_APP_DONATIONS).assertExists()
+-    composeTestRule.onNodeWithText("Donate to Signal").assertExists()
++    composeTestRule.onNodeWithText("Donate to Molly").assertExists()
+   }
+ 
+   private fun setContent(state: ViewBadgeSheetState) {
 diff --git a/core/ui/src/main/res/drawable/image_signal_logo_wordmark.xml b/core/ui/src/main/res/drawable/image_signal_logo_wordmark.xml
 deleted file mode 100644
 index f898aac4fed03e4fa9aea7fc2564b96999c2f9c8..0000000000000000000000000000000000000000
