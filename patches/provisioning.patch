@@ -3879,6 +3879,99 @@ index 6c004404d43ae2160fc800221afeaa5f37372786..54a43c434a193c26da0972be1e19f41e
    @Test
    fun `happy path - new registration by entering phone number, verification code, and creating a pin`() {
      var registrationComplete = false
+diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationNavigationTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationNavigationTest.kt
+index 4b985af7f65504b7558ca4a655828e13852e540f..719b8be0d2c5b84651926fc480ea5d1775377366 100644
+--- a/feature/registration/src/test/java/org/signal/registration/RegistrationNavigationTest.kt
++++ b/feature/registration/src/test/java/org/signal/registration/RegistrationNavigationTest.kt
+@@ -270,9 +270,9 @@ class RegistrationNavigationTest {
+   }
+ 
+   @Test
+-  fun `when isLinkAndSyncAvailable is true on compact display, link device button is not shown`() {
++  fun `when link-and-sync is disabled on compact display, basic linking is reachable`() {
+     // Given
+-    every { mockRepository.isLinkAndSyncAvailable } returns true
++    every { mockRepository.isLinkAndSyncAvailable } returns false
+     val permissionsState = createMockPermissionsState()
+ 
+     composeTestRule.setContent {
+@@ -284,17 +284,24 @@ class RegistrationNavigationTest {
+       }
+     }
+ 
+-    // Then - compact layout always uses the primary buttons regardless of the flag
+-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
++    // Then
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
+     composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
+     composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
++
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
+   }
+ 
+   @Test
+   @Config(qualifiers = "w800dp-h800dp-xhdpi")
+-  fun `when isLinkAndSyncAvailable is true on medium display, link device button is not shown`() {
++  fun `when link-and-sync is disabled on medium display, basic linking is reachable`() {
+     // Given
+-    every { mockRepository.isLinkAndSyncAvailable } returns true
++    every { mockRepository.isLinkAndSyncAvailable } returns false
+     val permissionsState = createMockPermissionsState()
+ 
+     composeTestRule.setContent {
+@@ -306,16 +313,24 @@ class RegistrationNavigationTest {
+       }
+     }
+ 
+-    // Then - medium layout always uses the primary buttons regardless of the flag
+-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
++    // Then
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
+     composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
+     composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
++
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
+   }
+ 
+   @Test
+   @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+-  fun `when isLinkAndSyncAvailable is false, Welcome does not show the link device button`() {
+-    // Given - relaxed mock returns false for isLinkAndSyncAvailable by default
++  fun `when link-and-sync is disabled on expanded display, basic linking is reachable`() {
++    // Given
++    every { mockRepository.isLinkAndSyncAvailable } returns false
+     val permissionsState = createMockPermissionsState()
+ 
+     composeTestRule.setContent {
+@@ -328,9 +343,16 @@ class RegistrationNavigationTest {
+     }
+ 
+     // Then
+-    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertDoesNotExist()
+-    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertIsDisplayed()
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).assertIsDisplayed()
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_RESTORE_OR_TRANSFER_BUTTON).assertDoesNotExist()
+     composeTestRule.onNodeWithTag(TestTags.WELCOME_GET_STARTED_BUTTON).assertIsDisplayed()
++
++    composeTestRule.onNodeWithTag(TestTags.WELCOME_LINK_DEVICE_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_SCREEN).assertIsDisplayed()
++    composeTestRule.onNodeWithTag(TestTags.ALLOW_NOTIFICATIONS_NOT_NOW_BUTTON).performClick()
++    Shadows.shadowOf(Looper.getMainLooper()).idle()
++    composeTestRule.onNodeWithTag(TestTags.LINK_ACCOUNT_SCREEN).assertIsDisplayed()
+   }
+ 
+   @Test
 diff --git a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt b/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
 index 8882ff7d389900659a227baa691fdc83e5364800..dc66a0e4cf2348e0a4b8933d8ab494feefe2c59f 100644
 --- a/feature/registration/src/test/java/org/signal/registration/RegistrationRepositoryTest.kt
