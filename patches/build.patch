@@ -792,7 +792,7 @@ index 0000000000000000000000000000000000000000..47a0bc2d05f4d1d4cccaf93564aafcd6
 +    secrets: inherit
 diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
 new file mode 100644
-index 0000000000000000000000000000000000000000..26210e61ecd77989fd1cb3a49fbf15c29b4a0253
+index 0000000000000000000000000000000000000000..a428ef78e246df4f229b6d87b5c5928eb9a909d0
 --- /dev/null
 +++ b/.github/workflows/test.yml
 @@ -0,0 +1,55 @@
@@ -838,8 +838,8 @@ index 0000000000000000000000000000000000000000..26210e61ecd77989fd1cb3a49fbf15c2
 +      - name: Build and run tests
 +        run: |
 +          free -h
-+          ./gradlew --stacktrace --max-workers=2 \
-+            '-Dorg.gradle.jvmargs=-Xmx6g -Xms256m -XX:MaxMetaspaceSize=1g -Dcom.android.tools.r8.deterministicdebugging=true -XX:+UnlockExperimentalVMOptions -XX:hashCode=3' \
++          ./gradlew --stacktrace --max-workers=1 \
++            '-Dorg.gradle.jvmargs=-Xmx8g -Xms256m -XX:MaxMetaspaceSize=1g -Dcom.android.tools.r8.deterministicdebugging=true -XX:+UnlockExperimentalVMOptions -XX:hashCode=3' \
 +            build
 +
 +      - name: Archive reports for failed build
