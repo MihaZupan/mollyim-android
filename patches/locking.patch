@@ -5153,7 +5153,7 @@ index 0000000000000000000000000000000000000000..e796c1ba1c062153ad21731b87d0d532
 +  protected abstract void onReceiveUnlock(Context context, Intent intent);
 +}
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java b/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
-index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b73a46390 100644
+index 641003bb243595cf1f54439750058a11531b3ad4..8ecf4c903a7d98461f14bdaa3a215e8eb0aba087 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/service/KeyCachingService.java
 @@ -16,43 +16,39 @@
@@ -5208,7 +5208,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
  import java.util.concurrent.TimeUnit;
  
  /**
-@@ -66,80 +62,63 @@ public class KeyCachingService extends Service {
+@@ -66,80 +62,67 @@ public class KeyCachingService extends Service {
    private static final String TAG = Log.tag(KeyCachingService.class);
  
    public  static final String KEY_PERMISSION           = BuildConfig.APPLICATION_ID + ".ACCESS_SECRETS";
@@ -5301,6 +5301,10 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
 +    if (intent == null || (intent.getAction() != null && isLocked())) {
 +      return START_NOT_STICKY;
 +    }
++    if (intent.getAction() == null && isLocked()) {
++      stopSelf();
++      return START_NOT_STICKY;
++    }
      Log.d(TAG, "onStartCommand, " + intent.getAction());
  
      if (intent.getAction() != null) {
@@ -5318,7 +5322,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
      }
  
      return START_NOT_STICKY;
-@@ -147,24 +126,19 @@ public class KeyCachingService extends Service {
+@@ -147,24 +130,19 @@ public class KeyCachingService extends Service {
  
    @Override
    public void onCreate() {
@@ -5349,7 +5353,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
    }
  
    /**
-@@ -178,98 +152,105 @@ public class KeyCachingService extends Service {
+@@ -178,98 +156,105 @@ public class KeyCachingService extends Service {
      startActivity(intent);
    }
  
@@ -5497,7 +5501,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
  
      Log.i(TAG, "foregrounding KCS");
 -    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.getInstance().LOCKED_STATUS);
-+    NotificationChannels.getInstance();
++    NotificationChannels.ensureServiceChannels(this);
 +    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.LOCKED_STATUS);
  
      builder.setContentTitle(getString(R.string.KeyCachingService_passphrase_cached));
@@ -5512,7 +5516,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
      builder.setOngoing(true);
  
      builder.addAction(org.signal.core.ui.R.drawable.symbol_lock_24, getString(R.string.KeyCachingService_lock), buildLockIntent());
-@@ -288,18 +269,9 @@ public class KeyCachingService extends Service {
+@@ -288,18 +273,9 @@ public class KeyCachingService extends Service {
      }
    }
  
@@ -5532,7 +5536,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
      return PendingIntent.getService(getApplicationContext(), 0, intent, getPendingIntentFlags());
    }
  
-@@ -308,9 +280,10 @@ public class KeyCachingService extends Service {
+@@ -308,9 +284,10 @@ public class KeyCachingService extends Service {
      return PendingIntent.getActivity(getApplicationContext(), 0, MainActivity.clearTop(this), getPendingIntentFlags());
    }
  
@@ -5546,7 +5550,7 @@ index 641003bb243595cf1f54439750058a11531b3ad4..da4e01732f0b2a0d6907132d2fbfa91b
    }
  
    private static int getPendingIntentFlags() {
-@@ -327,4 +300,39 @@ public class KeyCachingService extends Service {
+@@ -327,4 +304,39 @@ public class KeyCachingService extends Service {
        return KeyCachingService.this;
      }
    }
@@ -40017,10 +40021,10 @@ index 0000000000000000000000000000000000000000..4a0d3a96900c54e38bfb574df2748fb4
 +}
 diff --git a/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt b/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..8d4dcb2830c5b7888fa622dff1d10a088d72c76c
+index 0000000000000000000000000000000000000000..1e3a8280b1ad1ebf5a93f12d506e51caa4ebf1e8
 --- /dev/null
 +++ b/app/src/test/java/org/thoughtcrime/securesms/service/KeyCachingServiceTest.kt
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,96 @@
 +package org.thoughtcrime.securesms.service
 +
 +import android.app.Application
@@ -40044,6 +40048,7 @@ index 0000000000000000000000000000000000000000..8d4dcb2830c5b7888fa622dff1d10a08
 +import org.signal.core.util.eventbus.EventBus
 +import org.signal.devicetransfer.TransferStatus
 +import org.thoughtcrime.securesms.crypto.MasterSecret
++import org.thoughtcrime.securesms.keyvalue.SignalStore
 +import org.thoughtcrime.securesms.migrations.ApplicationMigrations
 +
 +@RunWith(RobolectricTestRunner::class)
@@ -40069,6 +40074,17 @@ index 0000000000000000000000000000000000000000..8d4dcb2830c5b7888fa622dff1d10a08
 +    EventBus.default.removeStickyEvent(TransferStatus::class.java)
 +    KeyCachingService.clearMasterSecret()
 +    unmockkStatic(ApplicationMigrations::class)
++  }
++
++  @Test
++  fun `replayed cache request while locked does not access encrypted storage`() {
++    KeyCachingService.clearMasterSecret()
++    SignalStore.testInject(null)
++
++    assertEquals(KeyCachingService.START_NOT_STICKY, service.onStartCommand(Intent(service, KeyCachingService::class.java), 0, 1))
++
++    assertTrue(KeyCachingService.isLocked())
++    assertTrue(shadowOf(service).isStoppedBySelf)
 +  }
 +
 +  @Test

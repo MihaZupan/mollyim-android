@@ -511,10 +511,18 @@ index c2e874f6e64672109fb9dd0f8d52ebb3b09c0776..933abbb15c875e5eb3f1f045c6783233
      _libsignalNetwork.reset()
      _networkModule.reset()
 diff --git a/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java b/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
-index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344ee6e22fc8 100644
+index f1b1b39f0844ff277bcafea0b5216396afe79999..1793fa51c48354229e27f35fd4ff80c0c8b82d2d 100644
 --- a/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
 +++ b/app/src/main/java/org/thoughtcrime/securesms/dependencies/ApplicationDependencyProvider.java
-@@ -99,12 +99,13 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
+@@ -13,7 +13,6 @@ import org.jetbrains.annotations.NotNull;
+ import org.signal.billing.BillingFactory;
+ import org.signal.core.models.ServiceId.ACI;
+ import org.signal.core.models.ServiceId.PNI;
+-import org.signal.core.util.AppForegroundObserver;
+ import org.signal.core.util.ByteUnit;
+ import org.signal.core.util.SleepTimer;
+ import org.signal.core.util.ThreadUtil;
+@@ -99,12 +98,13 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore;
  import org.thoughtcrime.securesms.megaphone.MegaphoneRepository;
  import org.thoughtcrime.securesms.messages.IncomingMessageObserver;
  import org.thoughtcrime.securesms.net.DeviceTransferBlockingInterceptor;
@@ -530,7 +538,7 @@ index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344e
  import org.thoughtcrime.securesms.push.SecurityEventListener;
  import org.thoughtcrime.securesms.push.SignalServiceNetworkAccess;
  import org.thoughtcrime.securesms.recipients.LiveRecipientCache;
-@@ -119,7 +120,6 @@ import org.thoughtcrime.securesms.service.ScheduledMessageManager;
+@@ -119,7 +119,6 @@ import org.thoughtcrime.securesms.service.ScheduledMessageManager;
  import org.thoughtcrime.securesms.service.TrimThreadsByDateManager;
  import org.thoughtcrime.securesms.service.UnreadReminderManager;
  import org.thoughtcrime.securesms.service.webrtc.SignalCallManager;
@@ -538,7 +546,7 @@ index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344e
  import org.thoughtcrime.securesms.stories.Stories;
  import org.thoughtcrime.securesms.util.AdaptiveSleepTimer;
  import org.thoughtcrime.securesms.util.EarlyMessageCache;
-@@ -271,6 +271,11 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -271,6 +270,11 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
      return new SignalServiceNetworkAccess(context);
    }
  
@@ -550,7 +558,7 @@ index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344e
    @Override
    public @NonNull LiveRecipientCache provideRecipientCache() {
      return new LiveRecipientCache();
-@@ -376,8 +381,8 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -376,8 +380,8 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
      Network network = new Network(BuildConfig.LIBSIGNAL_NET_ENV, StandardUserAgentInterceptor.USER_AGENT, RemoteConfig.getLibsignalConfigs(), Network.BuildVariant.PRODUCTION);
      LibSignalNetworkExtensions.applyConfiguration(network, config);
  
@@ -561,7 +569,7 @@ index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344e
      proxyState.update(proxyConfig);
  
      return network;
-@@ -398,23 +403,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -398,23 +402,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
      return new DatabaseObserver();
    }
  
@@ -585,7 +593,29 @@ index f1b1b39f0844ff277bcafea0b5216396afe79999..cedff1eb300aa33c4b987d7644ad344e
    @Override
    public @NonNull SignalCallManager provideSignalCallManager() {
      return new SignalCallManager(context);
-@@ -595,8 +583,10 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+@@ -454,10 +441,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+                                                                                                   () -> !SignalStore.misc().isClientDeprecated() && SignalStore.account().isRegistered() && !SignalStore.account().isUnauthorizedReceived() && !DeviceTransferBlockingInterceptor.getInstance().isBlockingNetwork() && !Environment.IS_INSTRUMENTATION,
+                                                                                                   sleepTimer,
+                                                                                                   TimeUnit.SECONDS.toMillis(30));
+-    if (AppForegroundObserver.isForegrounded()) {
+-      webSocket.registerKeepAliveToken(SignalWebSocket.FOREGROUND_KEEPALIVE);
+-    }
+-
+     healthMonitor.monitor(webSocket);
+ 
+     return webSocket;
+@@ -481,10 +464,6 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
+                                                                                                       () -> !SignalStore.misc().isClientDeprecated() && !DeviceTransferBlockingInterceptor.getInstance().isBlockingNetwork() && !Environment.IS_INSTRUMENTATION,
+                                                                                                       sleepTimer,
+                                                                                                       TimeUnit.SECONDS.toMillis(30));
+-    if (AppForegroundObserver.isForegrounded()) {
+-      webSocket.registerKeepAliveToken(SignalWebSocket.FOREGROUND_KEEPALIVE);
+-    }
+-
+     healthMonitor.monitor(webSocket);
+     return webSocket;
+   }
+@@ -595,8 +574,10 @@ public class ApplicationDependencyProvider implements AppDependencies.Provider {
  
        return new OkHttpClient.Builder()
            .sslSocketFactory(new Tls12SocketFactory(sslContext.getSocketFactory()), trustManager)
